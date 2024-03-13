@@ -1,7 +1,9 @@
-use crate::access_flags::MethodAccessFlags;
-use crate::attribute::Attribute;
 use byteorder::{BigEndian, ReadBytesExt};
-use std::io::Cursor;
+
+use crate::access_flags::MethodAccessFlags;
+use crate::attribute::{Attribute, AttributeParser};
+use crate::class_reader::ClassReader;
+use crate::constant_pool::ConstantPool;
 
 #[derive(Debug)]
 pub struct Method {
@@ -11,28 +13,21 @@ pub struct Method {
     pub attributes: Vec<Attribute>,
 }
 
-impl Method {
-    pub(crate) fn parse_methods(
-        method_count: usize,
-        class_reader: &mut Cursor<Vec<u8>>,
-    ) -> Result<Vec<Method>, String> {
-        let mut methods = Vec::with_capacity(method_count);
-        for _ in 0..method_count {
-            let access_flags =
-                MethodAccessFlags::from_bits(class_reader.read_u16::<BigEndian>().unwrap())
-                    .unwrap();
+impl AttributeParser for Method {
+    fn parse_attr(
+        constant_pool: &ConstantPool,
+        class_reader: &mut ClassReader,
+        count: u16,
+    ) -> Result<Vec<Attribute>, String> {
+        for _ in 0..=count {
             let name_index = class_reader.read_u16::<BigEndian>().unwrap() as usize;
-            let descriptor_index = class_reader.read_u16::<BigEndian>().unwrap() as usize;
-            let attributes_count = class_reader.read_u16::<BigEndian>().unwrap();
-            let attributes = Attribute::parse_attributes(attributes_count as usize, class_reader)?;
-
-            methods.push(Method {
-                access_flags,
-                name_index,
-                descriptor_index,
-                attributes,
-            });
+            let length = class_reader.read_u32::<BigEndian>().unwrap();
+            let name = constant_pool.get_utf8(name_index).unwrap();
+            match name.as_bytes() {
+                b"Code" => {}
+                _ => {}
+            }
         }
-        Ok(methods)
+        Err(String::new())
     }
 }

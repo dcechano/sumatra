@@ -1,15 +1,17 @@
-use crate::attribute::Attribute;
+use std::cmp::min;
+use std::io::Cursor;
+use crate::access_flags::{FieldAccessFlags, MethodAccessFlags};
+use crate::attribute::{Attribute, AttributeParser};
 use crate::class_file::Constant::{
     Class, Double, Dummy, Dynamic, FieldRef, Float, Integer, InterfaceMethodRef, InvokeDynamic,
     Long, MethodHandle, MethodRef, MethodType, Module, NameAndType, Package, UTF8,
 };
+use crate::class_reader::ClassReader;
 use crate::constant::Constant;
+use crate::constant_pool::ConstantPool;
 use crate::field::Field;
 use crate::method::Method;
 use byteorder::{BigEndian, ReadBytesExt};
-use std::fs::File;
-use std::io::{Cursor, Read};
-use std::os::unix::prelude::OsStrExt;
 use std::path::Path;
 
 /// Represents the format of a JVM `.class` file
@@ -18,7 +20,7 @@ pub struct ClassFile {
     pub magic: u32,
     pub minor_version: u16,
     pub major_version: u16,
-    pub constant_pool: Vec<Constant>,
+    pub constant_pool: ConstantPool,
     pub access_flags: u16,
     pub this_class: u16,
     pub super_class: u16,
@@ -30,27 +32,7 @@ pub struct ClassFile {
 
 impl ClassFile {
     pub fn parse_class<P: AsRef<Path>>(path: P) -> Result<ClassFile, String> {
-        match path.as_ref().extension() {
-            None => {
-                return Err("Path to file must be a .class file.".into());
-            }
-            Some(ext) => {
-                if ext.as_bytes() != b"class" {
-                    return Err("Path to file must be a .class file.".into());
-                }
-            }
-        };
-        let mut class_reader = {
-            let mut buffer = Vec::new();
-            let mut file = match File::open(path.as_ref()) {
-                Ok(file) => file,
-                Err(_) => {
-                    panic!();
-                }
-            };
-            file.read_to_end(&mut buffer).unwrap();
-            Cursor::new(buffer)
-        };
+        let mut class_reader = ClassReader::new(path.as_ref()).unwrap();
 
         let magic = class_reader.read_u32::<BigEndian>().unwrap();
         let minor_version = class_reader.read_u16::<BigEndian>().unwrap();
@@ -60,14 +42,22 @@ impl ClassFile {
         let access_flags = class_reader.read_u16::<BigEndian>().unwrap();
         let this_class = class_reader.read_u16::<BigEndian>().unwrap();
         let super_class = class_reader.read_u16::<BigEndian>().unwrap();
-        let interfaces_count = class_reader.read_u16::<BigEndian>().unwrap();
-        let interfaces = Self::parse_interfaces(interfaces_count as usize, &mut class_reader)?;
+        let interfaces_count = class_reader.read_u16::<BigEndian>().unwrap() as usize;
+        let interfaces = Self::parse_interfaces(interfaces_count, &mut class_reader)?;
         let fields_count = class_reader.read_u16::<BigEndian>().unwrap();
-        let fields = Field::parse_fields(fields_count, &mut class_reader).unwrap();
-        let method_count = class_reader.read_u16::<BigEndian>().unwrap();
-        let methods = Method::parse_methods(method_count as usize, &mut class_reader).unwrap();
+        let fields = todo!();
+        let method_count = class_reader.read_u16::<BigEndian>().unwrap() as usize;
+        let methods = Self::parse_methods(
+            &constant_pool,
+            &mut class_reader,
+            method_count,
+            minor_version,
+            major_version,
+        )
+        .unwrap();
         let attributes_count = class_reader.read_u16::<BigEndian>().unwrap();
-        let attributes = Attribute::parse_attributes(attributes_count as usize, &mut class_reader)?;
+        let attributes =
+            ClassFile::parse_attr(&constant_pool, &mut class_reader, attributes_count).unwrap();
 
         Ok(ClassFile {
             magic,
@@ -84,11 +74,8 @@ impl ClassFile {
         })
     }
 
-    fn parse_cp(
-        cp_count: usize,
-        class_reader: &mut Cursor<Vec<u8>>,
-    ) -> Result<Vec<Constant>, String> {
-        let mut constant_pool = Vec::with_capacity(cp_count);
+    fn parse_cp(cp_count: usize, class_reader: &mut ClassReader) -> Result<ConstantPool, String> {
+        let mut constant_pool = ConstantPool::new(cp_count);
         constant_pool.push(Dummy);
         for _ in 0..cp_count - 1 {
             let constant = match class_reader.read_u8().unwrap() {
@@ -161,10 +148,72 @@ impl ClassFile {
         }
         Ok(constant_pool)
     }
+    fn parse_methods(
+        constant_pool: &ConstantPool,
+        class_reader: &mut ClassReader,
+        method_count: usize,
+        min_ver: u16,
+        maj_ver: u16,
+    ) -> Result<Vec<Method>, String> {
+        let mut methods = Vec::with_capacity(method_count);
+        for _ in 0..method_count {}
+        Ok(methods)
+    }
+
+    fn parse_method(
+        constant_pool: &ConstantPool,
+        class_reader: &mut ClassReader,
+        min_ver: u16,
+        maj_ver: u16,
+    ) -> Result<Method, String> {
+        let access_flags =
+            MethodAccessFlags::from_bits(class_reader.read_u16::<BigEndian>().unwrap()).unwrap();
+            
+        // TODO: uncomment when implement
+        // access_flags.verify_flags(min_ver, maj_ver, /*is_interface*/)
+        
+        let name_index = class_reader.read_u16::<BigEndian>().unwrap() as usize;
+        let descriptor_index = class_reader.read_u16::<BigEndian>().unwrap() as usize;
+        let attributes_count = class_reader.read_u16::<BigEndian>().unwrap();
+        let attributes = Method::parse_attr(constant_pool, class_reader, attributes_count).unwrap();
+
+        Err("Couldn't parse method.".to_string())
+    }
+
+    pub(crate) fn parse_fields(
+        fields_count: u16,
+        class_reader: &mut Cursor<Vec<u8>>,
+    ) -> Result<Vec<Field>, String> {
+        let mut fields = Vec::with_capacity(fields_count as usize);
+        for _ in 0..fields_count {
+            let access_flags = class_reader.read_u16::<BigEndian>().unwrap();
+            let name_index = class_reader.read_u16::<BigEndian>().unwrap() as usize;
+            let descriptor_index = class_reader.read_u16::<BigEndian>().unwrap() as usize;
+            let attributes_count = class_reader.read_u16::<BigEndian>().unwrap();
+            let attributes = todo!();
+            let access_flags = match FieldAccessFlags::from_bits(access_flags) {
+                None => {
+                    eprintln!("unrecognized Field access flag: {access_flags}");
+                    eprintln!("name_index: {name_index}");
+                    eprintln!("descriptor_index: {descriptor_index}");
+                    panic!();
+                }
+                Some(access_flags) => access_flags,
+            };
+
+            fields.push(Field {
+                access_flags,
+                name_index,
+                descriptor_index,
+                attributes,
+            });
+        }
+        Ok(fields)
+    }
 
     fn parse_interfaces(
         interfaces_count: usize,
-        class_reader: &mut Cursor<Vec<u8>>,
+        class_reader: &mut ClassReader,
     ) -> Result<Vec<u16>, String> {
         let mut interfaces = Vec::with_capacity(interfaces_count);
         for _ in 0..interfaces_count {
@@ -175,7 +224,7 @@ impl ClassFile {
 
     pub(crate) fn parse_bytes(
         length: usize,
-        class_reader: &mut Cursor<Vec<u8>>,
+        class_reader: &mut ClassReader,
     ) -> Result<Vec<u8>, String> {
         let mut bytes = Vec::with_capacity(length);
         for _ in 0..length {
@@ -219,5 +268,19 @@ impl ClassFile {
             }
         }
         result
+    }
+
+    pub(crate) fn get_utf8(&self, index: usize) -> Result<&str, String> {
+        self.constant_pool.get_utf8(index)
+    }
+}
+
+impl AttributeParser for ClassFile {
+    fn parse_attr(
+        constant_pool: &ConstantPool,
+        class_reader: &mut ClassReader,
+        count: u16,
+    ) -> Result<Vec<Attribute>, String> {
+        todo!()
     }
 }

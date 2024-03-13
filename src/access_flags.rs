@@ -58,3 +58,10 @@ bitflags! {
         const ENUM = 0x4000;
     }
 }
+
+impl MethodAccessFlags {
+    // TODO implement
+    pub(crate) fn verify_flags(&self, min_ver: u16, maj_ver: u16, is_interface: bool) -> Result<(), String> {
+        unimplemented!()
+    }
+}
