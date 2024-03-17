@@ -1,9 +1,8 @@
 /// All possible `constant_pool` entries.
 #[derive(Debug)]
 pub enum Constant {
-    UTF8 {
-        string: String,
-    },
+    Dummy,
+    UTF8(String),
     Integer(i32),
     Float(f32),
     Long(i64),
@@ -51,5 +50,4 @@ pub enum Constant {
     Package {
         name_index: usize,
     },
-    Dummy,
 }

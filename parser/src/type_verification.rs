@@ -1,5 +1,7 @@
+use anyhow::{bail, Result};
+
 #[derive(Debug)]
-pub(crate) enum VType {
+pub enum VType {
     Top,
     Integer,
     Float,
@@ -13,9 +15,9 @@ pub(crate) enum VType {
 }
 
 impl TryFrom<u8> for VType {
-    type Error = String;
+    type Error = anyhow::Error;
 
-    fn try_from(value: u8) -> Result<Self, Self::Error> {
+    fn try_from(value: u8) -> Result<Self> {
         let v_type = match value {
             0 => VType::Top,
             1 => VType::Integer,
@@ -27,7 +29,7 @@ impl TryFrom<u8> for VType {
             7 => VType::Object(0),
             8 => VType::UninitVar(0),
             invalid => {
-                return Err(format!("Invalid byte {{{invalid}}} for VType."));
+                bail!("Invalid byte {invalid} for VType.")
             }
         };
         Ok(v_type)
