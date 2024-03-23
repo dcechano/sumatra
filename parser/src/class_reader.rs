@@ -16,27 +16,31 @@ use crate::{
     annotation::{
         Annotation, ElementPairs, ElementValue,
         ElementValue::{AnnotationValue, Array, ClassIndex, ConstIndex},
+        ParameterAnnotation, TypeAnnotation,
     },
     attribute::{
+        self,
         attr_constants::{
-            BOOTSTRAP_METHODS, CODE, CONSTANT_VALUE, DEPRECATED, ENCLOSING_METHOD, EXCEPTIONS,
-            INNER_CLASSES, LINE_NUMBER_TABLE, LOCAL_VARIABLE_TABLE, LOCAL_VARIABLE_TYPE_TABLE,
-            MODULE, MODULE_MAIN_CLASS, MODULE_PACKAGES, NEST_HOST, NEST_MEMBERS,
-            PERMITTED_SUBCLASSES, RECORD, RUNTIME_INVISIBLE_ANNOTATIONS,
-            RUNTIME_VISIBLE_ANNOTATIONS, SIGNATURE, SOURCE_DEBUG_EXTENSION, SOURCE_FILE,
+            ANNOTATION_DEFAULT, BOOTSTRAP_METHODS, CODE, CONSTANT_VALUE, DEPRECATED,
+            ENCLOSING_METHOD, EXCEPTIONS, INNER_CLASSES, LINE_NUMBER_TABLE, LOCAL_VARIABLE_TABLE,
+            LOCAL_VARIABLE_TYPE_TABLE, MODULE, MODULE_MAIN_CLASS, MODULE_PACKAGES, NEST_HOST,
+            NEST_MEMBERS, PERMITTED_SUBCLASSES, RECORD, RUNTIME_INVISIBLE_ANNOTATIONS,
+            RUNTIME_INVISIBLE_PARAMETER_ANNOTATIONS, RUNTIME_INVISIBLE_TYPE_ANNOTATIONS,
+            RUNTIME_VISIBLE_ANNOTATIONS, RUNTIME_VISIBLE_PARAMETER_ANNOTATIONS,
+            RUNTIME_VISIBLE_TYPE_ANNOTATIONS, SIGNATURE, SOURCE_DEBUG_EXTENSION, SOURCE_FILE,
             STACK_MAP_TABLE, SYNTHETIC,
         },
-        Attribute,
-        Attribute::{
-            BootstrapMethods, Code, ConstantValue, Custom, Deprecated, EnclosingMethod, Exceptions,
-            InnerClasses, LineNumberTable, LocalVariableTable, LocalVariableTypeTable,
-            ModuleMainClass, ModulePackages, NestHost, NestMembers, PermittedSubclasses, Record,
-            RuntimeInvisibleAnnotations, RuntimeVisibleAnnotations, Signature,
-            SourceDebugExtension, SourceFile, StackMapTable, Synthetic,
+        BootstrapMethod, BootstrapMethods, ClassFileAttributes, Code, EnclosingMethod, Exception,
+        Exceptions, Exports, InnerClassInfo, InnerClasses, LineNumberTable, LineNumberTableEntry,
+        LocalVarTableEntry, LocalVarTypeEntry, LocalVariableTable, LocalVariableTypeTable,
+        ModuleMainClass, ModulePackages, NestHost, NestMembers, Opens, PermittedSubclasses,
+        Provides, Record, RecordComponent, Requires, RuntimeAnnotation,
+        RuntimeAnnotation::{
+            RuntimeInvisibleAnnotations, RuntimeInvisibleParameterAnnotations,
+            RuntimeInvisibleTypeAnnotations, RuntimeVisibleAnnotations,
+            RuntimeVisibleParameterAnnotations, RuntimeVisibleTypeAnnotations,
         },
-        BootstrapMethod, Exception, Exports, InnerClassInfo, LineNumberTableEntry,
-        LocalVarTableEntry, LocalVarTypeEntry, Opens, Provides, RecordComponent, Requires,
-        StackMapFrame,
+        SourceDebugExtension, SourceFile, StackMapFrame, StackMapTable,
     },
     constant::{
         Constant,
@@ -56,6 +60,9 @@ use crate::{
     method::Method,
     type_verification::VType,
 };
+use crate::annotation::{LocalVarTargetTable, LocalVarTargetTableEntry, TypePath, TypePathEntry, TypeTarget};
+use crate::annotation::TypeTarget::{Catch, Empty, FormalParameter, LocalVar, Offset, SuperType, Throws, TypeArgument, TypeParameter, TypeParameterBound};
+use crate::attribute::RuntimeAnnotation::AnnotationDefault;
 
 const CLASS_EXT: &[u8] = b"class";
 pub(crate) struct ClassReader(Cursor<Vec<u8>>);
@@ -78,19 +85,13 @@ impl ClassReader {
     }
 
     #[inline]
-    pub(crate) fn with_buffer(buffer: &[u8]) -> Self {
-        Self(Cursor::new(buffer.into()))
-    }
+    pub(crate) fn with_buffer(buffer: &[u8]) -> Self { Self(Cursor::new(buffer.into())) }
 
     #[inline]
-    pub(crate) fn read_u8(&mut self) -> Result<u8> {
-        self.0.read_u8().context("Failed to read u8")
-    }
+    pub(crate) fn read_u8(&mut self) -> Result<u8> { self.0.read_u8().context("Failed to read u8") }
 
     #[inline]
-    pub(crate) fn read_i8(&mut self) -> Result<i8> {
-        self.0.read_i8().context("Failed to read i8")
-    }
+    pub(crate) fn read_i8(&mut self) -> Result<i8> { self.0.read_i8().context("Failed to read i8") }
 
     #[inline]
     pub(crate) fn read_u16(&mut self) -> Result<u16> {
@@ -116,14 +117,25 @@ impl ClassReader {
     pub(crate) fn read_u64(&mut self) -> Result<u64> {
         self.0.read_u64::<BigEndian>().context("Failed to read u32")
     }
+
+    #[inline]
+    pub(crate) fn read_i64(&mut self) -> Result<i64> {
+        self.0.read_i64::<BigEndian>().context("Failed to read u32")
+    }
+
+    #[inline]
+    pub(crate) fn read_f64(&mut self) -> Result<f64> {
+        self.0.read_f64::<BigEndian>().context("Failed to read u32")
+    }
 }
 
 impl ClassReader {
     pub(crate) fn parse_cp(&mut self) -> Result<ConstantPool> {
-        let cp_count = self.read_u16()? as usize;
+        let cp_count = self.read_u16()? as usize - 1;
         let mut cp = ConstantPool::new(cp_count);
         cp.push(Dummy);
-        for _ in 0..cp_count - 1 {
+        let mut i = 0;
+        while i < cp_count {
             let constant = match self.read_u8()? {
                 1 => {
                     let length = self.read_u16()? as usize;
@@ -133,8 +145,8 @@ impl ClassReader {
                 }
                 3 => Integer(self.read_u32()? as i32),
                 4 => Float(f32::from(self.read_u16()?)),
-                5 => Long(self.read_i64::<BigEndian>()?),
-                6 => Double(self.read_f64::<BigEndian>()?),
+                5 => Long(self.read_i64()?),
+                6 => Double(self.read_f64()?),
                 7 => Class {
                     name_index: self.read_u16()? as usize,
                 },
@@ -178,17 +190,20 @@ impl ClassReader {
                 20 => Package {
                     name_index: self.read_u16()? as usize,
                 },
-                unknown => bail!("Unknown constant: {unknown}"),
+                unknown => { bail!("Unknown constant: {unknown}"); },
+                
             };
             match constant {
                 Long(_) | Double(_) => {
                     cp.push(constant);
                     cp.push(Dummy);
+                    i += 1;
                 }
                 _ => {
                     cp.push(constant);
                 }
             }
+            i += 1;
         }
         Ok(cp)
     }
@@ -208,11 +223,10 @@ impl ClassReader {
         Ok(methods)
     }
 
-    fn parse_method_attr(&mut self, cp: &ConstantPool) -> Result<Vec<Attribute>> {
+    fn parse_method_attr(&mut self, cp: &ConstantPool, method: &mut Method) -> Result<()> {
         let mut sig_present = false;
         let mut exc_present = false;
         let attr_count = self.read_u16()? as usize;
-        let mut attributes = Vec::with_capacity(attr_count);
 
         for _ in 0..attr_count {
             let name_index = self.read_u16()?;
@@ -222,8 +236,8 @@ impl ClassReader {
             let attr_len = self.read_u32()? as usize;
             // cursor position must always be read after reading attribute length
             let cursor = self.position();
-            let attribute = match name.as_bytes() {
-                CODE => self.parse_code_attr(cp)?,
+            match name.as_bytes() {
+                CODE => method.code = self.parse_code_attr(cp)?,
                 EXCEPTIONS => {
                     if exc_present {
                         bail!("Method cannot have more than one Exceptions attribute.");
@@ -231,35 +245,40 @@ impl ClassReader {
                     exc_present = true;
                     let exc_len = self.read_u16()? as usize;
                     let exc_index_table = self.read_u16s(exc_len)?;
-                    Exceptions(exc_index_table)
+                    method.exceptions = Exceptions(exc_index_table);
                 }
                 SIGNATURE => {
                     if sig_present {
                         bail!("Method cannot have more than one Signature attribute.");
                     }
                     sig_present = true;
-                    Signature
+                    method.signature_index = self.read_u16()? as usize;
                 }
                 RUNTIME_INVISIBLE_ANNOTATIONS => {
                     let anno_len = self.read_u16()?;
                     let annotations = (0..anno_len)
                         .map(|_| self.parse_annotation(cp))
                         .collect::<Result<Vec<Annotation>>>()?;
-                    RuntimeInvisibleAnnotations(annotations)
+                    method
+                        .runtime_annotations
+                        .push(RuntimeInvisibleAnnotations(annotations));
                 }
                 RUNTIME_VISIBLE_ANNOTATIONS => {
                     let anno_len = self.read_u16()?;
                     let annotations = (0..anno_len)
                         .map(|_| self.parse_annotation(cp))
                         .collect::<Result<Vec<Annotation>>>()?;
-                    RuntimeVisibleAnnotations(annotations)
+                    method
+                        .runtime_annotations
+                        .push(RuntimeVisibleAnnotations(annotations));
                 }
-                unrecognized => self.parse_unrec_attr(attr_len, unrecognized, "method")?,
+                unrecognized => {
+                    let _ = self.parse_unrec_attr(attr_len, unrecognized, "method")?;
+                }
             };
             validate_cursor(self.position(), cursor + attr_len as u64)?;
-            attributes.push(attribute);
         }
-        Ok(attributes)
+        Ok(())
     }
 
     fn parse_unrec_attr(
@@ -267,33 +286,33 @@ impl ClassReader {
         length: usize,
         bytes: &[u8],
         context: &'static str,
-    ) -> Result<Attribute> {
+    ) -> Result<Vec<u8>> {
         log_unrec_attr(
             &bytes.into_iter().map(|b| *b as char).collect::<String>(),
             context,
         )?;
 
         let bytes = self.read_bytes(length)?;
-        Ok(Custom(bytes))
+        Ok(bytes)
     }
 
-    fn parse_code_attr(&mut self, cp: &ConstantPool) -> Result<Attribute> {
-        let max_stack = self.read_u16()?;
-        let max_locals = self.read_u16()?;
+    fn parse_code_attr(&mut self, cp: &ConstantPool) -> Result<Code> {
+        let mut code = Code::default();
+
+        code.max_stack = self.read_u16()?;
+        code.max_locals = self.read_u16()?;
+
         let code_len = self.read_u32()? as usize;
-        let code = Instruction::from_bytes(&self.read_bytes(code_len)?)?;
-        let exception_table = self.parse_exceptions_table(cp)?;
+        code.code = Instruction::from_bytes(&self.read_bytes(code_len)?)?;
+
+        code.exception_table = self.parse_exceptions_table(cp)?;
+
         let attrs_len = self.read_u16()? as usize;
-        let attributes = (0..attrs_len)
-            .map(|_| self.parse_code_inner_attr(cp))
-            .collect::<Result<Vec<Attribute>>>()?;
-        Ok(Code {
-            max_stack,
-            max_locals,
-            code,
-            exception_table,
-            attributes,
-        })
+        for _ in 0..attrs_len {
+            self.parse_code_inner_attr(cp, &mut code)?;
+        }
+
+        Ok(code)
     }
 
     fn parse_exceptions_table(&mut self, cp: &ConstantPool) -> Result<Vec<Exception>> {
@@ -319,7 +338,7 @@ impl ClassReader {
         Ok(table)
     }
 
-    fn parse_code_inner_attr(&mut self, cp: &ConstantPool) -> Result<Attribute> {
+    fn parse_code_inner_attr(&mut self, cp: &ConstantPool, code: &mut Code) -> Result<()> {
         let code_attr_name = self.read_u16()?;
         let name = cp.get_utf8(code_attr_name as usize).context(
             "Code attribute's attribute name index didn't point to a UTF8 in the constant pool.",
@@ -328,18 +347,23 @@ impl ClassReader {
         let attr_len = self.read_u32()? as usize;
         // cursor position must always be read after reading attribute length
         let cursor = self.position();
-        let attribute = match name.as_bytes() {
-            LINE_NUMBER_TABLE => self.parse_line_number_table()?,
-            LOCAL_VARIABLE_TABLE => self.parse_local_var_table(cp)?,
-            STACK_MAP_TABLE => self.parse_stack_map_table()?,
-            LOCAL_VARIABLE_TYPE_TABLE => self.parse_local_type_table(cp)?,
-            unrecognized => self.parse_unrec_attr(attr_len, unrecognized, "method")?,
+        match name.as_bytes() {
+            LINE_NUMBER_TABLE => code.line_number_table = self.parse_line_number_table()?,
+            LOCAL_VARIABLE_TABLE => code.local_var_table = self.parse_local_var_table(cp)?,
+            STACK_MAP_TABLE => code.stack_map_table = self.parse_stack_map_table()?,
+            LOCAL_VARIABLE_TYPE_TABLE => {
+                code.local_var_type_table = self.parse_local_type_table(cp)?
+            }
+            unrecognized => {
+                let attribute = self.parse_unrec_attr(attr_len, unrecognized, "method")?;
+                code.attributes.extend(attribute.iter());
+            }
         };
         validate_cursor(self.position(), cursor + attr_len as u64)?;
-        Ok(attribute)
+        Ok(())
     }
 
-    fn parse_line_number_table(&mut self) -> Result<Attribute> {
+    fn parse_line_number_table(&mut self) -> Result<LineNumberTable> {
         let table_len = self.read_u16()?;
         let table = (0..table_len)
             .map(|_| {
@@ -352,20 +376,20 @@ impl ClassReader {
         Ok(LineNumberTable(table))
     }
 
-    fn parse_local_var_table(&mut self, cp: &ConstantPool) -> Result<Attribute> {
+    fn parse_local_var_table(&mut self, cp: &ConstantPool) -> Result<LocalVariableTable> {
         let table_len = self.read_u16()?;
         let table = (0..table_len)
             .map(|_| {
                 let start_pc = self.read_u16()?;
                 let length = self.read_u16()?;
-                let name_index = self.read_u16()?;
+                let name_index = self.read_u16()? as usize;
                 Self::verify_utf8(
                     cp,
-                    name_index as usize,
+                    name_index,
                     "LocalVariableTable entry's name_index didn't point to a UTF8 in the constant pool.",
                 )?;
-                let descriptor_index = self.read_u16()?;
-                let index = self.read_u16()?;
+                let descriptor_index = self.read_u16()? as usize;
+                let index = self.read_u16()? as usize;
 
                 Ok(LocalVarTableEntry {
                     start_pc,
@@ -379,7 +403,7 @@ impl ClassReader {
         Ok(LocalVariableTable(table))
     }
 
-    fn parse_stack_map_table(&mut self) -> Result<Attribute> {
+    fn parse_stack_map_table(&mut self) -> Result<StackMapTable> {
         let table_len = self.read_u16()?;
         let entries = (0..table_len)
             .map(|_| self.read_smf())
@@ -387,17 +411,17 @@ impl ClassReader {
         Ok(StackMapTable(entries))
     }
 
-    fn parse_local_type_table(&mut self, cp: &ConstantPool) -> Result<Attribute> {
+    fn parse_local_type_table(&mut self, cp: &ConstantPool) -> Result<LocalVariableTypeTable> {
         let lvtt_len = self.read_u16()?;
         let lvtt= (0..lvtt_len).map(|_| {
             let start_pc = self.read_u16()?;
             let len = self.read_u16()?;
-            let name_index = self.read_u16()?;
-            let signature_index = self.read_u16()?;
-            if cp.get_utf8(signature_index as usize).is_err() {
+            let name_index = self.read_u16()? as usize;
+            let signature_index = self.read_u16()? as usize;
+            if cp.get_utf8(signature_index).is_err() {
                 bail!("LocalVariableTypeTable signature_index did not point to a valid UTF8 in the constant pool.");
             }
-            let index = self.read_u16()?;
+            let index = self.read_u16()? as usize;
             Ok(LocalVarTypeEntry {
                 start_pc,
                 len,
@@ -474,7 +498,8 @@ impl ClassReader {
     }
 
     fn parse_method(&mut self, cp: &ConstantPool, min_ver: u16, maj_ver: u16) -> Result<Method> {
-        let access_flags = MethodAccessFlags::from_bits(self.read_u16()?)
+        let mut method = Method::default();
+        method.access_flags = MethodAccessFlags::from_bits(self.read_u16()?)
             .context("Invalid access flags on method.")?;
         // TODO: uncomment when implement
         // access_flags.verify_flags(min_ver, maj_ver, /*is_interface*/)
@@ -485,6 +510,7 @@ impl ClassReader {
             name_index,
             "Method's name index didn't point to a UTF8 in constant pool.",
         )?;
+        method.name_index = name_index;
 
         let descriptor_index = self.read_u16()? as usize;
         Self::verify_utf8(
@@ -492,50 +518,56 @@ impl ClassReader {
             descriptor_index,
             "Method's descriptor index didn't point to a UTF8 in the constant pool.",
         )?;
+        method.descriptor_index = descriptor_index;
 
-        let attributes = self.parse_method_attr(cp)?;
+        self.parse_method_attr(cp, &mut method)?;
 
-        Ok(Method {
-            access_flags,
-            name_index,
-            descriptor_index,
-            attributes,
-        })
+        Ok(method)
     }
 
     fn parse_field(&mut self, cp: &ConstantPool) -> Result<Field> {
-        let flag = self.read_u16()?;
-        let access_flags = FieldAccessFlags::from_bits(flag)
-            .context(format!("Invalid Field access flag: {flag}"))?;
-        let name_index = self.read_u16()? as usize;
-        if !matches!(cp.get(name_index), Some(UTF8(_))) {
-            bail!("name_index on field did not point to a UTF8 in the constant pool.");
-        }
-        let descriptor_index = self.read_u16()? as usize;
-        if !matches!(cp.get(descriptor_index), Some(UTF8(_))) {
-            bail!("descriptor_index on field did not point to a UTF8 in the constant pool.");
-        }
-        let attributes_count = self.read_u16()? as usize;
-        let attributes = self.parse_field_attr(cp, attributes_count)?;
+        let mut field = Field::default();
 
-        Ok(Field {
-            access_flags,
+        let flag = self.read_u16()?;
+        field.access_flags = FieldAccessFlags::from_bits(flag)
+            .context(format!("Invalid Field access flag: {flag}"))?;
+
+        let name_index = self.read_u16()? as usize;
+        Self::verify_utf8(
+            cp,
             name_index,
+            "name_index on field did not point to a UTF8 in the constant pool.",
+        )?;
+        field.name_index = name_index;
+
+        let descriptor_index = self.read_u16()? as usize;
+        Self::verify_utf8(
+            cp,
             descriptor_index,
-            attributes,
-        })
+            "descriptor_index on field did not point to a UTF8 in the constant pool.",
+        )?;
+        field.descriptor_index = descriptor_index;
+
+        let attributes_count = self.read_u16()? as usize;
+        self.parse_field_attr(cp, attributes_count, &mut field)?;
+
+        Ok(field)
     }
 
-    fn parse_field_attr(&mut self, cp: &ConstantPool, attr_count: usize) -> Result<Vec<Attribute>> {
+    fn parse_field_attr(
+        &mut self,
+        cp: &ConstantPool,
+        attr_count: usize,
+        field: &mut Field,
+    ) -> Result<()> {
         let mut contains_sig = false;
-        let mut attributes = Vec::with_capacity(attr_count);
         for _ in 0..attr_count {
             let name_index = self.read_u16()?;
             let attr_len = self.read_u32()? as usize;
             // cursor position must always be read after reading attribute length
             let cursor = self.position();
             let name = cp.get_utf8(name_index as usize)?;
-            let attribute = match name.as_bytes() {
+            match name.as_bytes() {
                 CONSTANT_VALUE => {
                     let const_index = self.read_u16()? as usize;
                     if let Some(constant) = cp.get(const_index) {
@@ -545,10 +577,7 @@ impl ClassReader {
                         ) {
                             bail!("Constant at ConstantValue index was not a valid constant");
                         }
-                        ConstantValue {
-                            attribute_name_index: name_index,
-                            attribute_info: vec![],
-                        }
+                        field.constant_value = constant.clone();
                     } else {
                         bail!("Constant Value attribute did not have a valid index")
                     }
@@ -565,26 +594,27 @@ impl ClassReader {
                         "Signature attribute index did not point to a UTF8 in constant pool.",
                     )?;
                     // TODO Implement more type checks in the JVM 21 spec
-                    Signature
+                    field.signature_index = sig_index;
                 }
                 DEPRECATED => {
                     if attr_len != 0 {
                         bail!("Synthetic attribute length was not 0");
                     }
-                    Deprecated
+                    field.deprecated = true;
                 }
                 SYNTHETIC => {
                     if attr_len != 0 {
                         bail!("Synthetic attribute length was not 0");
                     }
-                    Synthetic
+                    field.synthetic = true;
                 }
-                unrecognized => self.parse_unrec_attr(attr_len, unrecognized, "field")?,
+                unrecognized => {
+                    let _ = self.parse_unrec_attr(attr_len, unrecognized, "field")?;
+                }
             };
             validate_cursor(self.position(), cursor + attr_len as u64)?;
-            attributes.push(attribute)
         }
-        Ok(attributes)
+        Ok(())
     }
 
     pub(crate) fn parse_interfaces(&mut self) -> Result<Vec<u16>> {
@@ -600,12 +630,12 @@ impl ClassReader {
         cp: &ConstantPool,
         attr_count: usize,
         permit_sub: bool,
-    ) -> Result<Vec<Attribute>> {
+        attributes: &mut ClassFileAttributes,
+    ) -> Result<()> {
         let mut src_dbg_ext = false;
         let mut btstrp_mthds = false;
         let mut record = false;
         let mut contains_permitted = false;
-        let mut attributes = Vec::with_capacity(attr_count);
         for _ in 0..attr_count {
             let name_index = self.read_u16()? as usize;
             Self::verify_utf8(
@@ -620,20 +650,22 @@ impl ClassReader {
             let name = cp.get_utf8(name_index).context(
                 "ClassFile attribute's name_index did not point to a UTF8 in the constant pool.",
             )?;
-            let attribute = match name.as_bytes() {
-                INNER_CLASSES => self.parse_inner_class_attr(cp)?,
-                ENCLOSING_METHOD => EnclosingMethod {
-                    class_index: self.read_u16()?,
-                    method_index: self.read_u16()?,
-                },
+            match name.as_bytes() {
+                INNER_CLASSES => attributes.inner_classes = self.parse_inner_class_attr(cp)?,
+                ENCLOSING_METHOD => {
+                    attributes.enclosing_method = EnclosingMethod {
+                        class_index: self.read_u16()? as usize,
+                        method_index: self.read_u16()? as usize,
+                    }
+                }
                 SOURCE_FILE => {
-                    let file_index = self.read_u16()?;
+                    let file_index = self.read_u16()? as usize;
                     Self::verify_utf8(
                         cp,
-                        file_index as usize,
+                        file_index,
                         "SourceFile index didn't point to a UTF8 in the constant pool.",
                     )?;
-                    SourceFile(file_index)
+                    attributes.source_file = SourceFile(file_index);
                 }
                 SOURCE_DEBUG_EXTENSION => {
                     if src_dbg_ext {
@@ -642,34 +674,38 @@ impl ClassReader {
                         );
                     }
                     src_dbg_ext = true;
-                    SourceDebugExtension(self.read_bytes(attr_len)?)
+                    attributes.source_debug_extension =
+                        SourceDebugExtension(self.read_bytes(attr_len)?);
                 }
-                BOOTSTRAP_METHODS => self.parse_btstrp_methods_attr(&mut btstrp_mthds)?,
-                MODULE => self.parse_module_attr(cp)?,
-                MODULE_PACKAGES => self.parse_module_pckgs_attr(cp)?,
+                BOOTSTRAP_METHODS => {
+                    attributes.bootstrap_methods =
+                        self.parse_btstrp_methods_attr(&mut btstrp_mthds)?
+                }
+                MODULE => attributes.module = self.parse_module_attr(cp)?,
+                MODULE_PACKAGES => attributes.module_packages = self.parse_module_pckgs_attr(cp)?,
                 MODULE_MAIN_CLASS => {
-                    let main_class_index = self.read_u16()?;
+                    let main_class_index = self.read_u16()? as usize;
                     if !matches!(cp.get(main_class_index as usize), Some(Class { .. })) {
                         bail!(
                             "ModuleMainClass' index didn't point to a Class in the constant pool."
                         );
                     }
-                    ModuleMainClass(main_class_index)
+                    attributes.module_main_class = ModuleMainClass(main_class_index);
                 }
                 NEST_HOST => {
-                    let host_index = self.read_u16()?;
+                    let host_index = self.read_u16()? as usize;
                     if !matches!(cp.get(host_index as usize), Some(Class { .. })) {
                         bail!("NestHost attribute's host_index didn't point to a Class in the constant pool.");
                     }
-                    NestHost(host_index)
+                    attributes.nest_host = NestHost(host_index)
                 }
                 NEST_MEMBERS => {
                     let classes_len = self.read_u16()? as usize;
                     let classes =
                         self.read_classes(classes_len, cp, "NestedMembers' classes entry")?;
-                    NestMembers(classes)
+                    attributes.nest_members = NestMembers(classes)
                 }
-                RECORD => self.parse_record_attr(cp, &mut record)?,
+                RECORD => attributes.record = self.parse_record_attr(cp, &mut record)?,
                 PERMITTED_SUBCLASSES => {
                     if !permit_sub {
                         bail!("Class attributes contained a PermittedSubclass attribute for a 'final' class.");
@@ -678,21 +714,18 @@ impl ClassReader {
                     }
                     let classes_len = self.read_u16()? as usize;
                     let classes = self.read_classes(classes_len, cp, "PermittedSubclasses")?;
-                    PermittedSubclasses(classes)
+                    attributes.permitted_subclasses = PermittedSubclasses(classes);
                 }
-                unrecognized => self.parse_unrec_attr(attr_len, &unrecognized, "method")?,
+                unrecognized => {
+                    let _ = self.parse_unrec_attr(attr_len, &unrecognized, "method")?;
+                }
             };
             validate_cursor(self.position(), cursor + attr_len as u64)?;
-            attributes.push(attribute);
         }
-        Ok(attributes)
+        Ok(())
     }
 
-    fn parse_record_attr(
-        &mut self,
-        cp: &ConstantPool,
-        rcrd_parsed: &mut bool,
-    ) -> Result<Attribute> {
+    fn parse_record_attr(&mut self, cp: &ConstantPool, rcrd_parsed: &mut bool) -> Result<Record> {
         if *rcrd_parsed {
             bail!("There can only be at most one Record attribute per class.");
         }
@@ -700,19 +733,21 @@ impl ClassReader {
         let components_len = self.read_u16()? as usize;
         let components = (0..components_len)
             .map(|_| {
-                let name_index = self.read_u16()?;
+                let name_index = self.read_u16()? as usize;
                 Self::verify_utf8(
                     cp,
-                    name_index as usize,
+                    name_index,
                     "name_index in RecordComponent struct didn't point to a UTF8",
                 )?;
-                let descriptor_index = self.read_u16()?;
+                let descriptor_index = self.read_u16()? as usize;
                 let attr_len = self.read_u16()? as usize;
-                let attributes = self.parse_class_attr(cp, attr_len, false)?;
+                let runtime_annotations = (0..attr_len)
+                    .map(|_| self.parse_runtime_anno(cp))
+                    .collect::<Result<Vec<RuntimeAnnotation>>>()?;
                 Ok(RecordComponent {
                     name_index,
                     descriptor_index,
-                    attributes,
+                    runtime_annotations,
                 })
             })
             .collect::<Result<Vec<RecordComponent>>>()?;
@@ -720,19 +755,179 @@ impl ClassReader {
         Ok(Record(components))
     }
 
-    fn parse_module_pckgs_attr(&mut self, cp: &ConstantPool) -> Result<Attribute> {
+    fn parse_runtime_anno(&mut self, cp: &ConstantPool) -> Result<RuntimeAnnotation> {
+        let name_index = self.read_u16()? as usize;
+        let attr_len = self.read_u16()?;
+        let cursor = self.position();
+        let anno = match cp.get_utf8(name_index)?.as_bytes() {
+            RUNTIME_VISIBLE_ANNOTATIONS => RuntimeVisibleAnnotations(self.parse_anno_inner(cp)?),
+            RUNTIME_INVISIBLE_ANNOTATIONS => {
+                RuntimeInvisibleAnnotations(self.parse_anno_inner(cp)?)
+            }
+            RUNTIME_INVISIBLE_PARAMETER_ANNOTATIONS => {
+                RuntimeInvisibleParameterAnnotations(self.parse_para_anno(cp)?)
+            }
+            RUNTIME_VISIBLE_PARAMETER_ANNOTATIONS => {
+                RuntimeVisibleParameterAnnotations(self.parse_para_anno(cp)?)
+            }
+            RUNTIME_INVISIBLE_TYPE_ANNOTATIONS => {
+                RuntimeInvisibleTypeAnnotations(self.parse_type_anno(cp)?)
+            }
+            RUNTIME_VISIBLE_TYPE_ANNOTATIONS => {
+                RuntimeVisibleTypeAnnotations(self.parse_type_anno(cp)?)
+            }
+            ANNOTATION_DEFAULT => {
+                AnnotationDefault(ElementPairs(self.read_u16()? as usize, self.parse_element_value(cp)?))
+            }
+            _ => {
+                // TODO This might not be spec; We may have to ignore unrecognized annotations
+                bail!("Invalid name");
+            }
+        };
+        validate_cursor(self.position(), cursor + attr_len as u64)?;
+        Ok(anno)
+    }
+
+    fn parse_anno_inner(&mut self, cp: &ConstantPool) -> Result<Vec<Annotation>> {
+        let num_anno = self.read_u16()? as usize;
+        (0..num_anno)
+            .map(|_| self.parse_annotation(cp))
+            .collect::<Result<Vec<Annotation>>>()
+    }
+
+    fn parse_para_anno(&mut self, cp: &ConstantPool) -> Result<Vec<ParameterAnnotation>> {
+        let num_para = self.read_u8()? as usize;
+        (0..num_para)
+            .map(|_| Ok(ParameterAnnotation(self.parse_anno_inner(cp)?)))
+            .collect::<Result<Vec<ParameterAnnotation>>>()
+    }
+
+    fn parse_type_anno(&mut self, cp: &ConstantPool) -> Result<Vec<TypeAnnotation>> {
+        /*
+            TODO This function may need to be changed due to different target_types
+            meaning different things despite mapping to the same TypeTarget.
+            https://docs.oracle.com/javase/specs/jvms/se21/html/jvms-4.html#jvms-4.7.20
+        */
+        let anno_len = self.read_u16()?;
+        (0..anno_len).map(|_| {
+            let type_target = self.parse_type_target()?;
+            let type_path = self.parse_type_path()?;
+            let type_index = self.read_u16()? as usize;
+            let value_pairs = self.parse_element_pairs(cp)?;
+
+            Ok(TypeAnnotation {
+                type_target,
+                type_path,
+                type_index,
+                value_pairs,
+            })
+        }).collect::<Result<Vec<TypeAnnotation>>>()
+
+    }
+    
+    fn parse_type_path(&mut self) -> Result<TypePath> {
+        let path_len = self.read_u8()?;
+        let entries = (0..path_len).map(|_| {
+            Ok(
+                TypePathEntry {
+                    type_path_kind: self.read_u8()?,
+                    type_arg_index: self.read_u8()? as usize,
+                }
+            )
+        }).collect::<Result<Vec<TypePathEntry>>>()?;
+        Ok(TypePath(entries))
+    }
+    
+    fn parse_type_target(&mut self) -> Result<TypeTarget> {
+        let value = self.read_u8()?;
+        let type_target = match value{
+            0x00 | 0x01=> {
+                TypeParameter {
+                    value,
+                    type_param_index: self.read_u16()? as usize,
+                }
+            },
+            0x10 => {
+                SuperType {
+                    value,
+                    supertype_index: self.read_u16()? as usize
+                }
+            },
+            0x11 | 0x12=> {
+                TypeParameterBound {
+                    value,
+                    type_parameter_index: self.read_u16()? as usize,
+                    bound_index: self.read_u16()? as usize
+                }
+            },
+            0x13 | 0x14 | 0x15 => {
+                Empty(value)
+            },
+            0x16 => {
+                FormalParameter {
+                    value,
+                    formal_param_index: self.read_u16()? as usize
+                }
+            },
+            0x17 => {
+                Throws {
+                    value,
+                    throws_type_index: self.read_u16()? as usize
+                }
+            },
+            0x40 | 0x41 => {
+                let table_len = self.read_u16()?;
+                let target_table = (0..table_len).map(|_| {
+                    Ok(
+                        LocalVarTargetTableEntry {
+                            start_pc: self.read_u16()?,
+                            length: self.read_u16()?,
+                            index: self.read_u16()? as usize
+                        }
+                    )  
+                }).collect::<Result<Vec<LocalVarTargetTableEntry>>>()?;
+                LocalVar {
+                    value,
+                    target_table: LocalVarTargetTable(target_table),
+                }
+            },
+            0x42 => {
+                Catch {
+                    value,
+                    exception_table_index: self.read_u16()? as usize
+                }
+            },
+            0x43..=0x46 => {
+                Offset {
+                    value,
+                    offset: self.read_u16()?
+                }
+            },
+            0x47..=0x4B => {
+                TypeArgument {
+                    value,
+                    type_arg_index: self.read_u16()? as usize
+                }
+            },
+            _ => {
+                bail!("Invalid TypeTarget value.");
+            }
+        };
+        Ok(type_target)
+    }
+    fn parse_module_pckgs_attr(&mut self, cp: &ConstantPool) -> Result<ModulePackages> {
         let package_len = self.read_u16()? as usize;
         let package_index = (0..package_len).map(|_| {
-            let index = self.read_u16()?;
-            if !matches!(cp.get(index as usize), Some(Package { .. })) {
+            let index = self.read_u16()? as usize;
+            if !matches!(cp.get(index), Some(Package { .. })) {
                 bail!("ModulePackages attribute's package_index entry didn't point to a Package in the constant pool.");
             }
             Ok(index)
-        }).collect::<Result<Vec<u16>>>()?;
+        }).collect::<Result<Vec<usize>>>()?;
         Ok(ModulePackages(package_index))
     }
 
-    fn parse_btstrp_methods_attr(&mut self, btstr_prased: &mut bool) -> Result<Attribute> {
+    fn parse_btstrp_methods_attr(&mut self, btstr_prased: &mut bool) -> Result<BootstrapMethods> {
         if *btstr_prased {
             bail!("ClassFile Attributes cannot have more than one BootstrapMethods.");
         }
@@ -752,22 +947,22 @@ impl ClassReader {
         Ok(BootstrapMethods(methods))
     }
 
-    fn parse_inner_class_attr(&mut self, cp: &ConstantPool) -> Result<Attribute> {
+    fn parse_inner_class_attr(&mut self, cp: &ConstantPool) -> Result<InnerClasses> {
         let class_len = self.read_u16()? as usize;
         let mut classes = Vec::with_capacity(class_len);
         for _ in 0..class_len {
-            let inner_class_info_index = self.read_u16()?;
-            if !matches!(cp.get(inner_class_info_index as usize), Some(Class { .. })) {
+            let inner_class_info_index = self.read_u16()? as usize;
+            if !matches!(cp.get(inner_class_info_index), Some(Class { .. })) {
                 bail!("ClassFile InnerClass Attributes inner_class_info_index didn't point to a UTF8 in the constant pool.");
             }
-            let outer_class_info_index = self.read_u16()?;
-            if !matches!(cp.get(inner_class_info_index as usize), Some(Class { .. })) {
+            let outer_class_info_index = self.read_u16()? as usize;
+            if !matches!(cp.get(inner_class_info_index), Some(Class { .. })) {
                 bail!("ClassFile InnerClass Attributes outer_class_info_index didn't point to a UTF8 in the constant pool.");
             }
-            let inner_name_index = self.read_u16()?;
+            let inner_name_index = self.read_u16()? as usize;
             Self::verify_utf8(
                 cp,
-                inner_name_index as usize,
+                inner_name_index,
                 "ClassFile InnerClass Attribute's inner_name_index didn't point to a UTF8 in constant pool.")?;
 
             let access_flags = self.read_u16()?;
@@ -783,14 +978,14 @@ impl ClassReader {
         Ok(InnerClasses(classes))
     }
 
-    fn parse_module_attr(&mut self, cp: &ConstantPool) -> Result<Attribute> {
-        let module_name_index = self.read_u16()?;
+    fn parse_module_attr(&mut self, cp: &ConstantPool) -> Result<attribute::Module> {
+        let module_name_index = self.read_u16()? as usize;
 
         let flag = self.read_u16()?;
         let module_flags =
             ModuleFlags::from_bits(flag).context(format!("Invalid Module flag: {flag}"))?;
 
-        let module_ver_index = self.read_u16()?;
+        let module_ver_index = self.read_u16()? as usize;
 
         let requires_len = self.read_u16()? as usize;
         let requires = (0..requires_len)
@@ -815,7 +1010,7 @@ impl ClassReader {
             .map(|_| self.parse_provides(cp))
             .collect::<Result<Vec<Provides>>>()?;
 
-        Ok(Attribute::Module {
+        Ok(attribute::Module {
             module_name_index,
             module_flags,
             module_ver_index,
@@ -828,7 +1023,7 @@ impl ClassReader {
     }
 
     fn parse_requires(&mut self, cp: &ConstantPool) -> Result<Requires> {
-        let requires_index = self.read_u16()?;
+        let requires_index = self.read_u16()? as usize;
         if !matches!(cp.get(requires_index as usize), Some(Module { .. })) {
             bail!(
                 "Requires' requires_index didn't point to a Module constant in the constant pool."
@@ -837,7 +1032,7 @@ impl ClassReader {
         let flag = self.read_u16()?;
         let requires_flags =
             RequiresFlags::from_bits(flag).context(format!("Invalid Requires flag: {flag}"))?;
-        let requires_ver_index = self.read_u16()?;
+        let requires_ver_index = self.read_u16()? as usize;
         Self::verify_utf8(
             cp,
             requires_ver_index as usize,
@@ -851,7 +1046,7 @@ impl ClassReader {
     }
 
     fn parse_exports(&mut self, cp: &ConstantPool) -> Result<Exports> {
-        let exports_index = self.read_u16()?;
+        let exports_index = self.read_u16()? as usize;
         if !matches!(cp.get(exports_index as usize), Some(Package { .. })) {
             bail!(
                 "Exports' exports_index didn't point to a Package constant in the constant pool."
@@ -864,8 +1059,8 @@ impl ClassReader {
             let exports_len = self.read_u16()? as usize;
             let mut export_to_index = Vec::with_capacity(exports_len);
             for _ in 0..exports_len {
-                let const_index = self.read_u16()?;
-                if !matches!(cp.get(const_index as usize), Some(Package { .. })) {
+                let const_index = self.read_u16()? as usize;
+                if !matches!(cp.get(const_index), Some(Package { .. })) {
                     bail!("An Exprots' exports_to_index entry didn't point to a Package in the constant pool.");
                 }
                 export_to_index.push(const_index);
@@ -881,7 +1076,7 @@ impl ClassReader {
     }
 
     fn parse_opens(&mut self, cp: &ConstantPool) -> Result<Opens> {
-        let opens_index = self.read_u16()?;
+        let opens_index = self.read_u16()? as usize;
         if !matches!(cp.get(opens_index as usize), Some(Package { .. })) {
             bail!(
                 "Exports' exports_index didn't point to a Package constant in the constant pool."
@@ -910,7 +1105,7 @@ impl ClassReader {
     }
 
     fn parse_provides(&mut self, cp: &ConstantPool) -> Result<Provides> {
-        let provides_index = self.read_u16()?;
+        let provides_index = self.read_u16()? as usize;
         if !matches!(cp.get(provides_index as usize), Some(Class { .. })) {
             bail!("Provides' provides_index didn't point to a Class in the constant pool.");
         }
@@ -920,34 +1115,6 @@ impl ClassReader {
         Ok(Provides {
             provides_index,
             provides_with_index,
-        })
-    }
-
-    fn parse_annotations(&mut self, cp: &ConstantPool) -> Result<Annotation> {
-        let type_index = self.read_u16()?;
-        Self::verify_utf8(
-            cp,
-            type_index as usize,
-            "Annotation's type_index didn't point to a UTF8.",
-        )?;
-        let value_pairs = {
-            let pairs_len = self.read_u16()? as usize;
-            let mut value_pairs = Vec::with_capacity(pairs_len);
-            for _ in 0..pairs_len {
-                let el_name_index = self.read_u16()?;
-                Self::verify_utf8(
-                    cp,
-                    el_name_index as usize,
-                    "ElementPair's element_name_index didn't point to a UTF8 in the constant pool.",
-                )?;
-                let element_value = self.parse_element_value(cp)?;
-                value_pairs.push(ElementPairs(el_name_index, element_value));
-            }
-            value_pairs
-        };
-        Ok(Annotation {
-            type_index,
-            value_pairs,
         })
     }
 
@@ -970,15 +1137,14 @@ impl ClassReader {
         length: usize,
         cp: &ConstantPool,
         context: &'static str,
-    ) -> Result<Vec<u16>> {
-        let mut classes = Vec::with_capacity(length);
-        for _ in 0..length {
-            let class = self.read_u16()?;
-            if !matches!(cp.get(class as usize), Some(Class { .. })) {
+    ) -> Result<Vec<usize>> {
+        let classes =(0..length).map(|_| {
+            let class = self.read_u16()? as usize;
+            if !matches!(cp.get(class), Some(Class { .. })) {
                 bail!("While parsing {context}, class index didn't point to a Class in the constant pool.");
             }
-            classes.push(class);
-        }
+            Ok(class)
+        }).collect::<Result<Vec<usize>>>()?;
         Ok(classes)
     }
 
@@ -994,58 +1160,58 @@ impl ClassReader {
         let tag = self.read_u8()? as char;
         let element_value = match tag {
             'B' | 'C' | 'I' | 'Z' | 'S' => {
-                let const_type_index = self.read_u16()?;
-                if !matches!(cp.get(const_type_index as usize), Some(Integer(_))) {
+                let const_type_index = self.read_u16()? as usize;
+                if !matches!(cp.get(const_type_index), Some(Integer(_))) {
                     bail!("const_type_index didn't point to a Integer in the constant pool.");
                 }
                 ConstIndex(const_type_index)
             }
             'D' => {
-                let const_type_index = self.read_u16()?;
-                if !matches!(cp.get(const_type_index as usize), Some(Double(_))) {
+                let const_type_index = self.read_u16()? as usize;
+                if !matches!(cp.get(const_type_index), Some(Double(_))) {
                     bail!("const_type_index didn't point to a Double in the constant pool.");
                 }
                 ConstIndex(const_type_index)
             }
             'F' => {
-                let const_type_index = self.read_u16()?;
-                if !matches!(cp.get(const_type_index as usize), Some(Float(_))) {
+                let const_type_index = self.read_u16()? as usize;
+                if !matches!(cp.get(const_type_index), Some(Float(_))) {
                     bail!("const_type_index didn't point to a Float in the constant pool.");
                 }
                 ConstIndex(const_type_index)
             }
             'J' => {
-                let const_type_index = self.read_u16()?;
-                if !matches!(cp.get(const_type_index as usize), Some(Long(_))) {
+                let const_type_index = self.read_u16()? as usize;
+                if !matches!(cp.get(const_type_index), Some(Long(_))) {
                     bail!("const_type_index didn't point to a Long in the constant pool.");
                 }
                 ConstIndex(const_type_index)
             }
             's' => {
-                let const_type_index = self.read_u16()?;
-                if !matches!(cp.get(const_type_index as usize), Some(UTF8(_))) {
+                let const_type_index = self.read_u16()? as usize;
+                if !matches!(cp.get(const_type_index), Some(UTF8(_))) {
                     bail!("const_type_index didn't point to a Float in the constant pool.");
                 }
                 ConstIndex(const_type_index)
             }
             'e' => {
-                let type_name_index = self.read_u16()?;
+                let type_name_index = self.read_u16()? as usize;
                 Self::verify_utf8(
                     cp,
-                    type_name_index as usize,
+                    type_name_index,
                     "type_name_index didn't point to a UTF8 in the constant pool.",
                 )?;
 
-                let const_name_index = self.read_u16()?;
+                let const_name_index = self.read_u16()? as usize;
                 Self::verify_utf8(
                     cp,
-                    const_name_index as usize,
+                    const_name_index,
                     "const_name_index didn't point to a UTF8 in the constant pool.",
                 )?;
 
                 ElementValue::EnumConst(type_name_index, const_name_index)
             }
-            'c' => ClassIndex(self.read_u16()?),
+            'c' => ClassIndex(self.read_u16()? as usize),
             '@' => AnnotationValue(self.parse_annotation(cp)?),
             '[' => {
                 let values = {
@@ -1066,86 +1232,98 @@ impl ClassReader {
     }
 
     fn parse_annotation(&mut self, cp: &ConstantPool) -> Result<Annotation> {
-        let type_index = self.read_u16()?;
-        let value_pairs = {
-            let pairs_len = self.read_u16()? as usize;
-            let mut value_pairs = Vec::with_capacity(pairs_len);
-            for _ in 0..pairs_len {
-                let name_index = self.read_u16()?;
-                Self::verify_utf8(
-                    cp,
-                    name_index as usize,
-                    "Annotation's element_name_index didn't point to a UTF8 in the constant pool.",
-                )?;
-                let el_value = self.parse_element_value(cp)?;
-                value_pairs.push(ElementPairs(name_index, el_value));
-            }
-            value_pairs
-        };
+        let type_index = self.read_u16()? as usize;
+        Self::verify_utf8(
+            cp,
+            type_index,
+            "Annotation's type_index didn't point to a UTF8.",
+        )?;
+        let value_pairs = self.parse_element_pairs(cp)?;
         Ok(Annotation {
             type_index,
             value_pairs,
         })
     }
+    
+    fn parse_element_pairs(&mut self, cp: &ConstantPool) -> Result<Vec<ElementPairs>> {
+        let pairs_len = self.read_u16()? as usize;
+        (0..pairs_len)
+            .map(|_| {
+                let name_index = self.read_u16()? as usize;
+                Self::verify_utf8(
+                    cp,
+                    name_index,
+                    "ElementPair's element_name_index didn't point to a UTF8 in the constant pool.",
+                )?;
+                Ok(ElementPairs(name_index, self.parse_element_value(cp)?))
+            })
+            .collect::<Result<Vec<ElementPairs>>>()
+    }
     fn parse_jvm_utf8(bytes: &[u8]) -> Result<String> {
-        let mut result = String::new();
-        let mut i = 0;
-        while i < bytes.len() {
-            let byte = bytes[i];
+        let mut decoded_string = String::new();
+        let mut index = 0;
+
+        while index < bytes.len() {
+            let byte = bytes[index];
+
             if byte & 0x80 == 0 {
                 // Single-byte character
-                result.push(byte as char);
-                i += 1;
+                decoded_string.push(byte as char);
+                index += 1;
             } else if byte & 0xE0 == 0xC0 {
                 // Two-byte character
-                if i + 1 < bytes.len() {
-                    let ch = ((byte & 0x1F) as u32) << 6 | (bytes[i + 1] & 0x3F) as u32;
-                    result.push(match char::from_u32(ch) {
-                        None => {
-                            bail!("Could not convert u32 to char.");
-                        }
-                        Some(c) => c,
-                    });
-                    i += 2;
+                if index + 1 < bytes.len() {
+                    let code_point = (((byte & 0x1F) as u32) << 6) | ((bytes[index + 1] & 0x3F) as u32);
+                    decoded_string.push(char::from_u32(code_point).unwrap());
+                    index += 2;
                 } else {
-                    break;
+                    bail!("Incomplete two-byte character");
                 }
             } else if byte & 0xF0 == 0xE0 {
                 // Three-byte character
-                if i + 2 < bytes.len() {
-                    let ch = ((byte & 0x0F) as u32) << 12
-                        | ((bytes[i + 1] & 0x3F) as u32) << 6
-                        | (bytes[i + 2] & 0x3F) as u32;
-                    result.push(match char::from_u32(ch) {
-                        None => {
-                            bail!("Could not convert u32 to char.");
-                        }
-                        Some(c) => c,
-                    });
-                    i += 3;
+                if index + 2 < bytes.len() {
+                    let code_point = (((byte & 0x0F) as u32) << 12) | (((bytes[index + 1] & 0x3F) as u32) << 6) | ((bytes[index + 2] & 0x3F) as u32);
+                    decoded_string.push(char::from_u32(code_point).unwrap());
+                    index += 3;
                 } else {
-                    break;
+                    bail!("Incomplete three-byte character");
+                }
+            } else if byte & 0xF8 == 0xF0 {
+                // Four-byte character (UTF-8 representation of surrogate pair)
+                if index + 3 < bytes.len() {
+                    let code_point = (((byte & 0x07) as u32) << 18)
+                        | (((bytes[index + 1] & 0x3F) as u32) << 12)
+                        | (((bytes[index + 2] & 0x3F) as u32) << 6)
+                        | ((bytes[index + 3] & 0x3F) as u32);
+
+                    // Decoding surrogate pairs
+                    let high_surrogate = 0xD800 | ((code_point - 0x10000) >> 10) as u16;
+                    let low_surrogate = 0xDC00 | ((code_point - 0x10000) & 0x3FF) as u16;
+
+                    decoded_string.push(char::from_u32(high_surrogate as u32).unwrap());
+                    decoded_string.push(char::from_u32(low_surrogate as u32).unwrap());
+
+                    index += 4;
+                } else {
+                    bail!("Incomplete four-byte character");
                 }
             } else {
-                bail!("Invalid UTF-8 sequence encountered.");
+                bail!("Invalid byte sequence");
             }
         }
-        Ok(result)
+
+        Ok(decoded_string)
     }
 }
 
 impl Deref for ClassReader {
     type Target = Cursor<Vec<u8>>;
 
-    fn deref(&self) -> &Self::Target {
-        &self.0
-    }
+    fn deref(&self) -> &Self::Target { &self.0 }
 }
 
 impl DerefMut for ClassReader {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.0
-    }
+    fn deref_mut(&mut self) -> &mut Self::Target { &mut self.0 }
 }
 
 fn log_unrec_attr(name: &str, context: &str) -> Result<()> {

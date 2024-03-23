@@ -1,6 +1,7 @@
 /// All possible `constant_pool` entries.
-#[derive(Debug)]
+#[derive(Debug, Default, PartialEq, Clone)]
 pub enum Constant {
+    #[default]
     Dummy,
     UTF8(String),
     Integer(i32),

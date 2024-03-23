@@ -11,7 +11,7 @@ use crate::{
     },
 };
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Eq, PartialEq, Hash)]
 pub enum Instruction {
     AaLoad,
     AaStore,
@@ -438,6 +438,7 @@ impl Instruction {
                 195 => MonitorExit,
                 197 => MultiaNewArray(cursor.read_u16()?, cursor.read_u8()?),
                 188 => NewArray(ArrayType::try_from(cursor.read_u8()?)?),
+                187 => New(cursor.read_u16()?),
                 0 => Nop,
                 87 => Pop,
                 88 => Pop2,
@@ -745,7 +746,7 @@ impl TryFrom<u8> for Instruction {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Eq, PartialEq, Hash)]
 pub enum ArrayType {
     Boolean,
     Char,

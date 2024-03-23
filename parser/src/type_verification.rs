@@ -1,6 +1,6 @@
 use anyhow::{bail, Result};
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Eq, PartialEq, Hash)]
 pub enum VType {
     Top,
     Integer,

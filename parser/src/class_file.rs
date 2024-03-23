@@ -5,10 +5,11 @@ use bitflags::Flags;
 use byteorder::ReadBytesExt;
 
 use crate::{
-    attribute::Attribute
-    ,
-    class_reader::ClassReader
-    ,
+    attribute::{
+        Attribute, BootstrapMethods, ClassFileAttributes, EnclosingMethod, InnerClasses, Module,
+        ModuleMainClass, ModulePackages, PermittedSubclasses, Record, SourceDebugExtension,
+    },
+    class_reader::ClassReader,
     constant_pool::ConstantPool,
     field::Field,
     flags::ClassAccessFlags,
@@ -16,9 +17,8 @@ use crate::{
 };
 
 /// Represents the format of a JVM `.class` file
-#[derive(Debug)]
+#[derive(Debug, Default, Clone)]
 pub struct ClassFile {
-    pub magic: u32,
     pub minor_version: u16,
     pub major_version: u16,
     pub cp: ConstantPool,
@@ -28,53 +28,51 @@ pub struct ClassFile {
     pub interfaces: Vec<u16>,
     pub fields: Vec<Field>,
     pub methods: Vec<Method>,
-    pub attributes: Vec<Attribute>,
+    pub attributes: ClassFileAttributes,
 }
 
 impl ClassFile {
     const MAGIC: u32 = 0xCAFEBABE;
 
     pub fn parse_class<P: AsRef<Path>>(path: P) -> Result<ClassFile> {
+        let mut class_file = ClassFile::default();
+
         let mut cr = ClassReader::new(path.as_ref())?;
 
+        Self::valid_magic(&mut cr)?;
+        class_file.minor_version = cr.read_u16()?;
+        class_file.major_version = cr.read_u16()?;
+        let cp = cr.parse_cp()?;
+        let flag = cr.read_u16()?;
+        class_file.access_flags = ClassAccessFlags::from_bits(flag)
+            .context(format!("Invalid Class access flag: {flag}."))?;
+        class_file.this_class = cr.read_u16()?;
+        class_file.super_class = cr.read_u16()?;
+        class_file.interfaces = cr.parse_interfaces()?;
+        class_file.fields = cr.parse_fields(&cp)?;
+        let method_count = cr.read_u16()? as usize;
+        class_file.methods = cr.parse_methods(
+            &cp,
+            method_count,
+            class_file.major_version,
+            class_file.minor_version,
+        )?;
+        let attributes_count = cr.read_u16()? as usize;
+        cr.parse_class_attr(
+            &cp,
+            attributes_count,
+            !class_file.access_flags.contains(ClassAccessFlags::FINAL),
+            &mut class_file.attributes,
+        )?;
+        Ok(class_file)
+    }
+
+    fn valid_magic(cr: &mut ClassReader) -> Result<()> {
         let magic = cr.read_u32()?;
         if magic != ClassFile::MAGIC {
             bail!("Invalid class file.".to_string());
         }
-        let minor_version = cr.read_u16()?;
-        let major_version = cr.read_u16()?;
-        let cp = cr.parse_cp()?;
-        let flag = cr.read_u16()?;
-        let access_flags = ClassAccessFlags::from_bits(flag)
-            .context(format!("Invalid Class access flag: {flag}."))?;
-        let this_class = cr.read_u16()?;
-        let super_class = cr.read_u16()?;
-        let interfaces = cr.parse_interfaces()?;
-        let fields = cr.parse_fields(&cp)?;
-        let method_count = cr.read_u16()? as usize;
-        let methods = cr.parse_methods(&cp, method_count, major_version, minor_version)?;
-        let attributes_count = cr.read_u16()? as usize;
-        let attributes = cr.parse_class_attr(
-            &cp,
-            attributes_count,
-            !access_flags.contains(ClassAccessFlags::FINAL),
-        )?;
-        Ok(ClassFile {
-            magic,
-            minor_version,
-            major_version,
-            cp,
-            access_flags,
-            this_class,
-            super_class,
-            interfaces,
-            fields,
-            methods,
-            attributes,
-        })
+        Ok(())
     }
-
-    pub fn get_utf8(&self, index: usize) -> Result<&str> {
-        self.cp.get_utf8(index)
-    }
+    pub fn get_utf8(&self, index: usize) -> Result<&str> { self.cp.get_utf8(index) }
 }
