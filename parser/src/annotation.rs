@@ -1,5 +1,8 @@
-use anyhow::{Result, bail};
-use crate::annotation::TypeTarget::{Catch, Empty, FormalParameter, LocalVar, Offset, SuperType, Throws, TypeArgument, TypeParameter, TypeParameterBound};
+use crate::annotation::TypeTarget::{
+    Catch, Empty, FormalParameter, LocalVar, Offset, SuperType, Throws, TypeArgument,
+    TypeParameter, TypeParameterBound,
+};
+use anyhow::{bail, Result};
 
 // TODO elaborate with documentation from spec
 #[derive(Debug, Clone, Eq, PartialEq, Hash)]
@@ -35,39 +38,43 @@ pub struct TypeAnnotation {
 // https://docs.oracle.com/javase/specs/jvms/se21/html/jvms-4.html#jvms-4.7.20
 #[derive(Debug, Clone, Eq, PartialEq, Hash)]
 pub enum TypeTarget {
-    TypeParameter { 
+    TypeParameter {
         value: u8,
-        type_param_index: usize
+        type_param_index: usize,
     },
     SuperType {
         value: u8,
         supertype_index: usize,
     },
-    TypeParameterBound { value: u8, type_parameter_index: usize, bound_index: usize },
+    TypeParameterBound {
+        value: u8,
+        type_parameter_index: usize,
+        bound_index: usize,
+    },
     Empty(u8),
-    FormalParameter { 
+    FormalParameter {
         value: u8,
-        formal_param_index: usize
+        formal_param_index: usize,
     },
-    Throws { 
+    Throws {
         value: u8,
-        throws_type_index: usize
+        throws_type_index: usize,
     },
-    LocalVar { 
+    LocalVar {
         value: u8,
-        target_table: LocalVarTargetTable
+        target_table: LocalVarTargetTable,
     },
-    Catch { 
+    Catch {
         value: u8,
-        exception_table_index: usize
+        exception_table_index: usize,
     },
-    Offset { 
+    Offset {
         value: u8,
-        offset: u16
+        offset: u16,
     },
-    TypeArgument { 
+    TypeArgument {
         value: u8,
-        type_arg_index: usize
+        type_arg_index: usize,
     },
 }
 
@@ -87,7 +94,7 @@ pub struct TypePath(pub Vec<TypePathEntry>);
 #[derive(Debug, Clone, Eq, PartialEq, Hash)]
 pub struct TypePathEntry {
     pub type_path_kind: u8,
-    pub type_arg_index: usize
+    pub type_arg_index: usize,
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, Hash)]

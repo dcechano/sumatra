@@ -16,7 +16,12 @@ use crate::{
     annotation::{
         Annotation, ElementPairs, ElementValue,
         ElementValue::{AnnotationValue, Array, ClassIndex, ConstIndex},
-        ParameterAnnotation, TypeAnnotation,
+        LocalVarTargetTable, LocalVarTargetTableEntry, ParameterAnnotation, TypeAnnotation,
+        TypePath, TypePathEntry, TypeTarget,
+        TypeTarget::{
+            Catch, Empty, FormalParameter, LocalVar, Offset, SuperType, Throws, TypeArgument,
+            TypeParameter, TypeParameterBound,
+        },
     },
     attribute::{
         self,
@@ -36,7 +41,7 @@ use crate::{
         ModuleMainClass, ModulePackages, NestHost, NestMembers, Opens, PermittedSubclasses,
         Provides, Record, RecordComponent, Requires, RuntimeAnnotation,
         RuntimeAnnotation::{
-            RuntimeInvisibleAnnotations, RuntimeInvisibleParameterAnnotations,
+            AnnotationDefault, RuntimeInvisibleAnnotations, RuntimeInvisibleParameterAnnotations,
             RuntimeInvisibleTypeAnnotations, RuntimeVisibleAnnotations,
             RuntimeVisibleParameterAnnotations, RuntimeVisibleTypeAnnotations,
         },
@@ -60,9 +65,6 @@ use crate::{
     method::Method,
     type_verification::VType,
 };
-use crate::annotation::{LocalVarTargetTable, LocalVarTargetTableEntry, TypePath, TypePathEntry, TypeTarget};
-use crate::annotation::TypeTarget::{Catch, Empty, FormalParameter, LocalVar, Offset, SuperType, Throws, TypeArgument, TypeParameter, TypeParameterBound};
-use crate::attribute::RuntimeAnnotation::AnnotationDefault;
 
 const CLASS_EXT: &[u8] = b"class";
 pub(crate) struct ClassReader(Cursor<Vec<u8>>);
@@ -190,8 +192,9 @@ impl ClassReader {
                 20 => Package {
                     name_index: self.read_u16()? as usize,
                 },
-                unknown => { bail!("Unknown constant: {unknown}"); },
-                
+                unknown => {
+                    bail!("Unknown constant: {unknown}");
+                }
             };
             match constant {
                 Long(_) | Double(_) => {
@@ -712,6 +715,7 @@ impl ClassReader {
                     } else if contains_permitted {
                         bail!("Multiple PermittedSubclasses attributes found in class attributes.");
                     }
+                    contains_permitted = true;
                     let classes_len = self.read_u16()? as usize;
                     let classes = self.read_classes(classes_len, cp, "PermittedSubclasses")?;
                     attributes.permitted_subclasses = PermittedSubclasses(classes);
@@ -776,9 +780,10 @@ impl ClassReader {
             RUNTIME_VISIBLE_TYPE_ANNOTATIONS => {
                 RuntimeVisibleTypeAnnotations(self.parse_type_anno(cp)?)
             }
-            ANNOTATION_DEFAULT => {
-                AnnotationDefault(ElementPairs(self.read_u16()? as usize, self.parse_element_value(cp)?))
-            }
+            ANNOTATION_DEFAULT => AnnotationDefault(ElementPairs(
+                self.read_u16()? as usize,
+                self.parse_element_value(cp)?,
+            )),
             _ => {
                 // TODO This might not be spec; We may have to ignore unrecognized annotations
                 bail!("Invalid name");
@@ -809,105 +814,88 @@ impl ClassReader {
             https://docs.oracle.com/javase/specs/jvms/se21/html/jvms-4.html#jvms-4.7.20
         */
         let anno_len = self.read_u16()?;
-        (0..anno_len).map(|_| {
-            let type_target = self.parse_type_target()?;
-            let type_path = self.parse_type_path()?;
-            let type_index = self.read_u16()? as usize;
-            let value_pairs = self.parse_element_pairs(cp)?;
+        (0..anno_len)
+            .map(|_| {
+                let type_target = self.parse_type_target()?;
+                let type_path = self.parse_type_path()?;
+                let type_index = self.read_u16()? as usize;
+                let value_pairs = self.parse_element_pairs(cp)?;
 
-            Ok(TypeAnnotation {
-                type_target,
-                type_path,
-                type_index,
-                value_pairs,
+                Ok(TypeAnnotation {
+                    type_target,
+                    type_path,
+                    type_index,
+                    value_pairs,
+                })
             })
-        }).collect::<Result<Vec<TypeAnnotation>>>()
-
+            .collect::<Result<Vec<TypeAnnotation>>>()
     }
-    
+
     fn parse_type_path(&mut self) -> Result<TypePath> {
         let path_len = self.read_u8()?;
-        let entries = (0..path_len).map(|_| {
-            Ok(
-                TypePathEntry {
+        let entries = (0..path_len)
+            .map(|_| {
+                Ok(TypePathEntry {
                     type_path_kind: self.read_u8()?,
                     type_arg_index: self.read_u8()? as usize,
-                }
-            )
-        }).collect::<Result<Vec<TypePathEntry>>>()?;
+                })
+            })
+            .collect::<Result<Vec<TypePathEntry>>>()?;
         Ok(TypePath(entries))
     }
-    
+
     fn parse_type_target(&mut self) -> Result<TypeTarget> {
         let value = self.read_u8()?;
-        let type_target = match value{
-            0x00 | 0x01=> {
-                TypeParameter {
-                    value,
-                    type_param_index: self.read_u16()? as usize,
-                }
+        let type_target = match value {
+            0x00 | 0x01 => TypeParameter {
+                value,
+                type_param_index: self.read_u16()? as usize,
             },
-            0x10 => {
-                SuperType {
-                    value,
-                    supertype_index: self.read_u16()? as usize
-                }
+            0x10 => SuperType {
+                value,
+                supertype_index: self.read_u16()? as usize,
             },
-            0x11 | 0x12=> {
-                TypeParameterBound {
-                    value,
-                    type_parameter_index: self.read_u16()? as usize,
-                    bound_index: self.read_u16()? as usize
-                }
+            0x11 | 0x12 => TypeParameterBound {
+                value,
+                type_parameter_index: self.read_u16()? as usize,
+                bound_index: self.read_u16()? as usize,
             },
-            0x13 | 0x14 | 0x15 => {
-                Empty(value)
+            0x13 | 0x14 | 0x15 => Empty(value),
+            0x16 => FormalParameter {
+                value,
+                formal_param_index: self.read_u16()? as usize,
             },
-            0x16 => {
-                FormalParameter {
-                    value,
-                    formal_param_index: self.read_u16()? as usize
-                }
-            },
-            0x17 => {
-                Throws {
-                    value,
-                    throws_type_index: self.read_u16()? as usize
-                }
+            0x17 => Throws {
+                value,
+                throws_type_index: self.read_u16()? as usize,
             },
             0x40 | 0x41 => {
                 let table_len = self.read_u16()?;
-                let target_table = (0..table_len).map(|_| {
-                    Ok(
-                        LocalVarTargetTableEntry {
+                let target_table = (0..table_len)
+                    .map(|_| {
+                        Ok(LocalVarTargetTableEntry {
                             start_pc: self.read_u16()?,
                             length: self.read_u16()?,
-                            index: self.read_u16()? as usize
-                        }
-                    )  
-                }).collect::<Result<Vec<LocalVarTargetTableEntry>>>()?;
+                            index: self.read_u16()? as usize,
+                        })
+                    })
+                    .collect::<Result<Vec<LocalVarTargetTableEntry>>>()?;
                 LocalVar {
                     value,
                     target_table: LocalVarTargetTable(target_table),
                 }
+            }
+            0x42 => Catch {
+                value,
+                exception_table_index: self.read_u16()? as usize,
             },
-            0x42 => {
-                Catch {
-                    value,
-                    exception_table_index: self.read_u16()? as usize
-                }
+            0x43..=0x46 => Offset {
+                value,
+                offset: self.read_u16()?,
             },
-            0x43..=0x46 => {
-                Offset {
-                    value,
-                    offset: self.read_u16()?
-                }
-            },
-            0x47..=0x4B => {
-                TypeArgument {
-                    value,
-                    type_arg_index: self.read_u16()? as usize
-                }
+            0x47..=0x4B => TypeArgument {
+                value,
+                type_arg_index: self.read_u16()? as usize,
             },
             _ => {
                 bail!("Invalid TypeTarget value.");
@@ -1244,7 +1232,7 @@ impl ClassReader {
             value_pairs,
         })
     }
-    
+
     fn parse_element_pairs(&mut self, cp: &ConstantPool) -> Result<Vec<ElementPairs>> {
         let pairs_len = self.read_u16()? as usize;
         (0..pairs_len)
@@ -1273,7 +1261,8 @@ impl ClassReader {
             } else if byte & 0xE0 == 0xC0 {
                 // Two-byte character
                 if index + 1 < bytes.len() {
-                    let code_point = (((byte & 0x1F) as u32) << 6) | ((bytes[index + 1] & 0x3F) as u32);
+                    let code_point =
+                        (((byte & 0x1F) as u32) << 6) | ((bytes[index + 1] & 0x3F) as u32);
                     decoded_string.push(char::from_u32(code_point).unwrap());
                     index += 2;
                 } else {
@@ -1282,7 +1271,9 @@ impl ClassReader {
             } else if byte & 0xF0 == 0xE0 {
                 // Three-byte character
                 if index + 2 < bytes.len() {
-                    let code_point = (((byte & 0x0F) as u32) << 12) | (((bytes[index + 1] & 0x3F) as u32) << 6) | ((bytes[index + 2] & 0x3F) as u32);
+                    let code_point = (((byte & 0x0F) as u32) << 12)
+                        | (((bytes[index + 1] & 0x3F) as u32) << 6)
+                        | ((bytes[index + 2] & 0x3F) as u32);
                     decoded_string.push(char::from_u32(code_point).unwrap());
                     index += 3;
                 } else {
