@@ -5,15 +5,8 @@ use bitflags::Flags;
 use byteorder::ReadBytesExt;
 
 use crate::{
-    attribute::{
-        Attribute, BootstrapMethods, ClassFileAttributes, EnclosingMethod, InnerClasses, Module,
-        ModuleMainClass, ModulePackages, PermittedSubclasses, Record, SourceDebugExtension,
-    },
-    class_reader::ClassReader,
-    constant_pool::ConstantPool,
-    field::Field,
-    flags::ClassAccessFlags,
-    method::Method,
+    attribute::ClassFileAttributes, class_reader::ClassReader, constant_pool::ConstantPool,
+    field::Field, flags::ClassAccessFlags, method::Method,
 };
 
 /// Represents the format of a JVM `.class` file
@@ -23,9 +16,9 @@ pub struct ClassFile {
     pub major_version: u16,
     pub cp: ConstantPool,
     pub access_flags: ClassAccessFlags,
-    pub this_class: u16,
-    pub super_class: u16,
-    pub interfaces: Vec<u16>,
+    pub this_class: usize,
+    pub super_class: usize,
+    pub interfaces: Vec<usize>,
     pub fields: Vec<Field>,
     pub methods: Vec<Method>,
     pub attributes: ClassFileAttributes,
@@ -46,8 +39,8 @@ impl ClassFile {
         let flag = cr.read_u16()?;
         class_file.access_flags = ClassAccessFlags::from_bits(flag)
             .context(format!("Invalid Class access flag: {flag}."))?;
-        class_file.this_class = cr.read_u16()?;
-        class_file.super_class = cr.read_u16()?;
+        class_file.this_class = cr.read_u16()? as usize;
+        class_file.super_class = cr.read_u16()? as usize;
         class_file.interfaces = cr.parse_interfaces()?;
         class_file.fields = cr.parse_fields(&cp)?;
         let method_count = cr.read_u16()? as usize;
@@ -64,6 +57,7 @@ impl ClassFile {
             !class_file.access_flags.contains(ClassAccessFlags::FINAL),
             &mut class_file.attributes,
         )?;
+        class_file.cp = cp;
         Ok(class_file)
     }
 

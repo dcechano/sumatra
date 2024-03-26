@@ -3,9 +3,9 @@ use crate::{attribute::RuntimeAnnotation, constant::Constant, flags::FieldAccess
 #[derive(Debug, Default, PartialEq, Clone)]
 pub struct Field {
     pub access_flags: FieldAccessFlags,
-    pub name_index: usize,
-    pub descriptor_index: usize,
-    pub signature_index: usize,
+    pub name: String,
+    pub descriptor: String,
+    pub signature: String,
     pub constant_value: Constant,
     pub synthetic: bool,
     pub deprecated: bool,

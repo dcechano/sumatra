@@ -255,7 +255,8 @@ impl ClassReader {
                         bail!("Method cannot have more than one Signature attribute.");
                     }
                     sig_present = true;
-                    method.signature_index = self.read_u16()? as usize;
+                    let signature = cp.get_utf8(self.read_u16()? as usize)?;
+                    method.signature = signature.to_string();
                 }
                 RUNTIME_INVISIBLE_ANNOTATIONS => {
                     let anno_len = self.read_u16()?;
@@ -306,7 +307,7 @@ impl ClassReader {
         code.max_locals = self.read_u16()?;
 
         let code_len = self.read_u32()? as usize;
-        code.code = Instruction::from_bytes(&self.read_bytes(code_len)?)?;
+        code.op_code = Instruction::from_bytes(&self.read_bytes(code_len)?)?;
 
         code.exception_table = self.parse_exceptions_table(cp)?;
 
@@ -501,27 +502,19 @@ impl ClassReader {
     }
 
     fn parse_method(&mut self, cp: &ConstantPool, min_ver: u16, maj_ver: u16) -> Result<Method> {
-        let mut method = Method::default();
-        method.access_flags = MethodAccessFlags::from_bits(self.read_u16()?)
-            .context("Invalid access flags on method.")?;
+        let mut method = Method {
+            access_flags: MethodAccessFlags::from_bits(self.read_u16()?)
+                .context("Invalid access flags on method.")?,
+            ..Default::default()
+        };
         // TODO: uncomment when implement
         // access_flags.verify_flags(min_ver, maj_ver, /*is_interface*/)
 
-        let name_index = self.read_u16()? as usize;
-        Self::verify_utf8(
-            cp,
-            name_index,
-            "Method's name index didn't point to a UTF8 in constant pool.",
-        )?;
-        method.name_index = name_index;
+        let name = cp.get_utf8(self.read_u16()? as usize)?;
+        method.name = name.to_string();
 
-        let descriptor_index = self.read_u16()? as usize;
-        Self::verify_utf8(
-            cp,
-            descriptor_index,
-            "Method's descriptor index didn't point to a UTF8 in the constant pool.",
-        )?;
-        method.descriptor_index = descriptor_index;
+        let descriptor = cp.get_utf8(self.read_u16()? as usize)?;
+        method.descriptor = descriptor.to_string();
 
         self.parse_method_attr(cp, &mut method)?;
 
@@ -535,21 +528,11 @@ impl ClassReader {
         field.access_flags = FieldAccessFlags::from_bits(flag)
             .context(format!("Invalid Field access flag: {flag}"))?;
 
-        let name_index = self.read_u16()? as usize;
-        Self::verify_utf8(
-            cp,
-            name_index,
-            "name_index on field did not point to a UTF8 in the constant pool.",
-        )?;
-        field.name_index = name_index;
+        let name = cp.get_utf8(self.read_u16()? as usize)?;
+        field.name = name.to_string();
 
-        let descriptor_index = self.read_u16()? as usize;
-        Self::verify_utf8(
-            cp,
-            descriptor_index,
-            "descriptor_index on field did not point to a UTF8 in the constant pool.",
-        )?;
-        field.descriptor_index = descriptor_index;
+        let descriptor = cp.get_utf8(self.read_u16()? as usize)?;
+        field.descriptor = descriptor.to_string();
 
         let attributes_count = self.read_u16()? as usize;
         self.parse_field_attr(cp, attributes_count, &mut field)?;
@@ -590,14 +573,9 @@ impl ClassReader {
                         bail!("Field attribute cannot have more that one Signature attribute")
                     }
                     contains_sig = true;
-                    let sig_index = self.read_u16()? as usize;
-                    Self::verify_utf8(
-                        cp,
-                        sig_index,
-                        "Signature attribute index did not point to a UTF8 in constant pool.",
-                    )?;
+                    let sig = cp.get_utf8(self.read_u16()? as usize)?;
                     // TODO Implement more type checks in the JVM 21 spec
-                    field.signature_index = sig_index;
+                    field.signature = sig.to_string();
                 }
                 DEPRECATED => {
                     if attr_len != 0 {
@@ -620,11 +598,14 @@ impl ClassReader {
         Ok(())
     }
 
-    pub(crate) fn parse_interfaces(&mut self) -> Result<Vec<u16>> {
+    pub(crate) fn parse_interfaces(&mut self) -> Result<Vec<usize>> {
         let interfaces_len = self.read_u16()?;
         let interfaces = (0..interfaces_len)
-            .map(|_| self.read_u16())
-            .collect::<Result<Vec<u16>>>()?;
+            .map(|_| {
+                let i = self.read_u16()?;
+                Ok(i as usize)
+            })
+            .collect::<Result<Vec<usize>>>()?;
         Ok(interfaces)
     }
 

@@ -10,7 +10,7 @@ pub struct ConstantPool(Vec<Constant>);
 impl ConstantPool {
     pub fn new(capacity: usize) -> Self { Self(Vec::with_capacity(capacity)) }
 
-    pub(crate) fn get_utf8(&self, index: usize) -> Result<&str> {
+    pub fn get_utf8(&self, index: usize) -> Result<&str> {
         match self.get(index) {
             Some(string) => {
                 if let UTF8(string) = string {

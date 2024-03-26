@@ -40,5 +40,6 @@ dependencies = [
 name = "sumatra_vm"
 version = "0.1.0"
 dependencies = [
+ "anyhow",
  "sumatra_parser",
 ]

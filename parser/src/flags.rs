@@ -86,7 +86,7 @@ bitflags! {
             https://docs.oracle.com/javase/specs/jvms/se21/html/jvms-4.html#jvms-4.7.25"
     ]
     #[derive(Debug, Default, Eq, PartialEq, Hash, Clone)]
-    pub(crate) struct ModuleFlags: u16 {
+    pub struct ModuleFlags: u16 {
         const OPEN = 0x0020;
         const SYNTHETIC = 0x1000;
         const MANDATED = 0x8000;
@@ -99,7 +99,7 @@ bitflags! {
             https://docs.oracle.com/javase/specs/jvms/se21/html/jvms-4.html#jvms-4.7.25"
     ]
     #[derive(Debug, Default, Eq, PartialEq, Hash, Clone)]
-    pub(crate) struct RequiresFlags: u16 {
+    pub struct RequiresFlags: u16 {
         const TRANSITIVE = 0x0020;
         const STATIC_PHASE = 0x0040;
         const SYNTHETIC = 0x1000;

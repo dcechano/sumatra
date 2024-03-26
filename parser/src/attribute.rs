@@ -1,5 +1,4 @@
 use anyhow::bail;
-use std::{iter::Empty, path::Path};
 
 use crate::{
     annotation::{Annotation, ElementPairs, ParameterAnnotation, TypeAnnotation},
@@ -155,7 +154,7 @@ pub struct Custom(pub Vec<u8>);
 pub struct Code {
     pub max_stack: u16,
     pub max_locals: u16,
-    pub code: Vec<Instruction>,
+    pub op_code: Vec<Instruction>,
     pub exception_table: Vec<Exception>,
     pub line_number_table: LineNumberTable,
     pub local_var_table: LocalVariableTable,

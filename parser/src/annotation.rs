@@ -1,9 +1,3 @@
-use crate::annotation::TypeTarget::{
-    Catch, Empty, FormalParameter, LocalVar, Offset, SuperType, Throws, TypeArgument,
-    TypeParameter, TypeParameterBound,
-};
-use anyhow::{bail, Result};
-
 // TODO elaborate with documentation from spec
 #[derive(Debug, Clone, Eq, PartialEq, Hash)]
 pub struct Annotation {

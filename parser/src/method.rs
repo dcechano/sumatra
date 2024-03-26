@@ -6,9 +6,9 @@ use crate::{
 #[derive(Debug, Default, Eq, PartialEq, Hash, Clone)]
 pub struct Method {
     pub access_flags: MethodAccessFlags,
-    pub name_index: usize,
-    pub descriptor_index: usize,
-    pub signature_index: usize,
+    pub name: String,
+    pub descriptor: String,
+    pub signature: String,
     pub code: Code,
     pub exceptions: Exceptions,
     pub runtime_annotations: Vec<RuntimeAnnotation>,
