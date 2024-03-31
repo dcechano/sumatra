@@ -1,10 +1,14 @@
-#[derive(Debug, Default, Clone)]
-pub(crate) enum Value {
+use crate::oop::HeapAlloc;
+
+#[derive(Default, Debug)]
+#[repr(C)]
+pub enum Value<'data> {
     #[default]
     Null,
     Double(f64),
-    Float(f32),
-    Integer(i32),
+    Int(i32),
+    Short(i16),
+    Byte(i8),
     Long(i64),
-    Object(String),
+    RefType(HeapAlloc<'data>),
 }
