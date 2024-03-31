@@ -1,4 +1,5 @@
 use sumatra_parser::class_file::ClassFile;
+use sumatra_vm::{class::Class, vm::VM};
 
 const CLASSES: [&str; 5] = [
     "/home/dylan/Documents/RustProjects/sumatra/java/target/production/java/Main.class",
@@ -12,7 +13,9 @@ fn main() {
         "/home/dylan/Documents/RustProjects/sumatra/java/target/production/java/Simple.class",
     )
     .unwrap();
-    println!("{:#?}", class_file);
+    println!("Running {:#?}", class_file);
+    let mut vm = VM::default();
+    vm.run(&mut Class::from(&class_file)).unwrap()
 
     // for class in CLASSES {
     //     println!();
