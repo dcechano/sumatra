@@ -1,12 +1,16 @@
-use crate::{call_frame::CallFrame, class::Class, class_loader::ClassLoader, value::Value};
 use anyhow::{bail, Result};
+
 use sumatra_parser::{constant::Constant, instruction::Instruction, method::Method};
+
+use crate::{call_frame::CallFrame, class::Class, class_loader::ClassLoader, value::Value};
 
 const MAIN: &str = "main([Ljava/lang/String;)V";
 
-struct VM<'vm> {
-    pub(crate) call_frames: Vec<CallFrame<'vm>>,
-    pub(crate) stack: Vec<Value>,
+#[derive(Default)]
+pub struct VM<'vm> {
+    //TODO implement call frames and the method area
+    // pub(crate) call_frames: Vec<CallFrame<'vm>>,
+    pub(crate) stack: Vec<Value<'vm>>,
     pub(crate) class_loader: ClassLoader,
 }
 
@@ -106,13 +110,7 @@ impl<'vm> VM<'vm> {
                 Instruction::FStore3 => {}
                 Instruction::FSub => {}
                 Instruction::GetField(_) => {}
-                Instruction::GetStatic(index) => {
-                    let class = call_frame.cp.get(*index).unwrap();
-                    if let Constant::Class { name_index } = class {
-                        let name = call_frame.cp.get_utf8(*name_index).unwrap();
-                        call_frame.op_stack.push(Value::Object(name.into()));
-                    }
-                }
+                Instruction::GetStatic(index) => self.get_static(call_frame, *index)?,
                 Instruction::GoTo(_) => {}
                 Instruction::GoToW(_) => {}
                 Instruction::I2B => {}
@@ -201,27 +199,23 @@ impl<'vm> VM<'vm> {
                         }
                         Constant::Integer(_) => {
                             todo!()
-                            
                         }
                         Constant::Float(_) => {
                             todo!()
-                            
                         }
                         Constant::Long(_) => {
                             todo!()
-                            
                         }
                         Constant::Double(_) => {
                             todo!()
-                            
                         }
-                        Constant::Class { .. } => {
+                        Constant::Class(_) => {
                             todo!()
-                            
                         }
-                        Constant::String { string_index } => {
-                            let string = call_frame.cp.get_utf8(*string_index).unwrap();
-                            call_frame.op_stack.push(Value::Object(string.into()));
+                        Constant::String(string_index) => {
+                            todo!()
+                            // call_frame.op_stack.push(Value::Object(string.
+                            // into()));
                         }
                         Constant::FieldRef { .. } => {
                             todo!()
@@ -238,7 +232,7 @@ impl<'vm> VM<'vm> {
                         Constant::MethodHandle { .. } => {
                             todo!()
                         }
-                        Constant::MethodType { .. } => {
+                        Constant::MethodType(_) => {
                             todo!()
                         }
                         Constant::Dynamic { .. } => {
@@ -247,12 +241,11 @@ impl<'vm> VM<'vm> {
                         Constant::InvokeDynamic { .. } => {
                             todo!()
                         }
-                        Constant::Module { .. } => {
+                        Constant::Module(_) => {
                             todo!()
                         }
-                        Constant::Package { .. } => {
+                        Constant::Package(_) => {
                             todo!()
-                             
                         }
                     }
                 }
@@ -300,7 +293,38 @@ impl<'vm> VM<'vm> {
                 Instruction::Wide(_, _, _) => {}
             }
         }
-        println!("Printing the call frame {:?}.", call_frame);
+        println!(
+            "Printing the call frame operand stack {:?}.",
+            call_frame.op_stack
+        );
+        Ok(())
+    }
+
+    fn get_static(&mut self, call_frame: &mut CallFrame, index: usize) -> Result<()> {
+        if let Some(Constant::FieldRef {
+            class_index,
+            name_and_type_index,
+        }) = call_frame.cp.get(index)
+        {
+            if let Constant::Class(name_index) = call_frame.cp.get(*class_index).unwrap() {
+                let name = call_frame.cp.get_utf8(*name_index)?;
+                self.class_loader.resolve(name)?;
+                println!("Loading class {name} was successful.");
+                todo!();
+                // call_frame.op_stack.push(Value::RefType(name.into()));
+            };
+            if let Constant::NameAndType {
+                name_index,
+                descriptor_index,
+            } = call_frame.cp.get(*name_and_type_index).unwrap()
+            {
+                todo!()
+            } else {
+                bail!("Fieldref name_and_type_index did not point to a NameAndType constant.");
+            }
+        } else {
+            bail!("get_static constant was not a FieldRef constant.");
+        }
         Ok(())
     }
 }

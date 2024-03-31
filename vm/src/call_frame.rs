@@ -1,12 +1,15 @@
-use crate::value::Value;
 use sumatra_parser::{constant_pool::ConstantPool, method::Method};
 
+use crate::value::Value;
+
+//TODO rework Call frame to use manual allocation
+// Check the requirements for where call frames should be allocated.
 #[derive(Debug)]
 pub(crate) struct CallFrame<'vm> {
     pub(crate) method: &'vm Method,
     pub(crate) pc: usize,
-    pub(crate) locals: Vec<Value>,
-    pub(crate) op_stack: Vec<Value>,
+    pub(crate) locals: Vec<Value<'vm>>,
+    pub(crate) op_stack: Vec<Value<'vm>>,
     pub(crate) cp: &'vm ConstantPool,
 }
 //
