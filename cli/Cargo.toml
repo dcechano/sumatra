@@ -5,3 +5,4 @@ edition = "2021"
 
 [dependencies]
 sumatra_parser = { path = "../parser" }
+sumatra_vm = { path = "../vm"}

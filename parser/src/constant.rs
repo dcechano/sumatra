@@ -8,12 +8,8 @@ pub enum Constant {
     Float(f32),
     Long(i64),
     Double(f64),
-    Class {
-        name_index: usize,
-    },
-    String {
-        string_index: usize,
-    },
+    Class(usize),
+    String(usize),
     FieldRef {
         class_index: usize,
         name_and_type_index: usize,
@@ -34,9 +30,7 @@ pub enum Constant {
         reference_kind: u8,
         reference_index: usize,
     },
-    MethodType {
-        descriptor_index: usize,
-    },
+    MethodType(usize),
     Dynamic {
         bootstrap_method_attr_index: usize,
         name_and_type_index: usize,
@@ -45,10 +39,6 @@ pub enum Constant {
         bootstrap_method_attr_index: usize,
         name_and_type_index: usize,
     },
-    Module {
-        name_index: usize,
-    },
-    Package {
-        name_index: usize,
-    },
+    Module(usize),
+    Package(usize),
 }

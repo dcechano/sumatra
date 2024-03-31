@@ -1,5 +1,6 @@
 mod call_frame;
-mod class;
+pub mod class;
 mod class_loader;
+mod oop;
 mod value;
-mod vm;
+pub mod vm;

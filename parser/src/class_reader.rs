@@ -149,12 +149,8 @@ impl ClassReader {
                 4 => Float(f32::from(self.read_u16()?)),
                 5 => Long(self.read_i64()?),
                 6 => Double(self.read_f64()?),
-                7 => Class {
-                    name_index: self.read_u16()? as usize,
-                },
-                8 => Constant::String {
-                    string_index: self.read_u16()? as usize,
-                },
+                7 => Class(self.read_u16()? as usize),
+                8 => Constant::String(self.read_u16()? as usize),
                 9 => FieldRef {
                     class_index: self.read_u16()? as usize,
                     name_and_type_index: self.read_u16()? as usize,
@@ -175,9 +171,7 @@ impl ClassReader {
                     reference_kind: self.read_u8()?,
                     reference_index: self.read_u16()? as usize,
                 },
-                16 => MethodType {
-                    descriptor_index: self.read_u16()? as usize,
-                },
+                16 => MethodType(self.read_u16()? as usize),
                 17 => Dynamic {
                     bootstrap_method_attr_index: self.read_u16()? as usize,
                     name_and_type_index: self.read_u16()? as usize,
@@ -186,12 +180,8 @@ impl ClassReader {
                     bootstrap_method_attr_index: self.read_u16()? as usize,
                     name_and_type_index: self.read_u16()? as usize,
                 },
-                19 => Module {
-                    name_index: self.read_u16()? as usize,
-                },
-                20 => Package {
-                    name_index: self.read_u16()? as usize,
-                },
+                19 => Module(self.read_u16()? as usize),
+                20 => Package(self.read_u16()? as usize),
                 unknown => {
                     bail!("Unknown constant: {unknown}");
                 }
