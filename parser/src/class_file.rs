@@ -27,10 +27,8 @@ pub struct ClassFile {
 impl ClassFile {
     const MAGIC: u32 = 0xCAFEBABE;
 
-    pub fn parse_class<P: AsRef<Path>>(path: P) -> Result<ClassFile> {
+    fn parse(mut cr: ClassReader) -> Result<ClassFile> {
         let mut class_file = ClassFile::default();
-
-        let mut cr = ClassReader::new(path.as_ref())?;
 
         Self::valid_magic(&mut cr)?;
         class_file.minor_version = cr.read_u16()?;
@@ -59,6 +57,16 @@ impl ClassFile {
         )?;
         class_file.cp = cp;
         Ok(class_file)
+    }
+
+    pub fn parse_class<P: AsRef<Path>>(path: P) -> Result<ClassFile> {
+        let cr = ClassReader::new(path.as_ref())?;
+        Self::parse(cr)
+    }
+
+    pub fn parse_from_buffer(buffer: &[u8]) -> Result<ClassFile> {
+        let cr = ClassReader::with_buffer(buffer);
+        Self::parse(cr)
     }
 
     fn valid_magic(cr: &mut ClassReader) -> Result<()> {

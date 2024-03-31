@@ -1,15 +1,12 @@
 use std::collections::HashMap;
+
 use sumatra_parser::{
-    attribute::{Attribute, ClassFileAttributes},
-    class_file::ClassFile,
-    constant_pool::ConstantPool,
-    field::Field,
-    flags::ClassAccessFlags,
-    method::Method,
+    attribute::ClassFileAttributes, class_file::ClassFile, constant_pool::ConstantPool,
+    field::Field, flags::ClassAccessFlags, method::Method,
 };
 
 #[derive(Debug, Default, Clone)]
-pub(crate) struct Class {
+pub struct Class {
     pub minor_version: u16,
     pub major_version: u16,
     pub cp: ConstantPool,
