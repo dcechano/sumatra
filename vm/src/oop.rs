@@ -23,6 +23,7 @@ const VALUE_ALIGN: usize = mem::align_of::<Value>();
 pub(crate) struct FieldsTable(HashMap<String, usize>);
 
 impl FieldsTable {
+    #[inline]
     fn with_capacity(cap: usize) -> Self { Self(HashMap::with_capacity(cap)) }
 }
 
@@ -45,6 +46,7 @@ pub(crate) struct Header {
 }
 
 impl Header {
+    #[inline]
     fn new(class: &ClassFile, class_index: usize) -> Self {
         Self {
             class_index,
@@ -121,6 +123,7 @@ impl<'data> HeapAlloc<'data> {
         }
     }
 
+    #[inline]
     pub(crate) fn get_field(&self, name: &str) -> Result<Value> {
         unsafe {
             let value = ptr::read(self.get_field_inner(name)? as *const Value);
@@ -128,6 +131,7 @@ impl<'data> HeapAlloc<'data> {
         }
     }
 
+    #[inline]
     pub(crate) unsafe fn get_field_inner(&self, name: &str) -> Result<*mut u8> {
         let offset = match self.header.fields.get(name) {
             None => {
@@ -139,6 +143,7 @@ impl<'data> HeapAlloc<'data> {
         Ok(self.data.add(*offset))
     }
 
+    #[inline]
     pub(crate) fn set_field(&mut self, name: &str, data: Value) -> Result<()> {
         unsafe {
             let field = self.get_field_inner(name)?;
@@ -147,6 +152,7 @@ impl<'data> HeapAlloc<'data> {
         Ok(())
     }
 
+    #[inline]
     pub(crate) unsafe fn deallocate(heap: *mut HeapAlloc) {
         let ptr = (*heap).data;
         if !ptr.is_null() {
