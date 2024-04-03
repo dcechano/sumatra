@@ -99,10 +99,9 @@ impl<'data> HeapAlloc<'data> {
 
             let num_fields = class.fields.len();
             let mut header = Header::new(class, index);
-            let data_size = VALUE_SIZE * num_fields;
             // ptr now allocated
-            let data = if data_size != 0 {
-                alloc::alloc(Layout::from_size_align(data_size, VALUE_ALIGN).unwrap())
+            let data = if num_fields != 0 {
+                alloc::alloc(Layout::array::<Value>(num_fields).unwrap())
             } else {
                 ptr::null_mut()
             };
@@ -154,20 +153,29 @@ impl<'data> HeapAlloc<'data> {
 
     #[inline]
     pub(crate) unsafe fn deallocate(heap: *mut HeapAlloc) {
-        let ptr = (*heap).data;
-        if !ptr.is_null() {
+        if heap.is_null() {
+            return;
+        }
+        let data = (*heap).data;
+        if !data.is_null() {
             // We need not worry about fields.len == 0 because the only way the ptr
             // is not null is that there were fields to justify the initial allocation.
-            let size = VALUE_SIZE * (*heap).header.fields.len();
+            let size = (*heap).header.fields.len();
             debug_assert!(size != 0);
-            let layout = Layout::from_size_align(size, VALUE_ALIGN).unwrap();
-            alloc::dealloc(ptr, layout);
+            let layout = Layout::array::<Value>(size).unwrap();
+            // Self::dealloc_data(data, size);
+            alloc::dealloc(data, layout);
         }
 
         ptr::drop_in_place(&mut (*heap).header as *mut Header);
 
         alloc::dealloc(heap as *mut u8, Layout::new::<HeapAlloc>());
     }
+
+    // #[inline]
+    // pub(crate) unsafe fn dealloc_data(data: *mut u8, size: usize) {
+    //
+    // }
 }
 
 impl<'data> Debug for HeapAlloc<'data> {
@@ -202,4 +210,62 @@ impl<'data> Display for HeapAlloc<'data> {
 
 impl Debug for FieldsTable {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result { writeln!(f, "{:#?}", &self.0) }
+}
+
+#[cfg(test)]
+mod test {
+    use crate::{oop::HeapAlloc, value::Value};
+    use std::ptr;
+    use sumatra_parser::class_file::ClassFile;
+
+    const CLASSES: [&str; 6] = [
+        "/home/dylan/Documents/RustProjects/jheap/java/target/production/java/Main.class",
+        "/home/dylan/Documents/RustProjects/jheap/java/target/production/java/Interface.class",
+        "/home/dylan/Documents/RustProjects/jheap/java/target/production/java/Import.class",
+        "/home/dylan/Documents/RustProjects/jheap/java/target/production/java/Simple.class",
+        "/home/dylan/Documents/RustProjects/jheap/java/target/production/java/Taco.class",
+        "/home/dylan/Documents/RustProjects/jheap/java/target/production/java/Fields.class",
+    ];
+
+    #[test]
+    fn alloc() {
+        for class in CLASSES {
+            let class_file = ClassFile::parse_class(class).unwrap();
+            let ptr = HeapAlloc::new(&class_file, 0);
+            unsafe {
+                let heap = &mut *(ptr as *mut HeapAlloc);
+                for field in class_file.fields {
+                    heap.set_field(&field.name, Value::Long(69420)).unwrap();
+                }
+
+                HeapAlloc::deallocate(ptr as *mut HeapAlloc);
+            }
+        }
+    }
+
+    #[test]
+    fn alloc2() {
+        let taco = CLASSES[4];
+
+        let class_file = ClassFile::parse_class(taco).unwrap();
+        let field = ClassFile::parse_class(taco).unwrap();
+
+        let containing_class = HeapAlloc::new(&class_file, 0);
+        let field_ref = HeapAlloc::new(&field, 0);
+
+        unsafe {
+            let heap = &mut *(containing_class as *mut HeapAlloc);
+            heap.set_field(
+                "printWriter",
+                Value::RefType(ptr::read(field_ref as *const HeapAlloc)),
+            )
+            .unwrap();
+
+            HeapAlloc::deallocate(field_ref as *mut HeapAlloc);
+            HeapAlloc::deallocate(containing_class as *mut HeapAlloc);
+        }
+    }
+
+    #[test]
+    fn miri() {}
 }
