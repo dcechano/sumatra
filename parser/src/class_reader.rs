@@ -318,7 +318,9 @@ impl ClassReader {
                 let handler_pc = self.read_u16()?;
                 let catch_type = self.read_u16()?;
                 let class = cp.get(catch_type as usize);
-                if !matches!(class, Some(Class { .. })) {
+                // if catch_type == 0 then this exception handler is called for all exceptions
+                // https://docs.oracle.com/javase/specs/jvms/se21/html/jvms-4.html#jvms-4.7.3
+                if catch_type != 0 && !matches!(class, Some(Class { .. })) {
                     bail!("Entry in Code attributes exception table didn't point to a Class.");
                 }
                 Ok(Exception {
@@ -430,7 +432,7 @@ impl ClassReader {
     fn read_smf(&mut self) -> Result<StackMapFrame> {
         let smf = match self.read_u8()? {
             0..=63 => StackMapFrame::SameFrame,
-            64..=127 => StackMapFrame::SameLocals,
+            64..=127 => StackMapFrame::SameLocals(self.get_v_type()?),
             247 => {
                 let offset = self.read_u16()?;
                 let v_type = self.get_v_type()?;
@@ -502,6 +504,8 @@ impl ClassReader {
 
         let name = cp.get_utf8(self.read_u16()? as usize)?;
         method.name = name.to_string();
+        //TODO Remove
+        println!("Parsing: {name}");
 
         let descriptor = cp.get_utf8(self.read_u16()? as usize)?;
         method.descriptor = descriptor.to_string();
@@ -910,20 +914,27 @@ impl ClassReader {
         let class_len = self.read_u16()? as usize;
         let mut classes = Vec::with_capacity(class_len);
         for _ in 0..class_len {
+            /*
+                if inner_class_info_index, outer_class_info_index, or inner_name_index are 0
+                that indicates that the class or interface is anonymous and thus will not have
+                valid entries in the constant pool.
+            */
+            
             let inner_class_info_index = self.read_u16()? as usize;
-            if !matches!(cp.get(inner_class_info_index), Some(Class { .. })) {
+            if inner_class_info_index != 0 && !matches!(cp.get(inner_class_info_index), Some(Class { .. })) {
                 bail!("ClassFile InnerClass Attributes inner_class_info_index didn't point to a UTF8 in the constant pool.");
             }
             let outer_class_info_index = self.read_u16()? as usize;
-            if !matches!(cp.get(inner_class_info_index), Some(Class { .. })) {
+            if outer_class_info_index != 0 && !matches!(cp.get(inner_class_info_index), Some(Class { .. })) {
                 bail!("ClassFile InnerClass Attributes outer_class_info_index didn't point to a UTF8 in the constant pool.");
             }
             let inner_name_index = self.read_u16()? as usize;
-            Self::verify_utf8(
-                cp,
-                inner_name_index,
-                "ClassFile InnerClass Attribute's inner_name_index didn't point to a UTF8 in constant pool.")?;
-
+            if inner_name_index != 0 {
+                Self::verify_utf8(
+                    cp,
+                    inner_name_index,
+                    "ClassFile InnerClass Attribute's inner_name_index didn't point to a UTF8 in constant pool.")?;
+            }
             let access_flags = self.read_u16()?;
             let inner_class_access_flags = InnerClassAccessFlags::from_bits(access_flags)
                 .context(format!("Invalid Class access flag: {access_flags}."))?;
