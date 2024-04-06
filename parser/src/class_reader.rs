@@ -35,11 +35,11 @@ use crate::{
             RUNTIME_VISIBLE_TYPE_ANNOTATIONS, SIGNATURE, SOURCE_DEBUG_EXTENSION, SOURCE_FILE,
             STACK_MAP_TABLE, SYNTHETIC,
         },
-        BootstrapMethod, BootstrapMethods, ClassFileAttributes, Code, EnclosingMethod, Exception,
-        Exceptions, Exports, InnerClassInfo, InnerClasses, LineNumberTable, LineNumberTableEntry,
-        LocalVarTableEntry, LocalVarTypeEntry, LocalVariableTable, LocalVariableTypeTable,
-        ModuleMainClass, ModulePackages, NestHost, NestMembers, Opens, PermittedSubclasses,
-        Provides, Record, RecordComponent, Requires, RuntimeAnnotation,
+        Attribute, BootstrapMethod, BootstrapMethods, ClassFileAttributes, Code, EnclosingMethod,
+        Exception, Exceptions, Exports, InnerClassInfo, InnerClasses, LineNumberTable,
+        LineNumberTableEntry, LocalVarTableEntry, LocalVarTypeEntry, LocalVariableTable,
+        LocalVariableTypeTable, ModuleMainClass, ModulePackages, NestHost, NestMembers, Opens,
+        PermittedSubclasses, Provides, Record, RecordComponent, Requires, RuntimeAnnotation,
         RuntimeAnnotation::{
             AnnotationDefault, RuntimeInvisibleAnnotations, RuntimeInvisibleParameterAnnotations,
             RuntimeInvisibleTypeAnnotations, RuntimeVisibleAnnotations,
@@ -253,23 +253,25 @@ impl ClassReader {
                     let signature = cp.get_utf8(self.read_u16()? as usize)?;
                     method.signature = signature.to_string();
                 }
-                RUNTIME_INVISIBLE_ANNOTATIONS => {
-                    let anno_len = self.read_u16()?;
-                    let annotations = (0..anno_len)
-                        .map(|_| self.parse_annotation(cp))
-                        .collect::<Result<Vec<Annotation>>>()?;
-                    method
-                        .runtime_annotations
-                        .push(RuntimeInvisibleAnnotations(annotations));
+                DEPRECATED => {
+                    if attr_len != 0 {
+                        bail!("Synthetic attribute length was not 0");
+                    }
+                    method.deprecated = true;
                 }
-                RUNTIME_VISIBLE_ANNOTATIONS => {
-                    let anno_len = self.read_u16()?;
-                    let annotations = (0..anno_len)
-                        .map(|_| self.parse_annotation(cp))
-                        .collect::<Result<Vec<Annotation>>>()?;
+                SYNTHETIC => {
+                    if attr_len != 0 {
+                        bail!("Synthetic attribute length was not 0");
+                    }
+                    method.synthetic = true;
+                }
+                name @ (RUNTIME_VISIBLE_ANNOTATIONS
+                | RUNTIME_INVISIBLE_ANNOTATIONS
+                | RUNTIME_INVISIBLE_TYPE_ANNOTATIONS
+                | RUNTIME_VISIBLE_TYPE_ANNOTATIONS) => {
                     method
                         .runtime_annotations
-                        .push(RuntimeVisibleAnnotations(annotations));
+                        .push(self.parse_runtime_anno(cp, name)?);
                 }
                 unrecognized => {
                     let _ = self.parse_unrec_attr(attr_len, unrecognized, "method")?;
@@ -356,7 +358,7 @@ impl ClassReader {
                 code.local_var_type_table = self.parse_local_type_table(cp)?
             }
             unrecognized => {
-                let attribute = self.parse_unrec_attr(attr_len, unrecognized, "method")?;
+                let attribute = self.parse_unrec_attr(attr_len, unrecognized, "code")?;
                 code.attributes.extend(attribute.iter());
             }
         };
@@ -565,15 +567,7 @@ impl ClassReader {
                         bail!("Constant Value attribute did not have a valid index")
                     }
                 }
-                SIGNATURE => {
-                    if contains_sig {
-                        bail!("Field attribute cannot have more that one Signature attribute")
-                    }
-                    contains_sig = true;
-                    let sig = cp.get_utf8(self.read_u16()? as usize)?;
-                    // TODO Implement more type checks in the JVM 21 spec
-                    field.signature = sig.to_string();
-                }
+                SIGNATURE => field.signature = self.parse_sig_attr(cp, &mut contains_sig)?,
                 DEPRECATED => {
                     if attr_len != 0 {
                         bail!("Synthetic attribute length was not 0");
@@ -585,6 +579,14 @@ impl ClassReader {
                         bail!("Synthetic attribute length was not 0");
                     }
                     field.synthetic = true;
+                }
+                name @ (RUNTIME_VISIBLE_ANNOTATIONS
+                | RUNTIME_INVISIBLE_ANNOTATIONS
+                | RUNTIME_INVISIBLE_TYPE_ANNOTATIONS
+                | RUNTIME_VISIBLE_TYPE_ANNOTATIONS) => {
+                    field
+                        .runtime_annotations
+                        .push(self.parse_runtime_anno(cp, name)?);
                 }
                 unrecognized => {
                     let _ = self.parse_unrec_attr(attr_len, unrecognized, "field")?;
@@ -617,6 +619,7 @@ impl ClassReader {
         let mut btstrp_mthds = false;
         let mut record = false;
         let mut contains_permitted = false;
+        let mut contains_sig = false;
         for _ in 0..attr_count {
             let name_index = self.read_u16()? as usize;
             Self::verify_utf8(
@@ -658,6 +661,7 @@ impl ClassReader {
                     attributes.source_debug_extension =
                         SourceDebugExtension(self.read_bytes(attr_len)?);
                 }
+                SIGNATURE => attributes.signature = self.parse_sig_attr(cp, &mut contains_sig)?,
                 BOOTSTRAP_METHODS => {
                     attributes.bootstrap_methods =
                         self.parse_btstrp_methods_attr(&mut btstrp_mthds)?
@@ -687,6 +691,14 @@ impl ClassReader {
                     attributes.nest_members = NestMembers(classes)
                 }
                 RECORD => attributes.record = self.parse_record_attr(cp, &mut record)?,
+                name @ (RUNTIME_VISIBLE_ANNOTATIONS
+                | RUNTIME_INVISIBLE_ANNOTATIONS
+                | RUNTIME_INVISIBLE_TYPE_ANNOTATIONS
+                | RUNTIME_VISIBLE_TYPE_ANNOTATIONS) => {
+                    attributes
+                        .runtime_annotations
+                        .push(self.parse_runtime_anno(cp, name)?);
+                }
                 PERMITTED_SUBCLASSES => {
                     if !permit_sub {
                         bail!("Class attributes contained a PermittedSubclass attribute for a 'final' class.");
@@ -699,7 +711,7 @@ impl ClassReader {
                     attributes.permitted_subclasses = PermittedSubclasses(classes);
                 }
                 unrecognized => {
-                    let _ = self.parse_unrec_attr(attr_len, &unrecognized, "method")?;
+                    let _ = self.parse_unrec_attr(attr_len, &unrecognized, "class")?;
                 }
             };
             validate_cursor(self.position(), cursor + attr_len as u64)?;
@@ -714,37 +726,52 @@ impl ClassReader {
         *rcrd_parsed = true;
         let components_len = self.read_u16()? as usize;
         let components = (0..components_len)
-            .map(|_| {
-                let name_index = self.read_u16()? as usize;
-                Self::verify_utf8(
-                    cp,
-                    name_index,
-                    "name_index in RecordComponent struct didn't point to a UTF8",
-                )?;
-                let descriptor_index = self.read_u16()? as usize;
-                let attr_len = self.read_u16()? as usize;
-                let runtime_annotations = (0..attr_len)
-                    .map(|_| self.parse_runtime_anno(cp))
-                    .collect::<Result<Vec<RuntimeAnnotation>>>()?;
-                Ok(RecordComponent {
-                    name_index,
-                    descriptor_index,
-                    runtime_annotations,
-                })
-            })
+            .map(|_| self.parse_rec_comp(cp))
             .collect::<Result<Vec<RecordComponent>>>()?;
 
         Ok(Record(components))
     }
 
-    fn parse_runtime_anno(&mut self, cp: &ConstantPool) -> Result<RuntimeAnnotation> {
+    fn parse_rec_comp(&mut self, cp: &ConstantPool) -> Result<RecordComponent> {
         let name_index = self.read_u16()? as usize;
-        let attr_len = self.read_u16()?;
-        let cursor = self.position();
-        let anno = match cp.get_utf8(name_index)?.as_bytes() {
-            RUNTIME_VISIBLE_ANNOTATIONS => RuntimeVisibleAnnotations(self.parse_anno_inner(cp)?),
+        Self::verify_utf8(
+            cp,
+            name_index,
+            "name_index in RecordComponent struct didn't point to a UTF8",
+        )?;
+        let descriptor_index = self.read_u16()? as usize;
+        Self::verify_utf8(
+            cp,
+            descriptor_index,
+            "descriptor_index in RecordComponent struct didn't point to a UTF8",
+        )?;
+        let attr_count = self.read_u16()? as usize;
+        let runtime_annotations = (0..attr_count)
+            .map(|_| {
+                let name_index = self.read_u16()? as usize;
+                let name = cp.get_utf8(name_index)?;
+                self.parse_runtime_anno(cp, name.as_bytes())
+            })
+            .collect::<Result<Vec<RuntimeAnnotation>>>()?;
+        Ok(RecordComponent {
+            name_index,
+            descriptor_index,
+            runtime_annotations,
+        })
+    }
+
+    fn parse_rec_runtime_anno(&mut self, cp: &ConstantPool) -> Result<RuntimeAnnotation> {
+        let name_index = self.read_u16()? as usize;
+        self.parse_runtime_anno(cp, cp.get_utf8(name_index)?.as_bytes())
+    }
+
+    fn parse_runtime_anno(&mut self, cp: &ConstantPool, name: &[u8]) -> Result<RuntimeAnnotation> {
+        let anno = match name {
+            RUNTIME_VISIBLE_ANNOTATIONS => {
+                RuntimeVisibleAnnotations(self.parse_invis_vis_anno(cp)?)
+            }
             RUNTIME_INVISIBLE_ANNOTATIONS => {
-                RuntimeInvisibleAnnotations(self.parse_anno_inner(cp)?)
+                RuntimeInvisibleAnnotations(self.parse_invis_vis_anno(cp)?)
             }
             RUNTIME_INVISIBLE_PARAMETER_ANNOTATIONS => {
                 RuntimeInvisibleParameterAnnotations(self.parse_para_anno(cp)?)
@@ -767,21 +794,20 @@ impl ClassReader {
                 bail!("Invalid name");
             }
         };
-        validate_cursor(self.position(), cursor + attr_len as u64)?;
         Ok(anno)
     }
 
-    fn parse_anno_inner(&mut self, cp: &ConstantPool) -> Result<Vec<Annotation>> {
+    fn parse_invis_vis_anno(&mut self, cp: &ConstantPool) -> Result<Vec<Annotation>> {
         let num_anno = self.read_u16()? as usize;
         (0..num_anno)
-            .map(|_| self.parse_annotation(cp))
+            .map(|_| self.parse_invis_vis_inner_anno(cp))
             .collect::<Result<Vec<Annotation>>>()
     }
 
     fn parse_para_anno(&mut self, cp: &ConstantPool) -> Result<Vec<ParameterAnnotation>> {
         let num_para = self.read_u8()? as usize;
         (0..num_para)
-            .map(|_| Ok(ParameterAnnotation(self.parse_anno_inner(cp)?)))
+            .map(|_| Ok(ParameterAnnotation(self.parse_invis_vis_anno(cp)?)))
             .collect::<Result<Vec<ParameterAnnotation>>>()
     }
 
@@ -807,6 +833,16 @@ impl ClassReader {
                 })
             })
             .collect::<Result<Vec<TypeAnnotation>>>()
+    }
+
+    fn parse_sig_attr(&mut self, cp: &ConstantPool, contains_sig: &mut bool) -> Result<String> {
+        if *contains_sig {
+            bail!("Field attribute cannot have more that one Signature attribute")
+        }
+        *contains_sig = true;
+        let sig = cp.get_utf8(self.read_u16()? as usize)?;
+        // TODO Implement more type checks in the JVM 21 spec
+        Ok(sig.to_string())
     }
 
     fn parse_type_path(&mut self) -> Result<TypePath> {
@@ -1189,7 +1225,7 @@ impl ClassReader {
                 ElementValue::EnumConst(type_name_index, const_name_index)
             }
             'c' => ClassIndex(self.read_u16()? as usize),
-            '@' => AnnotationValue(self.parse_annotation(cp)?),
+            '@' => AnnotationValue(self.parse_invis_vis_inner_anno(cp)?),
             '[' => {
                 let values = {
                     let len = self.read_u16()? as usize;
@@ -1208,7 +1244,7 @@ impl ClassReader {
         Ok(element_value)
     }
 
-    fn parse_annotation(&mut self, cp: &ConstantPool) -> Result<Annotation> {
+    fn parse_invis_vis_inner_anno(&mut self, cp: &ConstantPool) -> Result<Annotation> {
         let type_index = self.read_u16()? as usize;
         Self::verify_utf8(
             cp,
