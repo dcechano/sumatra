@@ -8,6 +8,7 @@ use crate::{
     instruction::{
         ArrayType::{Boolean, Byte, Char, Double, Dummy, Float, Int, Long, Short},
         Instruction::*,
+        WideInstruction::Invalid,
     },
 };
 
@@ -16,7 +17,7 @@ pub enum Instruction {
     AaLoad,
     AaStore,
     AaConstNull,
-    ALoad,
+    ALoad(u8),
     ALoad0,
     ALoad1,
     ALoad2,
@@ -47,7 +48,7 @@ pub enum Instruction {
     DConst0,
     DConst1,
     DDiv,
-    DLoad,
+    DLoad(u8),
     DLoad0,
     DLoad1,
     DLoad2,
@@ -155,7 +156,7 @@ pub enum Instruction {
     IReturn,
     IShL,
     IShR,
-    IStore,
+    IStore(u8),
     IStore0,
     IStore1,
     IStore2,
@@ -214,7 +215,7 @@ pub enum Instruction {
     Pop2,
     PutField(u16),
     PutStatic(u16),
-    Ret,
+    Ret(u8),
     Return,
     SaLoad,
     SaStore,
@@ -226,7 +227,24 @@ pub enum Instruction {
         high: i32,
         jump_offsets: Vec<i32>,
     },
-    Wide(Box<Instruction>, u16, Option<i16>),
+    Wide(WideInstruction),
+}
+
+#[derive(Debug, Clone, Eq, PartialEq, Hash)]
+pub enum WideInstruction {
+    Iinc(u16, u16),
+    ILoad(u16),
+    FLoad(u16),
+    ALoad(u16),
+    LLoad(u16),
+    DLoad(u16),
+    IStore(u16),
+    FStore(u16),
+    AStore(u16),
+    LStore(u16),
+    DStore(u16),
+    Ret(u16),
+    Invalid,
 }
 
 impl Instruction {
@@ -238,7 +256,7 @@ impl Instruction {
                 50 => AaLoad,
                 83 => AaStore,
                 1 => AaConstNull,
-                25 => ALoad,
+                25 => ALoad(cursor.read_u8()?),
                 42 => ALoad0,
                 43 => ALoad1,
                 44 => ALoad2,
@@ -269,7 +287,7 @@ impl Instruction {
                 14 => DConst0,
                 15 => DConst1,
                 111 => DDiv,
-                24 => DLoad,
+                24 => DLoad(cursor.read_u8()?),
                 38 => DLoad0,
                 39 => DLoad1,
                 40 => DLoad2,
@@ -316,6 +334,7 @@ impl Instruction {
                 68 => FStore1,
                 69 => FStore2,
                 70 => FStore3,
+                102 => FSub,
                 180 => GetField(cursor.read_u16()?),
                 178 => GetStatic(cursor.read_u16()? as usize),
                 167 => GoTo((cursor.position() - 1) as i16 + cursor.read_i16()?),
@@ -323,6 +342,7 @@ impl Instruction {
                 145 => I2B,
                 146 => I2C,
                 135 => I2D,
+                134 => I2F,
                 133 => I2L,
                 147 => I2S,
                 96 => IAdd,
@@ -363,6 +383,7 @@ impl Instruction {
                 116 => INeg,
                 193 => InstanceOf(cursor.read_u16()?),
                 186 => InvokeDynamic(cursor.read_u16()?, cursor.read_u8()?, cursor.read_u8()?),
+                185 => InvokeInterface(cursor.read_u16()?, cursor.read_u8()?, cursor.read_u8()?),
                 183 => InvokeSpecial(cursor.read_u16()?),
                 184 => InvokeStatic(cursor.read_u16()?),
                 182 => InvokeVirtual(cursor.read_u16()? as usize),
@@ -371,7 +392,7 @@ impl Instruction {
                 172 => IReturn,
                 120 => IShL,
                 122 => IShR,
-                54 => IStore,
+                54 => IStore(cursor.read_u8()?),
                 59 => IStore0,
                 60 => IStore1,
                 61 => IStore2,
@@ -403,7 +424,11 @@ impl Instruction {
                 105 => LMul,
                 117 => LNeg,
                 171 => {
-                    let pad_len = cursor.position() % 4;
+                    let pad_len = if cursor.position() % 4 == 0 {
+                        0
+                    } else {
+                        4 - cursor.position() % 4
+                    };
                     (0..pad_len)
                         .map(|_| cursor.read_u8())
                         .collect::<Result<Vec<u8>>>()?;
@@ -448,14 +473,18 @@ impl Instruction {
                 88 => Pop2,
                 181 => PutField(cursor.read_u16()?),
                 179 => PutStatic(cursor.read_u16()?),
-                169 => Ret,
+                169 => Ret(cursor.read_u8()?),
                 177 => Return,
                 53 => SaLoad,
                 86 => SaStore,
                 17 => SiPush(cursor.read_i16()?),
                 95 => Swap,
                 170 => {
-                    let pad_len = cursor.position() % 4;
+                    let pad_len = if cursor.position() % 4 == 0 {
+                        0
+                    } else {
+                        4 - cursor.position() % 4
+                    };
                     (0..pad_len)
                         .map(|_| cursor.read_u8())
                         .collect::<Result<Vec<u8>>>()?;
@@ -476,17 +505,7 @@ impl Instruction {
                         jump_offsets,
                     }
                 }
-                196 => {
-                    let opcode = Self::parse_wide_opcode(&mut cursor)?;
-                    match matches!(opcode, Iinc(_, _)) {
-                        true => Wide(
-                            Box::new(opcode),
-                            cursor.read_u16()?,
-                            Some(cursor.read_i16()?),
-                        ),
-                        false => Wide(Box::new(opcode), cursor.read_u16()?, None),
-                    }
-                }
+                196 => Wide(Self::parse_wide_opcode(&mut cursor)?),
                 unknown => {
                     bail!("Unknown instruction {unknown}");
                 }
@@ -497,35 +516,24 @@ impl Instruction {
         Ok(instructions)
     }
 
-    fn parse_wide_opcode(cursor: &mut ClassReader) -> Result<Instruction> {
-        let mut opcode = Instruction::try_from(cursor.read_u8()?)?;
+    fn parse_wide_opcode(cursor: &mut ClassReader) -> Result<WideInstruction> {
+        let mut opcode = WideInstruction::try_from(Instruction::try_from(cursor.read_u8()?)?)?;
         match opcode {
-            Iinc(ref mut a, ref mut b) => {
-                *a = cursor.read_u8()?;
-                *b = cursor.read_i8()?;
+            WideInstruction::Iinc(ref mut a, ref mut b) => {
+                *a = cursor.read_u16()?;
+                *b = cursor.read_u16()?;
             }
-            ILoad(ref mut a) => {
-                *a = cursor.read_u8()?;
-            }
-            LLoad(ref mut a) => {
-                *a = cursor.read_u8()?;
-            }
-            FLoad(ref mut a) => {
-                *a = cursor.read_u8()?;
-            }
-            FStore(ref mut a) => {
-                *a = cursor.read_u8()?;
-            }
-            AStore(ref mut a) => {
-                *a = cursor.read_u8()?;
-            }
-            LStore(ref mut a) => {
-                *a = cursor.read_u8()?;
-            }
-            DStore(ref mut a) => {
-                *a = cursor.read_u8()?;
-            }
-            ALoad | DLoad | IStore | Ret => {}
+            WideInstruction::ILoad(ref mut a) => *a = cursor.read_u16()?,
+            WideInstruction::FLoad(ref mut a) => *a = cursor.read_u16()?,
+            WideInstruction::ALoad(ref mut a) => *a = cursor.read_u16()?,
+            WideInstruction::LLoad(ref mut a) => *a = cursor.read_u16()?,
+            WideInstruction::DLoad(ref mut a) => *a = cursor.read_u16()?,
+            WideInstruction::IStore(ref mut a) => *a = cursor.read_u16()?,
+            WideInstruction::FStore(ref mut a) => *a = cursor.read_u16()?,
+            WideInstruction::AStore(ref mut a) => *a = cursor.read_u16()?,
+            WideInstruction::LStore(ref mut a) => *a = cursor.read_u16()?,
+            WideInstruction::DStore(ref mut a) => *a = cursor.read_u16()?,
+            WideInstruction::Ret(ref mut a) => *a = cursor.read_u16()?,
             invalid => bail!("Invalid Opcode for Wide instruction: {invalid:?}."),
         };
         Ok(opcode)
@@ -539,7 +547,7 @@ impl TryFrom<u8> for Instruction {
             50 => AaLoad,
             83 => AaStore,
             1 => AaConstNull,
-            25 => ALoad,
+            25 => ALoad(0),
             42 => ALoad0,
             43 => ALoad1,
             44 => ALoad2,
@@ -570,7 +578,7 @@ impl TryFrom<u8> for Instruction {
             14 => DConst0,
             15 => DConst1,
             111 => DDiv,
-            24 => DLoad,
+            24 => DLoad(0),
             38 => DLoad0,
             39 => DLoad1,
             40 => DLoad2,
@@ -672,7 +680,7 @@ impl TryFrom<u8> for Instruction {
             172 => IReturn,
             120 => IShL,
             122 => IShR,
-            54 => IStore,
+            54 => IStore(0),
             59 => IStore0,
             60 => IStore1,
             61 => IStore2,
@@ -729,7 +737,7 @@ impl TryFrom<u8> for Instruction {
             88 => Pop2,
             181 => PutField(0),
             179 => PutStatic(0),
-            169 => Ret,
+            169 => Ret(0),
             177 => Return,
             53 => SaLoad,
             86 => SaStore,
@@ -741,12 +749,35 @@ impl TryFrom<u8> for Instruction {
                 high: 0,
                 jump_offsets: vec![],
             },
-            196 => Wide(Box::new(AaConstNull), 0, None),
+            196 => Wide(Invalid),
             unknown => {
                 bail!("Unknown instruction {unknown}");
             }
         };
         Ok(instruction)
+    }
+}
+
+impl TryFrom<Instruction> for WideInstruction {
+    type Error = anyhow::Error;
+
+    fn try_from(inst: Instruction) -> Result<Self, Self::Error> {
+        let wcode = match inst {
+            Iinc(_, _) => WideInstruction::Iinc(0, 0),
+            ILoad(_) => WideInstruction::ILoad(0),
+            FLoad(_) => WideInstruction::FLoad(0),
+            ALoad(_) => WideInstruction::ALoad(0),
+            LLoad(_) => WideInstruction::LLoad(0),
+            DLoad(_) => WideInstruction::DLoad(0),
+            IStore(_) => WideInstruction::IStore(0),
+            FStore(_) => WideInstruction::FStore(0),
+            AStore(_) => WideInstruction::AStore(0),
+            LStore(_) => WideInstruction::LStore(0),
+            DStore(_) => WideInstruction::DStore(0),
+            Ret(_) => WideInstruction::Ret(0),
+            invalid => bail!("Invalid Opcode for Wide instruction: {invalid:?}."),
+        };
+        Ok(wcode)
     }
 }
 
