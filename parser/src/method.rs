@@ -11,6 +11,8 @@ pub struct Method {
     pub signature: String,
     pub code: Code,
     pub exceptions: Exceptions,
+    pub synthetic: bool,
+    pub deprecated: bool,
     pub runtime_annotations: Vec<RuntimeAnnotation>,
     pub attributes: Vec<Attribute>,
 }
