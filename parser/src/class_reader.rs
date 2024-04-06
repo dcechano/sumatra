@@ -509,8 +509,6 @@ impl ClassReader {
 
         let name = cp.get_utf8(self.read_u16()? as usize)?;
         method.name = name.to_string();
-        //TODO Remove
-        println!("Parsing method: {name}");
 
         let descriptor = cp.get_utf8(self.read_u16()? as usize)?;
         method.descriptor = descriptor.to_string();
