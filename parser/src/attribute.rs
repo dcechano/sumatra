@@ -198,7 +198,7 @@ pub struct LocalVarTypeEntry {
 #[derive(Debug, Default, Eq, PartialEq, Hash, Clone)]
 pub enum StackMapFrame {
     SameFrame,
-    SameLocals,
+    SameLocals(VType),
     SameLocalsExt(u16, VType),
     Chop(u16),
     SameFrameExt(u16),
@@ -290,7 +290,7 @@ impl TryFrom<u8> for StackMapFrame {
     fn try_from(value: u8) -> Result<Self, Self::Error> {
         let smf = match value {
             0..=63 => StackMapFrame::SameFrame,
-            64..=127 => StackMapFrame::SameLocals,
+            64..=127 => StackMapFrame::SameLocals(VType::Dummy),
             247 => StackMapFrame::SameLocalsExt(0, VType::Dummy),
             248..=250 => StackMapFrame::Chop(0),
             251 => StackMapFrame::SameFrameExt(0),
