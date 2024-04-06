@@ -117,17 +117,22 @@ impl ClassReader {
 
     #[inline]
     pub(crate) fn read_u64(&mut self) -> Result<u64> {
-        self.0.read_u64::<BigEndian>().context("Failed to read u32")
+        self.0.read_u64::<BigEndian>().context("Failed to read u64")
     }
 
     #[inline]
     pub(crate) fn read_i64(&mut self) -> Result<i64> {
-        self.0.read_i64::<BigEndian>().context("Failed to read u32")
+        self.0.read_i64::<BigEndian>().context("Failed to read i64")
+    }
+
+    #[inline]
+    pub(crate) fn read_f32(&mut self) -> Result<f32> {
+        self.0.read_f32::<BigEndian>().context("Failed to read f32")
     }
 
     #[inline]
     pub(crate) fn read_f64(&mut self) -> Result<f64> {
-        self.0.read_f64::<BigEndian>().context("Failed to read u32")
+        self.0.read_f64::<BigEndian>().context("Failed to read f64")
     }
 }
 
@@ -146,7 +151,7 @@ impl ClassReader {
                     UTF8(string)
                 }
                 3 => Integer(self.read_u32()? as i32),
-                4 => Float(f32::from(self.read_u16()?)),
+                4 => Float(self.read_f32()?),
                 5 => Long(self.read_i64()?),
                 6 => Double(self.read_f64()?),
                 7 => Class(self.read_u16()? as usize),
@@ -505,7 +510,7 @@ impl ClassReader {
         let name = cp.get_utf8(self.read_u16()? as usize)?;
         method.name = name.to_string();
         //TODO Remove
-        println!("Parsing: {name}");
+        println!("Parsing method: {name}");
 
         let descriptor = cp.get_utf8(self.read_u16()? as usize)?;
         method.descriptor = descriptor.to_string();
@@ -919,13 +924,17 @@ impl ClassReader {
                 that indicates that the class or interface is anonymous and thus will not have
                 valid entries in the constant pool.
             */
-            
+
             let inner_class_info_index = self.read_u16()? as usize;
-            if inner_class_info_index != 0 && !matches!(cp.get(inner_class_info_index), Some(Class { .. })) {
+            if inner_class_info_index != 0
+                && !matches!(cp.get(inner_class_info_index), Some(Class { .. }))
+            {
                 bail!("ClassFile InnerClass Attributes inner_class_info_index didn't point to a UTF8 in the constant pool.");
             }
             let outer_class_info_index = self.read_u16()? as usize;
-            if outer_class_info_index != 0 && !matches!(cp.get(inner_class_info_index), Some(Class { .. })) {
+            if outer_class_info_index != 0
+                && !matches!(cp.get(inner_class_info_index), Some(Class { .. }))
+            {
                 bail!("ClassFile InnerClass Attributes outer_class_info_index didn't point to a UTF8 in the constant pool.");
             }
             let inner_name_index = self.read_u16()? as usize;
