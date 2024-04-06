@@ -77,6 +77,7 @@ pub struct ClassFileAttributes {
     pub nest_members: NestMembers,
     pub record: Record,
     pub permitted_subclasses: PermittedSubclasses,
+    pub runtime_annotations: Vec<RuntimeAnnotation>,
 }
 #[derive(Debug, Default, Eq, PartialEq, Hash, Clone)]
 pub struct StackMapTable(pub Vec<StackMapFrame>);
