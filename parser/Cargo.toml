@@ -7,3 +7,7 @@ edition = "2021"
 anyhow = "1.0.81"
 bitflags = "2.4.2"
 byteorder = "1.5.0"
+
+
+[dev-dependencies]
+zip = "0.6.6"
