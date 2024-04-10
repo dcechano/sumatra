@@ -12,6 +12,7 @@ use std::{
 use anyhow::{bail, Result};
 
 use sumatra_parser::{class_file::ClassFile, field::Field};
+use crate::class::Class;
 
 use crate::value::Value;
 
@@ -47,13 +48,13 @@ pub(crate) struct Header {
 
 impl Header {
     #[inline]
-    fn new(class: &ClassFile, class_index: usize) -> Self {
+    fn new(class: &Class, class_index: usize) -> Self {
         Self {
             class_index,
             source_file: class
-                .get_utf8(class.attributes.source_file.0)
-                .unwrap()
-                .to_string(),
+                .attributes
+                .signature
+                .clone(),
             // offsets for the fields cannot be calculated until
             // we put them in. Thus, awkwardly, the Header has to be created
             // and put into memory before we can assemble the fields table.
@@ -61,7 +62,7 @@ impl Header {
         }
     }
 
-    fn populate_table(&mut self, ptr: *mut u8, fields: &[Field], alignment: usize) {
+    fn populate_table(&mut self, ptr: *mut u8, fields: Vec<&Field>, alignment: usize) {
         unsafe {
             let mut next_ptr = ptr;
             let mut end_ptr = ptr.add(VALUE_SIZE);
@@ -93,7 +94,7 @@ pub(crate) struct HeapAlloc<'data> {
 
 impl<'data> HeapAlloc<'data> {
     #[allow(clippy::new_ret_no_self)]
-    pub(crate) fn new(class: &ClassFile, index: usize) -> *mut u8 {
+    pub(crate) fn new(class: &Class, index: usize) -> *mut u8 {
         unsafe {
             let ptr = alloc::alloc(Layout::new::<HeapAlloc>());
 
@@ -107,7 +108,7 @@ impl<'data> HeapAlloc<'data> {
             };
             // finish header by populating the offset table
             if !data.is_null() {
-                header.populate_table(data, &class.fields, VALUE_ALIGN);
+                header.populate_table(data, class.fields.values().collect::<Vec<&Field>>(), VALUE_ALIGN);
             }
 
             ptr::write(
@@ -217,6 +218,7 @@ mod test {
     use crate::{oop::HeapAlloc, value::Value};
     use std::ptr;
     use sumatra_parser::class_file::ClassFile;
+    use crate::class::Class;
 
     const CLASSES: [&str; 6] = [
         "/home/dylan/Documents/RustProjects/jheap/java/target/production/java/Main.class",
@@ -231,7 +233,7 @@ mod test {
     fn alloc() {
         for class in CLASSES {
             let class_file = ClassFile::parse_class(class).unwrap();
-            let ptr = HeapAlloc::new(&class_file, 0);
+            let ptr = HeapAlloc::new(&Class::from(&class_file), 0);
             unsafe {
                 let heap = &mut *(ptr as *mut HeapAlloc);
                 for field in class_file.fields {
@@ -250,8 +252,8 @@ mod test {
         let class_file = ClassFile::parse_class(taco).unwrap();
         let field = ClassFile::parse_class(taco).unwrap();
 
-        let containing_class = HeapAlloc::new(&class_file, 0);
-        let field_ref = HeapAlloc::new(&field, 0);
+        let containing_class = HeapAlloc::new(&Class::from(&class_file), 0);
+        let field_ref = HeapAlloc::new(&Class::from(&field), 0);
 
         unsafe {
             let heap = &mut *(containing_class as *mut HeapAlloc);
