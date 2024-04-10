@@ -11,10 +11,9 @@ use std::{
 
 use anyhow::{bail, Result};
 
-use sumatra_parser::{class_file::ClassFile, field::Field};
-use crate::class::Class;
+use sumatra_parser::{field::Field, flags::FieldAccessFlags};
 
-use crate::value::Value;
+use crate::{class::Class, value::Value};
 
 const VALUE_SIZE: usize = mem::size_of::<Value>();
 const VALUE_ALIGN: usize = mem::align_of::<Value>();
@@ -51,10 +50,7 @@ impl Header {
     fn new(class: &Class, class_index: usize) -> Self {
         Self {
             class_index,
-            source_file: class
-                .attributes
-                .signature
-                .clone(),
+            source_file: class.attributes.signature.clone(),
             // offsets for the fields cannot be calculated until
             // we put them in. Thus, awkwardly, the Header has to be created
             // and put into memory before we can assemble the fields table.
@@ -94,7 +90,18 @@ pub(crate) struct HeapAlloc<'data> {
 
 impl<'data> HeapAlloc<'data> {
     #[allow(clippy::new_ret_no_self)]
+    #[inline]
     pub(crate) fn new(class: &Class, index: usize) -> *mut u8 {
+        Self::new_inner(class, index, false)
+    }
+
+    #[inline]
+    pub(crate) fn new_static(class: &Class, index: usize) -> *mut u8 {
+        Self::new_inner(class, index, true)
+    }
+
+    #[inline]
+    fn new_inner(class: &Class, index: usize, statik: bool) -> *mut u8 {
         unsafe {
             let ptr = alloc::alloc(Layout::new::<HeapAlloc>());
 
@@ -108,7 +115,15 @@ impl<'data> HeapAlloc<'data> {
             };
             // finish header by populating the offset table
             if !data.is_null() {
-                header.populate_table(data, class.fields.values().collect::<Vec<&Field>>(), VALUE_ALIGN);
+                let fields = match statik {
+                    true => class
+                        .fields
+                        .values()
+                        .filter(|v| v.access_flags.contains(FieldAccessFlags::STATIC))
+                        .collect::<Vec<&Field>>(),
+                    false => class.fields.values().collect::<Vec<&Field>>(),
+                };
+                header.populate_table(data, fields, VALUE_ALIGN);
             }
 
             ptr::write(
@@ -215,10 +230,11 @@ impl Debug for FieldsTable {
 
 #[cfg(test)]
 mod test {
-    use crate::{oop::HeapAlloc, value::Value};
     use std::ptr;
+
     use sumatra_parser::class_file::ClassFile;
-    use crate::class::Class;
+
+    use crate::{class::Class, oop::HeapAlloc, value::Value};
 
     const CLASSES: [&str; 6] = [
         "/home/dylan/Documents/RustProjects/jheap/java/target/production/java/Main.class",
