@@ -320,7 +320,4 @@ mod test {
             HeapAlloc::deallocate(containing_class as *mut HeapAlloc);
         }
     }
-
-    #[test]
-    fn miri() {}
 }
