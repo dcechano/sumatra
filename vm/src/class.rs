@@ -1,8 +1,8 @@
 use std::collections::HashMap;
 
 use sumatra_parser::{
-    attribute::ClassFileAttributes, class_file::ClassFile, constant_pool::ConstantPool,
-    field::Field, flags::ClassAccessFlags, method::Method,
+    attribute::ClassFileAttributes, class_file::ClassFile, constant::Constant,
+    constant_pool::ConstantPool, field::Field, flags::ClassAccessFlags, method::Method,
 };
 
 #[derive(Debug, Default, Clone)]
@@ -17,6 +17,17 @@ pub struct Class {
     pub fields: HashMap<String, Field>,
     pub methods: HashMap<String, Method>,
     pub attributes: ClassFileAttributes,
+}
+
+impl Class {
+    pub fn get_name(&self) -> String {
+        if let Constant::Class(index) = self.cp.get(self.this_class).unwrap() {
+            self.cp.get_utf8(*index).unwrap().to_string()
+        } else {
+            // Should not be possible if the class file is valid.
+            panic!("Invalid class file format. this_class index did not point to a Class constant in the constant pool.");
+        }
+    }
 }
 
 impl From<&ClassFile> for Class {
@@ -34,6 +45,10 @@ impl From<&ClassFile> for Class {
             attributes: class_file.attributes.clone(),
         }
     }
+}
+
+impl From<ClassFile> for Class {
+    fn from(class_file: ClassFile) -> Self { Class::from(&class_file) }
 }
 
 fn fields_map(fields: &[Field]) -> HashMap<String, Field> {
