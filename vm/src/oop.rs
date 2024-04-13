@@ -41,7 +41,7 @@ impl DerefMut for FieldsTable {
 #[derive(Debug)]
 pub(crate) struct Header {
     pub class_index: usize,
-    pub source_file: String,
+    pub name: String,
     pub fields: FieldsTable,
 }
 
@@ -50,7 +50,7 @@ impl Header {
     fn new(class: &Class, class_index: usize) -> Self {
         Self {
             class_index,
-            source_file: class.attributes.signature.clone(),
+            name: class.get_name(),
             // offsets for the fields cannot be calculated until
             // we put them in. Thus, awkwardly, the Header has to be created
             // and put into memory before we can assemble the fields table.
@@ -144,7 +144,6 @@ impl<'data> HeapAlloc<'data> {
         };
         // finish header by populating the offset table
         if !data.is_null() {
-            
             header.populate_table(data, fields, VALUE_ALIGN);
         }
 
@@ -230,7 +229,7 @@ impl Display for Header {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         let indent = "\t";
         writeln!(f, "Header")?;
-        writeln!(f, "{}source file: {}", indent, &self.source_file)?;
+        writeln!(f, "{}name: {}", indent, &self.name)?;
         writeln!(f, "{}fields: {:#?}", indent, &self.fields)
     }
 }
@@ -258,11 +257,9 @@ impl Debug for FieldsTable {
 
 #[cfg(test)]
 mod test {
-    use std::fmt::Debug;
-    use std::ptr;
+    use std::{fmt::Debug, ptr};
 
-    use sumatra_parser::class_file::ClassFile;
-    use sumatra_parser::flags::FieldAccessFlags;
+    use sumatra_parser::{class_file::ClassFile, flags::FieldAccessFlags};
 
     use crate::{class::Class, oop::HeapAlloc, value::Value};
 
@@ -292,11 +289,11 @@ mod test {
             }
         }
     }
-    
-    //FIXME: Since the `printWriter` field is static it does not get added to the 
-    // fields which was not true when test was written. Ignore for now until a fix is
-    // made. Perhaps test should be moved for the method area where the static fields
-    // will exist.
+
+    //FIXME: Since the `printWriter` field is static it does not get added to the
+    // fields which was not true when test was written. Ignore for now until a fix
+    // is made. Perhaps test should be moved for the method area where the
+    // static fields will exist.
     #[test]
     #[ignore]
     fn alloc2() {
@@ -314,7 +311,7 @@ mod test {
                 "printWriter",
                 Value::RefType(ptr::read(field_ref as *const HeapAlloc)),
             )
-                .unwrap();
+            .unwrap();
 
             HeapAlloc::deallocate(field_ref as *mut HeapAlloc);
             HeapAlloc::deallocate(containing_class as *mut HeapAlloc);
