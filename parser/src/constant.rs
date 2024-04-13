@@ -3,6 +3,7 @@
 pub enum Constant {
     #[default]
     Dummy,
+    UnRecCharSet(Vec<u8>),
     /// A UTF8 constant
     UTF8(String),
     /// A Java `int`
