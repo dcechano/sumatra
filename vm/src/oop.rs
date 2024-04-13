@@ -37,7 +37,6 @@ impl DerefMut for FieldsTable {
     fn deref_mut(&mut self) -> &mut Self::Target { &mut self.0 }
 }
 
-#[repr(C)]
 #[derive(Debug)]
 pub(crate) struct Header {
     pub class_index: usize,
@@ -94,7 +93,6 @@ impl Header {
     }
 }
 
-#[repr(C)]
 pub(crate) struct HeapAlloc<'data> {
     pub header: Header,
     pub data: *mut u8,
@@ -195,7 +193,7 @@ impl<'data> HeapAlloc<'data> {
     }
 
     #[inline]
-    unsafe fn deallocate(heap: *mut HeapAlloc) {
+    pub(crate) unsafe fn deallocate(heap: *mut HeapAlloc) {
         if heap.is_null() {
             return;
         }
