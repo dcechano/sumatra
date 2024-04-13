@@ -35,11 +35,11 @@ use crate::{
             RUNTIME_VISIBLE_TYPE_ANNOTATIONS, SIGNATURE, SOURCE_DEBUG_EXTENSION, SOURCE_FILE,
             STACK_MAP_TABLE, SYNTHETIC,
         },
-        Attribute, BootstrapMethod, BootstrapMethods, ClassFileAttributes, Code, EnclosingMethod,
-        Exception, Exceptions, Exports, InnerClassInfo, InnerClasses, LineNumberTable,
-        LineNumberTableEntry, LocalVarTableEntry, LocalVarTypeEntry, LocalVariableTable,
-        LocalVariableTypeTable, ModuleMainClass, ModulePackages, NestHost, NestMembers, Opens,
-        PermittedSubclasses, Provides, Record, RecordComponent, Requires, RuntimeAnnotation,
+        BootstrapMethod, BootstrapMethods, ClassFileAttributes, Code, EnclosingMethod, Exception,
+        Exceptions, Exports, InnerClassInfo, InnerClasses, LineNumberTable, LineNumberTableEntry,
+        LocalVarTableEntry, LocalVarTypeEntry, LocalVariableTable, LocalVariableTypeTable,
+        ModuleMainClass, ModulePackages, NestHost, NestMembers, Opens, PermittedSubclasses,
+        Provides, Record, RecordComponent, Requires, RuntimeAnnotation,
         RuntimeAnnotation::{
             AnnotationDefault, RuntimeInvisibleAnnotations, RuntimeInvisibleParameterAnnotations,
             RuntimeInvisibleTypeAnnotations, RuntimeVisibleAnnotations,
@@ -52,7 +52,7 @@ use crate::{
         Constant::{
             Class, Double, Dummy, Dynamic, FieldRef, Float, Integer, InterfaceMethodRef,
             InvokeDynamic, Long, MethodHandle, MethodRef, MethodType, Module, NameAndType, Package,
-            UTF8,
+            UnRecCharSet, UTF8,
         },
     },
     constant_pool::ConstantPool,
@@ -147,8 +147,10 @@ impl ClassReader {
                 1 => {
                     let length = self.read_u16()? as usize;
                     let bytes = self.read_bytes(length)?;
-                    let string = Self::parse_jvm_utf8(&bytes)?;
-                    UTF8(string)
+                    match Self::parse_jvm_utf8(&bytes) {
+                        Ok(string) => UTF8(string),
+                        Err(_) => UnRecCharSet(bytes),
+                    }
                 }
                 3 => Integer(self.read_u32()? as i32),
                 4 => Float(self.read_f32()?),
@@ -837,7 +839,7 @@ impl ClassReader {
 
     fn parse_sig_attr(&mut self, cp: &ConstantPool, contains_sig: &mut bool) -> Result<String> {
         if *contains_sig {
-            bail!("Field attribute cannot have more that one Signature attribute")
+            bail!("Attribute cannot have more that one Signature attribute")
         }
         *contains_sig = true;
         let sig = cp.get_utf8(self.read_u16()? as usize)?;
@@ -1119,7 +1121,7 @@ impl ClassReader {
 
     fn parse_provides(&mut self, cp: &ConstantPool) -> Result<Provides> {
         let provides_index = self.read_u16()? as usize;
-        if !matches!(cp.get(provides_index as usize), Some(Class { .. })) {
+        if !matches!(cp.get(provides_index), Some(Class { .. })) {
             bail!("Provides' provides_index didn't point to a Class in the constant pool.");
         }
 
@@ -1273,6 +1275,14 @@ impl ClassReader {
             .collect::<Result<Vec<ElementPairs>>>()
     }
     fn parse_jvm_utf8(bytes: &[u8]) -> Result<String> {
+        fn parse_u32(decoded_string: &mut String, code: u32) -> Result<()> {
+            match char::from_u32(code) {
+                Some(decoded) => decoded_string.push(decoded),
+                None => bail!("Error while decoding string!"),
+            }
+            Ok(())
+        }
+
         let mut decoded_string = String::new();
         let mut index = 0;
 
@@ -1288,7 +1298,7 @@ impl ClassReader {
                 if index + 1 < bytes.len() {
                     let code_point =
                         (((byte & 0x1F) as u32) << 6) | ((bytes[index + 1] & 0x3F) as u32);
-                    decoded_string.push(char::from_u32(code_point).unwrap());
+                    parse_u32(&mut decoded_string, code_point)?;
                     index += 2;
                 } else {
                     bail!("Incomplete two-byte character");
@@ -1299,27 +1309,27 @@ impl ClassReader {
                     let code_point = (((byte & 0x0F) as u32) << 12)
                         | (((bytes[index + 1] & 0x3F) as u32) << 6)
                         | ((bytes[index + 2] & 0x3F) as u32);
-                    decoded_string.push(char::from_u32(code_point).unwrap());
+                    parse_u32(&mut decoded_string, code_point)?;
                     index += 3;
                 } else {
                     bail!("Incomplete three-byte character");
                 }
-            } else if byte & 0xF8 == 0xF0 {
-                // Four-byte character (UTF-8 representation of surrogate pair)
-                if index + 3 < bytes.len() {
-                    let code_point = (((byte & 0x07) as u32) << 18)
-                        | (((bytes[index + 1] & 0x3F) as u32) << 12)
-                        | (((bytes[index + 2] & 0x3F) as u32) << 6)
-                        | ((bytes[index + 3] & 0x3F) as u32);
+            } else if byte == 0xED {
+                // 2 * 6 byte character (UTF-8 representation of surrogate pair)
+                // 0x10000 + ((v & 0x0f) << 16) + ((w & 0x3f) << 10) +
+                // ((y & 0x0f) << 6) + (z & 0x3f)
+                if index + 5 < bytes.len() {
+                    let v: u32 = bytes[index + 1] as u32;
+                    let w: u32 = bytes[index + 2] as u32;
+                    let y: u32 = bytes[index + 4] as u32;
+                    let z: u32 = bytes[index + 5] as u32;
 
-                    // Decoding surrogate pairs
-                    let high_surrogate = 0xD800 | ((code_point - 0x10000) >> 10) as u16;
-                    let low_surrogate = 0xDC00 | ((code_point - 0x10000) & 0x3FF) as u16;
-
-                    decoded_string.push(char::from_u32(high_surrogate as u32).unwrap());
-                    decoded_string.push(char::from_u32(low_surrogate as u32).unwrap());
-
-                    index += 4;
+                    let code_point = 0x10000
+                        + ((v & 0x0F) << 16)
+                        + ((w & 0x3F) << 10)
+                        + ((y & 0x0F) << 6)
+                        + (z & 0x3F);
+                    parse_u32(&mut decoded_string, code_point)?;
                 } else {
                     bail!("Incomplete four-byte character");
                 }
@@ -1327,7 +1337,6 @@ impl ClassReader {
                 bail!("Invalid byte sequence");
             }
         }
-
         Ok(decoded_string)
     }
 }
