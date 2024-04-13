@@ -26,7 +26,12 @@ pub struct ClassFile {
 
 impl ClassFile {
     const MAGIC: u32 = 0xCAFEBABE;
+    const OBJECT: &'static str = "Object.java";
 
+    //TODO it seems weird for ClassFile to take a ClassReader
+    // as an arg to parse a class file. Perhaps a ClassReader
+    // instance should have a .parse() method that returns a ClassFile.
+    // That seems more intuitive.
     fn parse(mut cr: ClassReader) -> Result<ClassFile> {
         let mut class_file = ClassFile::default();
 
@@ -55,6 +60,12 @@ impl ClassFile {
             !class_file.access_flags.contains(ClassAccessFlags::FINAL),
             &mut class_file.attributes,
         )?;
+        if class_file.super_class < 1
+            && cp.get_utf8(class_file.attributes.source_file.0)? != Self::OBJECT
+        {
+            bail!("All classes must have at least 1 superclass, namely, java.lang.Object.");
+        }
+        // All classes extend java.lang.Object.
         class_file.cp = cp;
         Ok(class_file)
     }
