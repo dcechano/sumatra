@@ -137,7 +137,7 @@ impl<'data> HeapAlloc<'data> {
         // ptr now allocated
         // TODO consider converting to match statement for consistency with code below
         let data = if !fields.is_empty() {
-            // SAFETY: since `num_fields` is not 0, alloc is safe.
+            // SAFETY: since fields len is non 0, alloc is safe.
             unsafe { alloc::alloc(Layout::array::<Value>(fields.len()).unwrap()) }
         } else {
             ptr::null_mut()
