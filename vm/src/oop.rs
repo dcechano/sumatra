@@ -1,6 +1,6 @@
 use std::{
     alloc,
-    alloc::Layout,
+    alloc::{handle_alloc_error, Layout},
     collections::HashMap,
     fmt::{Debug, Display, Formatter},
     marker::PhantomData,
@@ -59,20 +59,33 @@ impl Header {
     }
 
     fn populate_table(&mut self, ptr: *mut u8, fields: Vec<&Field>, alignment: usize) {
-        unsafe {
-            let mut next_ptr = ptr;
-            let mut end_ptr = ptr.add(VALUE_SIZE);
-            let mut i = 0;
-            while i < fields.len() {
-                let name = fields[i].name.to_string();
+        let mut next_ptr = ptr;
+        // SAFETY: it is valid to index past ptr by VALUE_SIZE because this function
+        // does not get called for 0 fields, and nonzero fields means this
+        // region of memory is allocated and valid.
+        // ptr is aligned at the end of the loop before use.
+        let mut end_ptr = unsafe { ptr.add(VALUE_SIZE) };
+        let mut i = 0;
+        while i < fields.len() {
+            let name = fields[i].name.to_string();
+            // SAFETY: The invariant that `next_ptr` is always aligned and valid
+            // is upheld when initialized above or mutated below.
+            unsafe {
                 // write the default value to avoid uninitialized memory
                 ptr::write(next_ptr as *mut Value, Value::Null);
-                self.fields.insert(name, next_ptr as usize - ptr as usize);
-                i += 1;
+            }
+            self.fields.insert(name, next_ptr as usize - ptr as usize);
+            i += 1;
 
-                // avoid UB
-                if i != fields.len() {
-                    let offset = end_ptr.align_offset(alignment);
+            // avoid UB
+            if i != fields.len() {
+                let offset = end_ptr.align_offset(alignment);
+                // SAFETY: it is valid to index past ptr by VALUE_SIZE because this function
+                // does not get called for 0 fields, and nonzero fields means this
+                // region of memory is allocated and valid. Also, we checked for being
+                // at the end of the region of mem by checking if we have iterated over all
+                // fields.
+                unsafe {
                     next_ptr = end_ptr.add(offset);
                     end_ptr = next_ptr.add(VALUE_SIZE);
                 }
@@ -102,30 +115,41 @@ impl<'data> HeapAlloc<'data> {
 
     #[inline]
     fn new_inner(class: &Class, index: usize, statik: bool) -> *mut u8 {
-        unsafe {
-            let ptr = alloc::alloc(Layout::new::<HeapAlloc>());
+        // SAFETY: `Layout::new::<HeapAlloc>())` is valid so alloc is safe.
+        let ptr = unsafe { alloc::alloc(Layout::new::<HeapAlloc>()) };
+        if ptr.is_null() {
+            handle_alloc_error(Layout::new::<HeapAlloc>())
+        }
 
-            let num_fields = class.fields.len();
-            let mut header = Header::new(class, index);
-            // ptr now allocated
-            let data = if num_fields != 0 {
-                alloc::alloc(Layout::array::<Value>(num_fields).unwrap())
-            } else {
-                ptr::null_mut()
+        let num_fields = class.fields.len();
+        let mut header = Header::new(class, index);
+        // ptr now allocated
+        // TODO consider converting to match statement for consistency with code below
+        let data = if num_fields != 0 {
+            // SAFETY: since `num_fields` is not 0, alloc is safe.
+            unsafe { alloc::alloc(Layout::array::<Value>(num_fields).unwrap()) }
+        } else {
+            ptr::null_mut()
+        };
+        // finish header by populating the offset table
+        if !data.is_null() {
+            let fields = match statik {
+                true => class
+                    .fields
+                    .values()
+                    .filter(|v| v.access_flags.contains(FieldAccessFlags::STATIC))
+                    .collect::<Vec<&Field>>(),
+                false => class
+                    .fields
+                    .values()
+                    .filter(|v| !v.access_flags.contains(FieldAccessFlags::STATIC))
+                    .collect::<Vec<&Field>>(),
             };
-            // finish header by populating the offset table
-            if !data.is_null() {
-                let fields = match statik {
-                    true => class
-                        .fields
-                        .values()
-                        .filter(|v| v.access_flags.contains(FieldAccessFlags::STATIC))
-                        .collect::<Vec<&Field>>(),
-                    false => class.fields.values().collect::<Vec<&Field>>(),
-                };
-                header.populate_table(data, fields, VALUE_ALIGN);
-            }
+            header.populate_table(data, fields, VALUE_ALIGN);
+        }
 
+        // SAFETY: ptr is valid for writes since we asserted nonnull above.
+        unsafe {
             ptr::write(
                 ptr as *mut HeapAlloc,
                 HeapAlloc {
@@ -139,36 +163,40 @@ impl<'data> HeapAlloc<'data> {
     }
 
     #[inline]
-    pub(crate) fn get_field(&self, name: &str) -> Result<Value> {
+    pub(crate) fn get_field(&self, name: &str) -> Result<&Value> {
+        // SAFETY: If the offset is valid the area of memory is valid
+        // since offset is calculated with respect to the area of memory.
         unsafe {
-            let value = ptr::read(self.get_field_inner(name)? as *const Value);
-            Ok(value)
+            let value = self.get_field_inner(name)? as *const Value;
+            Ok(&*value)
         }
     }
 
     #[inline]
-    pub(crate) unsafe fn get_field_inner(&self, name: &str) -> Result<*mut u8> {
+    fn get_field_inner(&self, name: &str) -> Result<*mut u8> {
         let offset = match self.header.fields.get(name) {
             None => {
                 bail!("No field with name: {name}");
             }
             Some(offset) => offset,
         };
-
-        Ok(self.data.add(*offset))
+        // SAFETY: offset is valid due to the offset being calculated from the
+        // memory region itself, so the offset always points into valid memory.
+        unsafe { Ok(self.data.add(*offset)) }
     }
 
     #[inline]
     pub(crate) fn set_field(&mut self, name: &str, data: Value) -> Result<()> {
+        let field = self.get_field_inner(name)?;
+        // SAFETY: The validity of the ptr is upheld by the get_field_inner method.
         unsafe {
-            let field = self.get_field_inner(name)?;
             ptr::write(field as *mut Value, data);
         }
         Ok(())
     }
 
     #[inline]
-    pub(crate) unsafe fn deallocate(heap: *mut HeapAlloc) {
+    unsafe fn deallocate(heap: *mut HeapAlloc) {
         if heap.is_null() {
             return;
         }
