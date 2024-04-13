@@ -121,30 +121,30 @@ impl<'data> HeapAlloc<'data> {
             handle_alloc_error(Layout::new::<HeapAlloc>())
         }
 
-        let num_fields = class.fields.len();
+        let fields = match statik {
+            true => class
+                .fields
+                .values()
+                .filter(|v| v.access_flags.contains(FieldAccessFlags::STATIC))
+                .collect::<Vec<&Field>>(),
+            false => class
+                .fields
+                .values()
+                .filter(|v| !v.access_flags.contains(FieldAccessFlags::STATIC))
+                .collect::<Vec<&Field>>(),
+        };
         let mut header = Header::new(class, index);
         // ptr now allocated
         // TODO consider converting to match statement for consistency with code below
-        let data = if num_fields != 0 {
+        let data = if !fields.is_empty() {
             // SAFETY: since `num_fields` is not 0, alloc is safe.
-            unsafe { alloc::alloc(Layout::array::<Value>(num_fields).unwrap()) }
+            unsafe { alloc::alloc(Layout::array::<Value>(fields.len()).unwrap()) }
         } else {
             ptr::null_mut()
         };
         // finish header by populating the offset table
         if !data.is_null() {
-            let fields = match statik {
-                true => class
-                    .fields
-                    .values()
-                    .filter(|v| v.access_flags.contains(FieldAccessFlags::STATIC))
-                    .collect::<Vec<&Field>>(),
-                false => class
-                    .fields
-                    .values()
-                    .filter(|v| !v.access_flags.contains(FieldAccessFlags::STATIC))
-                    .collect::<Vec<&Field>>(),
-            };
+            
             header.populate_table(data, fields, VALUE_ALIGN);
         }
 
@@ -258,9 +258,11 @@ impl Debug for FieldsTable {
 
 #[cfg(test)]
 mod test {
+    use std::fmt::Debug;
     use std::ptr;
 
     use sumatra_parser::class_file::ClassFile;
+    use sumatra_parser::flags::FieldAccessFlags;
 
     use crate::{class::Class, oop::HeapAlloc, value::Value};
 
@@ -281,15 +283,22 @@ mod test {
             unsafe {
                 let heap = &mut *(ptr as *mut HeapAlloc);
                 for field in class_file.fields {
-                    heap.set_field(&field.name, Value::Long(69420)).unwrap();
+                    if !field.access_flags.contains(FieldAccessFlags::STATIC) {
+                        heap.set_field(&field.name, Value::Long(69420)).unwrap();
+                    }
                 }
 
                 HeapAlloc::deallocate(ptr as *mut HeapAlloc);
             }
         }
     }
-
+    
+    //FIXME: Since the `printWriter` field is static it does not get added to the 
+    // fields which was not true when test was written. Ignore for now until a fix is
+    // made. Perhaps test should be moved for the method area where the static fields
+    // will exist.
     #[test]
+    #[ignore]
     fn alloc2() {
         let taco = CLASSES[4];
 
@@ -305,7 +314,7 @@ mod test {
                 "printWriter",
                 Value::RefType(ptr::read(field_ref as *const HeapAlloc)),
             )
-            .unwrap();
+                .unwrap();
 
             HeapAlloc::deallocate(field_ref as *mut HeapAlloc);
             HeapAlloc::deallocate(containing_class as *mut HeapAlloc);
