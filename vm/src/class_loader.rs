@@ -11,7 +11,10 @@ use zip::ZipArchive;
 
 use sumatra_parser::class_file::ClassFile;
 
-use crate::{class::Class, method_area::MethodArea};
+use crate::{alloc::static_alloc::StaticAlloc, class::Class, method_area::MethodArea};
+
+//TODO resolve all instances of the name `offset` to be index to reflect
+// that the method area returns indices into its data structure not offsets.
 
 const DEFAULT_CAPACITY: usize = 64;
 
@@ -30,21 +33,47 @@ impl ClassLoader {
             count: AtomicUsize::new(0),
         }
     }
+    #[inline]
     pub(crate) fn resolve<'met>(
         &mut self,
         name: &str,
         met_area: &'met mut MethodArea,
     ) -> Result<&'met Class> {
+        let index = self.resolve_and_index(name, met_area)?;
+        met_area.get_class(index)
+    }
+
+    #[inline]
+    pub(crate) fn resolve_static<'met>(
+        &mut self,
+        name: &str,
+        met_area: &'met mut MethodArea,
+    ) -> Result<&'met StaticAlloc> {
+        let index = self.resolve_and_index(name, met_area)?;
+        met_area.get(index)
+    }
+
+    pub(crate) fn resolve_static_mut<'met>(
+        &mut self,
+        name: &str,
+        met_area: &'met mut MethodArea,
+    ) -> Result<&'met mut StaticAlloc> {
+        let index = self.resolve_and_index(name, met_area)?;
+        met_area.get_mut(index)
+    }
+
+    #[inline]
+    fn resolve_and_index(&mut self, name: &str, met_area: &mut MethodArea) -> Result<usize> {
         if !self.by_name.contains_key(name) {
             let class_file = unzip_jar(name)?;
             let class = Class::from(&class_file);
-            let offset = self.store_class(class, met_area)?;
-            Ok(met_area.get(offset)?)
+            self.store_class(class, met_area)
         } else {
-            Ok(self.by_name_unchecked(name, met_area))
+            Ok(*self.by_name.get(name).unwrap())
         }
     }
 
+    #[inline]
     fn store_class(&mut self, class: Class, met_area: &mut MethodArea) -> Result<usize> {
         let name = class.get_name();
         let offset = met_area.push(class)?;
@@ -75,7 +104,7 @@ impl ClassLoader {
         offset: usize,
         met_area: &'met mut MethodArea,
     ) -> Result<&'met Class> {
-        met_area.get(offset)
+        met_area.get_class(offset)
     }
 
     #[inline]
@@ -84,7 +113,7 @@ impl ClassLoader {
         offset: usize,
         met_area: &'met mut MethodArea,
     ) -> &'met Class {
-        met_area.get(offset).unwrap()
+        met_area.get_class(offset).unwrap()
     }
 
     #[inline]
