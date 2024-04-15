@@ -1,8 +1,7 @@
-use crate::oop::HeapAlloc;
+use crate::alloc::{alloc_type::NonStatic, oop::HeapAlloc};
 
 #[derive(Default, Debug)]
-#[repr(C)]
-pub enum Value<'data> {
+pub enum Value {
     #[default]
     Null,
     Double(f64),
@@ -10,5 +9,5 @@ pub enum Value<'data> {
     Short(i16),
     Byte(i8),
     Long(i64),
-    RefType(HeapAlloc<'data>),
+    RefType(HeapAlloc<NonStatic>),
 }
