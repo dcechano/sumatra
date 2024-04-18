@@ -1,6 +1,8 @@
 use anyhow::{bail, Result};
 
-use sumatra_parser::{constant::Constant, instruction::Instruction, method::Method};
+use sumatra_parser::{
+    constant::Constant, flags::MethodAccessFlags, instruction::Instruction, method::Method,
+};
 
 use crate::{
     alloc::static_alloc::StaticAlloc,
@@ -50,12 +52,13 @@ impl<'vm> VM<'vm> {
         let top = self.frames.len() - 1;
         let code = &self.frames[top].method.code;
         let op_code = &code.op_code;
-        for code in op_code {
+        while let Some(code) = op_code.get(self.frames[top].pc) {
+            println!("Executing code: {code:?}");
             match code {
                 Instruction::AaLoad => {}
                 Instruction::AaStore => {}
-                Instruction::AaConstNull => {}
-                Instruction::ALoad => {}
+                Instruction::AaConstNull => self.stack.push(&Value::Null),
+                Instruction::ALoad(_) => {}
                 Instruction::ALoad0 => {}
                 Instruction::ALoad1 => {}
                 Instruction::ALoad2 => {}
@@ -135,7 +138,10 @@ impl<'vm> VM<'vm> {
                 Instruction::FStore3 => {}
                 Instruction::FSub => {}
                 Instruction::GetField(_) => {}
-                Instruction::GetStatic(index) => self.get_static(call_frame, *index)?,
+                Instruction::GetStatic(index) => {
+                    self.get_static(*index)?;
+                    println!("Operand stack: {:?}", self.stack);
+                }
                 Instruction::GoTo(_) => {}
                 Instruction::GoToW(_) => {}
                 Instruction::I2B => {}
@@ -184,7 +190,25 @@ impl<'vm> VM<'vm> {
                 Instruction::InvokeDynamic(_, _, _) => {}
                 Instruction::InvokeInterface(_, _, _) => {}
                 Instruction::InvokeSpecial(_) => {}
-                Instruction::InvokeStatic(_) => {}
+                Instruction::InvokeStatic(method_index) => {
+                    println!("method_index: {method_index}");
+                    if let Constant::MethodRef {
+                        class_index,
+                        name_and_type_index,
+                    } = self.frames[top].cp.get(*method_index as usize).unwrap()
+                    {
+                        let (name_index, desc_index, alloc) =
+                            self.unpack(*class_index, *name_and_type_index)?;
+                        let class = alloc.get_class();
+                        let met_name = self.construct_name(name_index, desc_index)?;
+                        let method = class.methods.get(&met_name).unwrap();
+                        println!("InvokeStatic Method: {method:?}");
+                        // TODO implement native method calls.
+                        if method.access_flags.contains(MethodAccessFlags::NATIVE) {
+                            println!("Method was a native method. Ignoring.");
+                        }
+                    }
+                }
                 Instruction::InvokeVirtual(method_index) => {
                     println!("INVOKE_VIRTUAL!: #{method_index}");
                 }
@@ -214,7 +238,7 @@ impl<'vm> VM<'vm> {
                 Instruction::LConst0 => {}
                 Instruction::LConst1 => {}
                 Instruction::Ldc(index) => {
-                    let constant = call_frame.cp.get(*index).unwrap();
+                    /*let constant = call_frame.cp.get(*index).unwrap();
                     match constant {
                         Constant::Dummy => {
                             todo!()
@@ -309,20 +333,18 @@ impl<'vm> VM<'vm> {
                 Instruction::Pop2 => {}
                 Instruction::PutField(_) => {}
                 Instruction::PutStatic(_) => {}
-                Instruction::Ret => {}
+                Instruction::Ret(_) => {}
                 Instruction::Return => {}
                 Instruction::SaLoad => {}
                 Instruction::SaStore => {}
                 Instruction::SiPush(_) => {}
                 Instruction::Swap => {}
                 Instruction::TableSwitch { .. } => {}
-                Instruction::Wide(_, _, _) => {}
+                Instruction::Wide(winstr) => {}
             }
+            self.frames[top].pc += 1;
         }
-        println!(
-            "Printing the call frame operand stack {:?}.",
-            call_frame.op_stack
-        );
+        self.frames.pop();
         Ok(())
     }
 
