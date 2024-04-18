@@ -2,19 +2,43 @@ use anyhow::{bail, Result};
 
 use sumatra_parser::{constant::Constant, instruction::Instruction, method::Method};
 
-use crate::{call_frame::CallFrame, class::Class, class_loader::ClassLoader, value::Value};
+use crate::{
+    alloc::static_alloc::StaticAlloc,
+    call_frame::CallFrame,
+    class::Class,
+    lli::{class_manager::ClassManager, response::Response},
+    method_area::MethodArea,
+    value::Value,
+};
 
 const MAIN: &str = "main([Ljava/lang/String;)V";
+const CLINIT: &str = "<clinit>()V";
+const INIT: &str = "<init>()V";
 
-#[derive(Default)]
+const DEFAULT_VEC_SIZE: usize = 128;
+
 pub struct VM<'vm> {
     //TODO implement call frames and the method area
     // pub(crate) call_frames: Vec<CallFrame<'vm>>,
     pub(crate) stack: Vec<Value<'vm>>,
     pub(crate) class_loader: ClassLoader,
+    pub(crate) frames: Vec<CallFrame<'vm>>,
+    pub(crate) method_area: MethodArea,
+    pub(crate) stack: Vec<&'vm Value>,
+    pub(crate) class_manager: ClassManager,
 }
 
 impl<'vm> VM<'vm> {
+    pub fn init() -> Result<Self> {
+        //TODO find good allocation size for vectors
+        Ok(Self {
+            frames: Vec::with_capacity(DEFAULT_VEC_SIZE),
+            method_area: MethodArea::new()?,
+            stack: Vec::with_capacity(DEFAULT_VEC_SIZE),
+            class_manager: ClassManager::new(),
+        })
+    }
+
     pub fn run(&mut self, class: &'vm mut Class) -> Result<()> {
         let main = find_main(class)?;
         let cp = &class.cp;
