@@ -148,6 +148,9 @@ pub enum Instruction {
     InvokeDynamic(u16, u8, u8), // last 2 bytes are always 0
     InvokeInterface(u16, u8, u8),
     InvokeSpecial(u16),
+    /// Invoke a class (static) method.
+    /// The provided u16 is an index to the run-time constant pool where the
+    /// entry is a symbolic reference to a method or interface method.
     InvokeStatic(u16),
     /// Invoke instance method; dispatch based on class
     InvokeVirtual(usize),
