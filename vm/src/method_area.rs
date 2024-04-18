@@ -67,15 +67,15 @@ impl MethodArea {
         }
     }
 
-    pub(crate) fn get_mut(&mut self, index: usize) -> Result<&mut StaticAlloc> {
+    pub(crate) fn get_mut(&mut self, index: usize) -> Result<&'static mut StaticAlloc> {
         unsafe { Ok(&mut *(self.data.add(index))) }
     }
 
-    pub(crate) fn get(&self, index: usize) -> Result<&StaticAlloc> {
+    pub(crate) fn get(&self, index: usize) -> Result<&'static StaticAlloc> {
         unsafe { Ok(&*(self.data.add(index) as *const StaticAlloc)) }
     }
 
-    pub(crate) fn get_class(&self, index: usize) -> Result<&Class> {
+    pub(crate) fn get_class(&self, index: usize) -> Result<&'static Class> {
         unsafe { Ok((*(self.data.add(index) as *const StaticAlloc)).get_class()) }
     }
 
