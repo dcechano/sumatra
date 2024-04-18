@@ -1,13 +1,15 @@
+use std::{
+    fmt::{Display, Formatter},
+    ptr,
+};
+
+use sumatra_parser::field::Field;
+
 use crate::{
     alloc::{fields_table::FieldsTable, VALUE_ALIGN, VALUE_SIZE},
     class::Class,
     value::Value,
 };
-use std::{
-    fmt::{Display, Formatter},
-    ptr,
-};
-use sumatra_parser::field::Field;
 
 #[derive(Debug)]
 pub(crate) struct Header {
