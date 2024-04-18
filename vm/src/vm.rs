@@ -18,7 +18,11 @@ impl<'vm> VM<'vm> {
     pub fn run(&mut self, class: &'vm mut Class) -> Result<()> {
         let main = find_main(class)?;
         let cp = &class.cp;
-        self.execute_frame(&mut CallFrame::construct_cf(main, cp))?;
+        let frame = CallFrame::construct_cf(main, cp);
+        self.frames.push(frame);
+        while !self.frames.is_empty() {
+            self.execute_frame()?;
+        }
         Ok(())
     }
 
@@ -61,7 +65,7 @@ impl<'vm> VM<'vm> {
                 Instruction::DConst0 => {}
                 Instruction::DConst1 => {}
                 Instruction::DDiv => {}
-                Instruction::DLoad => {}
+                Instruction::DLoad(_) => {}
                 Instruction::DLoad0 => {}
                 Instruction::DLoad1 => {}
                 Instruction::DLoad2 => {}
@@ -168,7 +172,7 @@ impl<'vm> VM<'vm> {
                 Instruction::IReturn => {}
                 Instruction::IShL => {}
                 Instruction::IShR => {}
-                Instruction::IStore => {}
+                Instruction::IStore(_) => {}
                 Instruction::IStore0 => {}
                 Instruction::IStore1 => {}
                 Instruction::IStore2 => {}
@@ -247,7 +251,8 @@ impl<'vm> VM<'vm> {
                         Constant::Package(_) => {
                             todo!()
                         }
-                    }
+                        Constant::UnRecCharSet(_) => bail!("Unrecognized charset"),
+                    }*/
                 }
                 Instruction::LdcW(_) => {}
                 Instruction::Ldc2W(_) => {}
@@ -300,32 +305,84 @@ impl<'vm> VM<'vm> {
         Ok(())
     }
 
-    fn get_static(&mut self, call_frame: &mut CallFrame, index: usize) -> Result<()> {
-        if let Some(Constant::FieldRef {
+    fn get_static(&mut self, index: usize) -> Result<()> {
+        // This method cannot be called if there is not at least 1 stack frame.
+        let top = self.frames.len() - 1;
+        if let Constant::FieldRef {
             class_index,
             name_and_type_index,
-        }) = call_frame.cp.get(index)
+        } = self.frames[top].cp.get(index).unwrap()
         {
-            if let Constant::Class(name_index) = call_frame.cp.get(*class_index).unwrap() {
-                let name = call_frame.cp.get_utf8(*name_index)?;
-                self.class_loader.resolve(name)?;
-                println!("Loading class {name} was successful.");
-                todo!();
-                // call_frame.op_stack.push(Value::RefType(name.into()));
-            };
+            let (name_index, _, alloc) = self.unpack(*class_index, *name_and_type_index)?;
+            let field_val = alloc.get_field(self.frames[top].cp.get_utf8(name_index)?);
+            self.stack.push(field_val);
+        }
+        Ok(())
+    }
+
+    fn load_class(&mut self, name: &str) -> Result<&'static mut StaticAlloc> {
+        match self.class_manager.request(name, &mut self.method_area) {
+            Ok(Response::InitReq(class, alloc_index)) => {
+                self.init_class(class)?;
+                self.method_area.get_mut(alloc_index)
+            }
+            Ok(Response::Ready(alloc_index)) => self.method_area.get_mut(alloc_index),
+            Err(e) => bail!(e),
+            _ => panic!("Manager returned a not found!"),
+        }
+    }
+    
+    /// Take a static reference to a class and push its '<clinit>'
+    /// method as a stack frame to `vm.frames`.
+    fn init_class(&mut self, class: &'static Class) -> Result<()> {
+        let clinit = class.methods.get(CLINIT).unwrap();
+        let frame = CallFrame::construct_cf(clinit, &class.cp);
+        self.frames.push(frame);
+        self.execute_frame()
+    }
+
+    /// Takes in constant pool indices for the `Constant::Class(class_name)` and
+    /// the `Constant::NameAndType` and returns the `name_index`,
+    /// `descpriptor_index`,  and a `&mut StaticAlloc` of the class pointed
+    /// to by `class_name`. The returned &mut StaticAlloc will have a fully
+    /// initialize Class.
+    fn unpack(
+        &mut self,
+        class_index: usize,
+        name_and_type: usize,
+    ) -> Result<(usize, usize, &'static StaticAlloc)> {
+        let top = self.frames.len() - 1;
+        if let Constant::Class(class_name) = self.frames[top].cp.get(class_index).unwrap() {
+            let name = self.frames[top].cp.get_utf8(*class_name)?;
+            let static_alloc = self.load_class(name)?;
+
             if let Constant::NameAndType {
                 name_index,
                 descriptor_index,
-            } = call_frame.cp.get(*name_and_type_index).unwrap()
+            } = self.frames[top].cp.get(name_and_type).unwrap()
             {
-                todo!()
+                Ok((*name_index, *descriptor_index, static_alloc))
             } else {
-                bail!("Fieldref name_and_type_index did not point to a NameAndType constant.");
+                bail!(
+                    "Provided name_and_type_index did not point to a
+                NameAndType constant."
+                );
             }
         } else {
-            bail!("get_static constant was not a FieldRef constant.");
+            bail!(
+                "Class index while executing `get_static` \
+                    didn't point to a Class in the constant pool."
+            );
         }
-        Ok(())
+    }
+
+    #[inline]
+    fn construct_name(&self, name_index: usize, descpriptor_index: usize) -> Result<String> {
+        let top = self.frames.len() - 1;
+        let cp = self.frames[top].cp;
+        let name = cp.get_utf8(name_index)?;
+        let descr = cp.get_utf8(descpriptor_index)?;
+        Ok(format!("{name}{descr}"))
     }
 }
 
