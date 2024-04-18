@@ -18,7 +18,9 @@ impl StaticAlloc {
 
     pub(crate) fn get_class(&self) -> &Class { &self.class }
 
-    pub(crate) fn get_field(&self, name: &str) -> &'static Value { self.alloc.get_field(name).unwrap() }
+    pub(crate) fn get_field(&self, name: &str) -> &'static Value {
+        self.alloc.get_field(name).unwrap()
+    }
 
     pub(crate) fn get_field_mut(&mut self, name: &str) -> &'static mut Value {
         self.alloc.get_field_mut(name).unwrap()
