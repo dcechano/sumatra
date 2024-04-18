@@ -18,10 +18,6 @@ const INIT: &str = "<init>()V";
 const DEFAULT_VEC_SIZE: usize = 128;
 
 pub struct VM<'vm> {
-    //TODO implement call frames and the method area
-    // pub(crate) call_frames: Vec<CallFrame<'vm>>,
-    pub(crate) stack: Vec<Value<'vm>>,
-    pub(crate) class_loader: ClassLoader,
     pub(crate) frames: Vec<CallFrame<'vm>>,
     pub(crate) method_area: MethodArea,
     pub(crate) stack: Vec<&'vm Value>,
@@ -50,8 +46,9 @@ impl<'vm> VM<'vm> {
         Ok(())
     }
 
-    fn execute_frame(&mut self, call_frame: &mut CallFrame) -> Result<()> {
-        let code = &call_frame.method.code;
+    fn execute_frame(&mut self) -> Result<()> {
+        let top = self.frames.len() - 1;
+        let code = &self.frames[top].method.code;
         let op_code = &code.op_code;
         for code in op_code {
             match code {
