@@ -36,7 +36,9 @@ pub enum Constant {
     /// Used to represent a field or method,
     /// without indicating which class or interface type it belongs to.
     /// The index to the `Class` is held in the constant that pointed to this
-    /// `NameAndType`. ## Fields
+    /// `NameAndType`.
+    ///
+    /// ## Fields
     /// `name_index` is the index of the UTF8 representation of its name.
     /// `descriptor_index` is the index of the UT8 representation if its
     /// descriptor.
