@@ -8,8 +8,8 @@ use crate::value::Value;
 pub(crate) struct CallFrame<'vm> {
     pub(crate) method: &'vm Method,
     pub(crate) pc: usize,
-    pub(crate) locals: Vec<Value<'vm>>,
-    pub(crate) op_stack: Vec<Value<'vm>>,
+    pub(crate) locals: Vec<Value>,
+    pub(crate) op_stack: Vec<Value>,
     pub(crate) cp: &'vm ConstantPool,
 }
 //
