@@ -66,6 +66,15 @@ use crate::{
     type_verification::VType,
 };
 
+/*TODO The following attributes have not been implemented yet:
+    - Class Attributes
+        Deprecated
+    - Method Attributes
+        RuntimeInvisibleParameterAnnotations
+        AnnotationDefault
+        MethodParameters
+
+*/
 const CLASS_EXT: &[u8] = b"class";
 pub(crate) struct ClassReader(Cursor<Vec<u8>>);
 
