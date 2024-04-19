@@ -1,3 +1,4 @@
+use std::path::Path;
 use anyhow::{bail, Result};
 
 use sumatra_parser::{
@@ -27,14 +28,19 @@ pub struct VM<'vm> {
 }
 
 impl<'vm> VM<'vm> {
-    pub fn init() -> Result<Self> {
+    pub fn init(c_path: &Path) -> Self {
         //TODO find good allocation size for vectors
-        Ok(Self {
+        let method_area= match MethodArea::new() {
+            Ok(method_area) => method_area,
+            Err(_) => panic!("Memory Allocation Error while starting Sumatra VM"),
+        };
+
+        Self {
             frames: Vec::with_capacity(DEFAULT_VEC_SIZE),
-            method_area: MethodArea::new()?,
+            method_area,
             stack: Vec::with_capacity(DEFAULT_VEC_SIZE),
-            class_manager: ClassManager::new(),
-        })
+            class_manager: ClassManager::new(c_path),
+        }
     }
 
     pub fn run(&mut self, class: &'vm mut Class) -> Result<()> {
