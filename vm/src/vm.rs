@@ -57,7 +57,7 @@ impl<'vm> VM<'vm> {
             match code {
                 Instruction::AaLoad => {}
                 Instruction::AaStore => {}
-                Instruction::AaConstNull => self.stack.push(&Value::Null),
+                Instruction::AaConstNull => self.frames[top].stack.push(&Value::Null),
                 Instruction::ALoad(_) => {}
                 Instruction::ALoad0 => {}
                 Instruction::ALoad1 => {}
@@ -191,23 +191,7 @@ impl<'vm> VM<'vm> {
                 Instruction::InvokeInterface(_, _, _) => {}
                 Instruction::InvokeSpecial(_) => {}
                 Instruction::InvokeStatic(method_index) => {
-                    println!("method_index: {method_index}");
-                    if let Constant::MethodRef {
-                        class_index,
-                        name_and_type_index,
-                    } = self.frames[top].cp.get(*method_index as usize).unwrap()
-                    {
-                        let (name_index, desc_index, alloc) =
-                            self.unpack(*class_index, *name_and_type_index)?;
-                        let class = alloc.get_class();
-                        let met_name = self.construct_name(name_index, desc_index)?;
-                        let method = class.methods.get(&met_name).unwrap();
-                        println!("InvokeStatic Method: {method:?}");
-                        // TODO implement native method calls.
-                        if method.access_flags.contains(MethodAccessFlags::NATIVE) {
-                            println!("Method was a native method. Ignoring.");
-                        }
-                    }
+                    self.invoke_static(&(*method_index as usize))?
                 }
                 Instruction::InvokeVirtual(method_index) => {
                     println!("INVOKE_VIRTUAL!: #{method_index}");
@@ -332,7 +316,7 @@ impl<'vm> VM<'vm> {
                 Instruction::Pop => {}
                 Instruction::Pop2 => {}
                 Instruction::PutField(_) => {}
-                Instruction::PutStatic(_) => {}
+                Instruction::PutStatic(field_index) => self.put_static(*field_index as usize)?,
                 Instruction::Ret(_) => {}
                 Instruction::Return => {}
                 Instruction::SaLoad => {}
@@ -348,6 +332,29 @@ impl<'vm> VM<'vm> {
         Ok(())
     }
 
+    fn invoke_static(&mut self, method_index: &usize) -> Result<()> {
+        let top = self.frames.len() - 1;
+        println!("method_index: {method_index}");
+        if let Constant::MethodRef {
+            class_index,
+            name_and_type_index,
+        } = self.frames[top].cp.get(*method_index as usize).unwrap()
+        {
+            let (name_index, desc_index, alloc) = self.unpack(class_index, name_and_type_index)?;
+            let class = alloc.get_class();
+            let met_name = self.construct_m_name(name_index, desc_index)?;
+            let method = class.methods.get(&met_name).unwrap();
+            println!("InvokeStatic Method: {method:?}");
+            // TODO implement native method calls.
+            if method.access_flags.contains(MethodAccessFlags::NATIVE) {
+                println!("Method was a native method. Ignoring.");
+            }
+        } else {
+            bail!("Expected Constant::MethodRef in invoke_static.");
+        }
+        Ok(())
+    }
+
     fn get_static(&mut self, index: usize) -> Result<()> {
         // This method cannot be called if there is not at least 1 stack frame.
         let top = self.frames.len() - 1;
@@ -356,13 +363,33 @@ impl<'vm> VM<'vm> {
             name_and_type_index,
         } = self.frames[top].cp.get(index).unwrap()
         {
-            let (name_index, _, alloc) = self.unpack(*class_index, *name_and_type_index)?;
+            let (name_index, _, alloc) = self.unpack(class_index, name_and_type_index)?;
             let field_val = alloc.get_field(self.frames[top].cp.get_utf8(name_index)?);
-            self.stack.push(field_val);
+            self.frames[top].stack.push(field_val);
         }
         Ok(())
     }
 
+    fn put_static(&mut self, field_index: usize) -> Result<()> {
+        let top = self.frames.len() - 1;
+        if let Constant::FieldRef {
+            class_index,
+            name_and_type_index,
+        } = self.frames[top].cp.get(field_index).unwrap()
+        {
+            let (f_name, alloc) = self.unpack_f_name(class_index, name_and_type_index)?;
+            let field = alloc.get_field_mut(&f_name);
+            *field = *self.frames[top].stack.pop().unwrap();
+        } else {
+            bail!("Expected Constant::FieldRef for a put_static instruction.");
+        };
+        Ok(())
+    }
+}
+
+// Utility functions are seperated into a different impl block for ease of
+// navigation.
+impl<'vm> VM<'vm> {
     fn load_class(&mut self, name: &str) -> Result<&'static mut StaticAlloc> {
         match self.class_manager.request(name, &mut self.method_area) {
             Ok(Response::InitReq(class, alloc_index)) => {
@@ -374,7 +401,7 @@ impl<'vm> VM<'vm> {
             _ => panic!("Manager returned a not found!"),
         }
     }
-    
+
     /// Take a static reference to a class and push its '<clinit>'
     /// method as a stack frame to `vm.frames`.
     fn init_class(&mut self, class: &'static Class) -> Result<()> {
@@ -391,18 +418,18 @@ impl<'vm> VM<'vm> {
     /// initialize Class.
     fn unpack(
         &mut self,
-        class_index: usize,
-        name_and_type: usize,
-    ) -> Result<(usize, usize, &'static StaticAlloc)> {
+        class_index: &usize,
+        name_and_type: &usize,
+    ) -> Result<(usize, usize, &'static mut StaticAlloc)> {
         let top = self.frames.len() - 1;
-        if let Constant::Class(class_name) = self.frames[top].cp.get(class_index).unwrap() {
+        if let Constant::Class(class_name) = self.frames[top].cp.get(*class_index).unwrap() {
             let name = self.frames[top].cp.get_utf8(*class_name)?;
             let static_alloc = self.load_class(name)?;
 
             if let Constant::NameAndType {
                 name_index,
                 descriptor_index,
-            } = self.frames[top].cp.get(name_and_type).unwrap()
+            } = self.frames[top].cp.get(*name_and_type).unwrap()
             {
                 Ok((*name_index, *descriptor_index, static_alloc))
             } else {
@@ -419,12 +446,45 @@ impl<'vm> VM<'vm> {
         }
     }
 
+    /// Takes in constant pool indices for the `Constant::Class(class_name)` and
+    /// the `Constant::NameAndType` and returns a `String` and a `&'static mut
+    /// StaticAlloc`. The `String` represents a field name.
+    /// The returned `&'static mut StaticAlloc` is the allocation of the class
+    /// pointed to by `class_name`, with the class already fully
+    /// initialized.
+    fn unpack_f_name(
+        &mut self,
+        class_index: &usize,
+        name_and_type: &usize,
+    ) -> Result<(String, &'static mut StaticAlloc)> {
+        let (name_index, _, alloc) = self.unpack(class_index, name_and_type)?;
+        let top = self.frames.len() - 1;
+        let f_name = self.frames[top].cp.get_utf8(name_index)?.into();
+        Ok((f_name, alloc))
+    }
+
+    /// Takes in constant pool indices for the `Constant::Class(class_name)` and
+    /// the `Constant::NameAndType` and returns a `String` and a `&'static mut
+    /// StaticAlloc`. The `String` represents a method name.
+    /// The returned `&'static mut StaticAlloc` is the allocation of the class
+    /// pointed to by `class_name`, with the class already fully
+    /// initialized.
+    fn unpack_m_name(
+        &mut self,
+        class_index: &usize,
+        name_and_type: &usize,
+    ) -> Result<(String, &'static mut StaticAlloc)> {
+        let (name_index, descr_index, alloc) = self.unpack(class_index, name_and_type)?;
+        let name = self.construct_m_name(name_index, descr_index)?;
+        Ok((name, alloc))
+    }
+
     #[inline]
-    fn construct_name(&self, name_index: usize, descpriptor_index: usize) -> Result<String> {
+    fn construct_m_name(&self, name_index: usize, descr_index: usize) -> Result<String> {
         let top = self.frames.len() - 1;
         let cp = self.frames[top].cp;
         let name = cp.get_utf8(name_index)?;
-        let descr = cp.get_utf8(descpriptor_index)?;
+        let descr = cp.get_utf8(descr_index)?;
         Ok(format!("{name}{descr}"))
     }
 }
