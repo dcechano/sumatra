@@ -1,2 +1,4 @@
 /target
-/unrec_attrs.txt
+/parser/unrec_attrs.txt
+/java/
+/.idea/
