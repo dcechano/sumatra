@@ -1,21 +1,22 @@
 use sumatra_parser::class_file::ClassFile;
 use sumatra_vm::{class::Class, vm::VM};
 
+const CLASS_PATH: &str = "/home/dylan/Documents/RustProjects/sumatra/java/target/production/java/";
+
 const CLASSES: [&str; 5] = [
     "/home/dylan/Documents/RustProjects/sumatra/java/target/production/java/Main.class",
     "/home/dylan/Documents/RustProjects/sumatra/java/target/production/java/Interface.class",
     "/home/dylan/Documents/RustProjects/sumatra/java/target/production/java/Import.class",
     "/home/dylan/Documents/RustProjects/sumatra/java/target/production/java/Simple.class",
-    "/home/dylan/Documents/RustProjects/sumatra/java/target/production/java/Taco.class",
+    "/home/dylan/Documents/RustProjects/sumatra/parser/tests/rt/java/lang/System.class",
 ];
 fn main() {
-    let class_file = ClassFile::parse_class(
-        "/home/dylan/Documents/RustProjects/sumatra/java/target/production/java/Simple.class",
-    )
-    .unwrap();
-    println!("Running {:#?}", class_file);
-    let mut vm = VM::default();
-    vm.run(&mut Class::from(&class_file)).unwrap()
+    let class = CLASSES[0];
+    let class_file = ClassFile::parse_class(class).unwrap();
+    // println!("Running {:#?}", class);
+    // println!("class {:#?}", class_file);
+    let mut vm = VM::init(CLASS_PATH.into());
+    vm.run("Main").unwrap()
 
     // for class in CLASSES {
     //     println!();
