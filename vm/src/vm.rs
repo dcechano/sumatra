@@ -53,7 +53,7 @@ impl<'vm> VM<'vm> {
         let main_class = main.get_class();
         let m_method = find_main(main_class)?;
         let cp = &main_class.cp;
-        let frame = CallFrame::construct_cf(m_method, cp);
+        let frame = CallFrame::new(m_method, cp);
         self.frames.push(frame);
         while !self.frames.is_empty() {
             self.execute_frame()?;
@@ -299,6 +299,11 @@ impl<'vm> VM<'vm> {
             // TODO implement native method calls.
             if method.access_flags.contains(MethodAccessFlags::NATIVE) {
                 println!("Method was a native method. Ignoring.");
+                Ok(())
+            } else {
+                let frame = CallFrame::new(method, &class.cp);
+                self.frames.push(frame);
+                self.execute_frame()
             }
         } else {
             bail!("Expected Constant::MethodRef in invoke_static.");
@@ -390,7 +395,7 @@ impl<'vm> VM<'vm> {
     fn init_class(&mut self, class: &'static Class) -> Result<()> {
         println!("Initializing class: {:?}", class.get_name());
         let clinit = class.methods.get(CLINIT).unwrap();
-        let frame = CallFrame::construct_cf(clinit, &class.cp);
+        let frame = CallFrame::new(clinit, &class.cp);
         self.frames.push(frame);
         self.execute_frame()
     }

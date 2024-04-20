@@ -26,7 +26,7 @@ pub(crate) struct CallFrame<'vm> {
 // }
 
 impl<'vm> CallFrame<'vm> {
-    pub(crate) fn construct_cf(method: &'vm Method, cp: &'vm ConstantPool) -> Self {
+    pub(crate) fn new(method: &'vm Method, cp: &'vm ConstantPool) -> Self {
         Self {
             method,
             pc: 0,
