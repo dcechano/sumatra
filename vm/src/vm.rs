@@ -1,4 +1,5 @@
-use std::path::Path;
+use std::path::PathBuf;
+
 use anyhow::{bail, Result};
 
 use sumatra_parser::{
@@ -28,9 +29,9 @@ pub struct VM<'vm> {
 }
 
 impl<'vm> VM<'vm> {
-    pub fn init(c_path: &Path) -> Self {
+    pub fn init(c_path: PathBuf) -> Self {
         //TODO find good allocation size for vectors
-        let method_area= match MethodArea::new() {
+        let method_area = match MethodArea::new() {
             Ok(method_area) => method_area,
             Err(_) => panic!("Memory Allocation Error while starting Sumatra VM"),
         };
@@ -43,9 +44,15 @@ impl<'vm> VM<'vm> {
         }
     }
 
-    pub fn run(&mut self, class: &'vm mut Class) -> Result<()> {
-        let main = find_main(class)?;
-        let cp = &class.cp;
+    pub fn run(&mut self, c_entry: &str) -> Result<()> {
+        let main = if !c_entry.ends_with(".class") {
+            self.load_class(&format!("{c_entry}{}", ".class"))?
+        } else {
+            self.load_class(c_entry)?
+        };
+        let main_class = main.get_class();
+        let main = find_main(main_class)?;
+        let cp = &main_class.cp;
         let frame = CallFrame::construct_cf(main, cp);
         self.frames.push(frame);
         while !self.frames.is_empty() {
@@ -411,6 +418,7 @@ impl<'vm> VM<'vm> {
     /// Take a static reference to a class and push its '<clinit>'
     /// method as a stack frame to `vm.frames`.
     fn init_class(&mut self, class: &'static Class) -> Result<()> {
+        println!("Initializing class: {:?}", class.get_name());
         let clinit = class.methods.get(CLINIT).unwrap();
         let frame = CallFrame::construct_cf(clinit, &class.cp);
         self.frames.push(frame);
@@ -419,7 +427,7 @@ impl<'vm> VM<'vm> {
 
     /// Takes in constant pool indices for the `Constant::Class(class_name)` and
     /// the `Constant::NameAndType` and returns the `name_index`,
-    /// `descpriptor_index`,  and a `&mut StaticAlloc` of the class pointed
+    /// `descriptor_index`,  and a `&mut StaticAlloc` of the class pointed
     /// to by `class_name`. The returned &mut StaticAlloc will have a fully
     /// initialize Class.
     fn unpack(

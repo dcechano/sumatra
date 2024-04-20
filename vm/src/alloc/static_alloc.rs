@@ -16,7 +16,12 @@ impl StaticAlloc {
         Self { class, alloc }
     }
 
-    pub(crate) fn get_class(&self) -> &Class { &self.class }
+    pub(crate) fn get_class(&self) -> &'static Class {
+        unsafe {
+            let raw = &self.class as *const Class;
+            raw.as_ref().unwrap()
+        }
+    }
 
     pub(crate) fn get_field(&self, name: &str) -> &'static Value {
         self.alloc.get_field(name).unwrap()
