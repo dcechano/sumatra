@@ -24,7 +24,7 @@ const DEFAULT_VEC_SIZE: usize = 128;
 pub struct VM<'vm> {
     pub(crate) frames: Vec<CallFrame<'vm>>,
     pub(crate) method_area: MethodArea,
-    pub(crate) stack: Vec<&'vm Value>,
+    pub(crate) stack: Vec<Value>,
     pub(crate) class_manager: ClassManager,
 }
 
@@ -51,13 +51,15 @@ impl<'vm> VM<'vm> {
             self.load_class(c_entry)?
         };
         let main_class = main.get_class();
-        let main = find_main(main_class)?;
+        let m_method = find_main(main_class)?;
         let cp = &main_class.cp;
-        let frame = CallFrame::construct_cf(main, cp);
+        let frame = CallFrame::construct_cf(m_method, cp);
         self.frames.push(frame);
         while !self.frames.is_empty() {
             self.execute_frame()?;
         }
+        let value = main.get_field("name");
+        println!("Printing Main.name field: {value:?}");
         Ok(())
     }
 
@@ -70,7 +72,7 @@ impl<'vm> VM<'vm> {
             match code {
                 Instruction::AaLoad => {}
                 Instruction::AaStore => {}
-                Instruction::AaConstNull => self.frames[top].stack.push(&Value::Null),
+                Instruction::AaConstNull => self.frames[top].stack.push(Value::Null),
                 Instruction::ALoad(_) => {}
                 Instruction::ALoad0 => {}
                 Instruction::ALoad1 => {}
@@ -234,68 +236,7 @@ impl<'vm> VM<'vm> {
                 Instruction::Lcmp => {}
                 Instruction::LConst0 => {}
                 Instruction::LConst1 => {}
-                Instruction::Ldc(index) => {
-                    /*let constant = call_frame.cp.get(*index).unwrap();
-                    match constant {
-                        Constant::Dummy => {
-                            todo!()
-                        }
-                        Constant::UTF8(_) => {
-                            todo!()
-                        }
-                        Constant::Integer(_) => {
-                            todo!()
-                        }
-                        Constant::Float(_) => {
-                            todo!()
-                        }
-                        Constant::Long(_) => {
-                            todo!()
-                        }
-                        Constant::Double(_) => {
-                            todo!()
-                        }
-                        Constant::Class(_) => {
-                            todo!()
-                        }
-                        Constant::String(string_index) => {
-                            todo!()
-                            // call_frame.op_stack.push(Value::Object(string.
-                            // into()));
-                        }
-                        Constant::FieldRef { .. } => {
-                            todo!()
-                        }
-                        Constant::MethodRef { .. } => {
-                            todo!()
-                        }
-                        Constant::InterfaceMethodRef { .. } => {
-                            todo!()
-                        }
-                        Constant::NameAndType { .. } => {
-                            todo!()
-                        }
-                        Constant::MethodHandle { .. } => {
-                            todo!()
-                        }
-                        Constant::MethodType(_) => {
-                            todo!()
-                        }
-                        Constant::Dynamic { .. } => {
-                            todo!()
-                        }
-                        Constant::InvokeDynamic { .. } => {
-                            todo!()
-                        }
-                        Constant::Module(_) => {
-                            todo!()
-                        }
-                        Constant::Package(_) => {
-                            todo!()
-                        }
-                        Constant::UnRecCharSet(_) => bail!("Unrecognized charset"),
-                    }*/
-                }
+                Instruction::Ldc(index) => self.load_const(index)?,
                 Instruction::LdcW(_) => {}
                 Instruction::Ldc2W(_) => {}
                 Instruction::LDiv => {}
@@ -351,7 +292,7 @@ impl<'vm> VM<'vm> {
         if let Constant::MethodRef {
             class_index,
             name_and_type_index,
-        } = self.frames[top].cp.get(*method_index as usize).unwrap()
+        } = self.frames[top].cp.get(*method_index).unwrap()
         {
             let (name_index, desc_index, alloc) = self.unpack(class_index, name_and_type_index)?;
             let class = alloc.get_class();
@@ -368,6 +309,38 @@ impl<'vm> VM<'vm> {
         Ok(())
     }
 
+    fn load_const(&mut self, index: &usize) -> Result<()> {
+        let top = self.frames.len() - 1;
+        let cp = self.frames[top].cp;
+        let constant = cp.get(*index).unwrap();
+        let value = match constant {
+            // Only these Constants are considered to be loadable:
+            //https://docs.oracle.com/javase/specs/jvms/se21/html/jvms-4.html#jvms-4.4-310
+            Constant::Integer(int) => Value::Int(*int),
+            Constant::Float(f) => Value::Float(*f),
+            Constant::Long(l) => Value::Long(*l),
+            Constant::Double(d) => Value::Double(*d),
+            Constant::Class(_) => {
+                todo!()
+            }
+            Constant::String(string_index) => {
+                Value::StringConst(cp.get_utf8(*string_index)?.into())
+            }
+            Constant::MethodHandle { .. } => {
+                todo!()
+            }
+            Constant::MethodType(_) => {
+                todo!()
+            }
+            Constant::Dynamic { .. } => {
+                todo!()
+            }
+            _ => panic!("Non loadable constant pointed to by instruction ldc."),
+        };
+        self.frames[top].stack.push(value);
+        Ok(())
+    }
+
     fn get_static(&mut self, index: usize) -> Result<()> {
         // This method cannot be called if there is not at least 1 stack frame.
         let top = self.frames.len() - 1;
@@ -378,7 +351,7 @@ impl<'vm> VM<'vm> {
         {
             let (name_index, _, alloc) = self.unpack(class_index, name_and_type_index)?;
             let field_val = alloc.get_field(self.frames[top].cp.get_utf8(name_index)?);
-            self.frames[top].stack.push(field_val);
+            self.frames[top].stack.push(field_val.clone());
         }
         Ok(())
     }
@@ -392,7 +365,7 @@ impl<'vm> VM<'vm> {
         {
             let (f_name, alloc) = self.unpack_f_name(class_index, name_and_type_index)?;
             let field = alloc.get_field_mut(&f_name);
-            *field = *self.frames[top].stack.pop().unwrap();
+            *field = self.frames[top].stack.pop().unwrap();
         } else {
             bail!("Expected Constant::FieldRef for a put_static instruction.");
         };
