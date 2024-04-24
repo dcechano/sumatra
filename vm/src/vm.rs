@@ -58,8 +58,16 @@ impl<'vm> VM<'vm> {
         while !self.frames.is_empty() {
             self.execute_frame()?;
         }
-        let value = main.get_field("name");
-        println!("Printing Main.name field: {value:?}");
+
+        // let value = main.get_field("name");
+        // println!("Printing Main.name : {value:?}");
+        //
+        // let value = main.get_field("field");
+        // println!("Printing Simple.field : {value:?}");
+        // 
+        // let value = main.get_field("pi");
+        // println!("Printing Simple.field : {value:?}");
+
         Ok(())
     }
 
@@ -67,8 +75,11 @@ impl<'vm> VM<'vm> {
         let top = self.frames.len() - 1;
         let code = &self.frames[top].method.code;
         let op_code = &code.op_code;
+        println!("\nExecuting method: {}", self.frames[top].method.name);
         while let Some(code) = op_code.get(self.frames[top].pc) {
-            println!("Executing code: {code:?}");
+            if self.frames[top].method.name != "<clinit>" {
+                println!("\tExecuting code: {code:?}");
+            }
             match code {
                 Instruction::AaLoad => todo!(),
                 Instruction::AaStore => todo!(),
@@ -82,10 +93,10 @@ impl<'vm> VM<'vm> {
                 Instruction::AReturn => todo!(),
                 Instruction::ArrayLength => todo!(),
                 Instruction::AStore(_) => todo!(),
-                Instruction::AStore0 => todo!(),
-                Instruction::AStore1 => todo!(),
-                Instruction::AStore2 => todo!(),
-                Instruction::AStore3 => todo!(),
+                Instruction::AStore0 => self.a_store_n(0)?,
+                Instruction::AStore1 =>  self.a_store_n(1)?,
+                Instruction::AStore2 => self.a_store_n(2)?,
+                Instruction::AStore3 => self.a_store_n(3)?,
                 Instruction::AThrow => todo!(),
                 Instruction::BaLoad => todo!(),
                 Instruction::BaStore => todo!(),
@@ -234,8 +245,8 @@ impl<'vm> VM<'vm> {
                 Instruction::LConst0 => todo!(),
                 Instruction::LConst1 => todo!(),
                 Instruction::Ldc(index) => self.load_const(index)?,
-                Instruction::LdcW(_) => todo!(),
-                Instruction::Ldc2W(_) => todo!(),
+                Instruction::LdcW(index) => self.load_const(index)?,
+                Instruction::Ldc2W(index) => self.load_const2(index)?,
                 Instruction::LDiv => todo!(),
                 Instruction::LLoad(_) => todo!(),
                 Instruction::LLoad0 => todo!(),
@@ -269,7 +280,7 @@ impl<'vm> VM<'vm> {
                 Instruction::PutField(_) => todo!(),
                 Instruction::PutStatic(field_index) => self.put_static(*field_index as usize)?,
                 Instruction::Ret(_) => todo!(),
-                Instruction::Return => todo!(),
+                Instruction::Return => break,
                 Instruction::SaLoad => todo!(),
                 Instruction::SaStore => todo!(),
                 Instruction::SiPush(_) => todo!(),
@@ -279,13 +290,18 @@ impl<'vm> VM<'vm> {
             }
             self.frames[top].pc += 1;
         }
+        println!("Exiting method: {}", self.frames[top].method.name);
         self.frames.pop();
         Ok(())
+    }
+    
+    fn a_store_n(&mut self, n: usize) -> Result<()>{
+
+        todo!()
     }
 
     fn invoke_static(&mut self, method_index: &usize) -> Result<()> {
         let top = self.frames.len() - 1;
-        println!("method_index: {method_index}");
         if let Constant::MethodRef {
             class_index,
             name_and_type_index,
@@ -295,7 +311,6 @@ impl<'vm> VM<'vm> {
             let class = alloc.get_class();
             let met_name = self.construct_m_name(name_index, desc_index)?;
             let method = class.methods.get(&met_name).unwrap();
-            println!("InvokeStatic Method: {method:?}");
             // TODO implement native method calls.
             if method.access_flags.contains(MethodAccessFlags::NATIVE) {
                 println!("Method was a native method. Ignoring.");
@@ -308,7 +323,6 @@ impl<'vm> VM<'vm> {
         } else {
             bail!("Expected Constant::MethodRef in invoke_static.");
         }
-        Ok(())
     }
 
     fn load_const(&mut self, index: &usize) -> Result<()> {
@@ -318,10 +332,10 @@ impl<'vm> VM<'vm> {
         let value = match constant {
             // Only these Constants are considered to be loadable:
             //https://docs.oracle.com/javase/specs/jvms/se21/html/jvms-4.html#jvms-4.4-310
+            // Java longs or doubles are loaded by the lcd2 and lcd2_w instruction.
+            // https://docs.oracle.com/javase/specs/jvms/se21/html/jvms-6.html#jvms-6.5.ldc
             Constant::Integer(int) => Value::Int(*int),
             Constant::Float(f) => Value::Float(*f),
-            Constant::Long(l) => Value::Long(*l),
-            Constant::Double(d) => Value::Double(*d),
             Constant::Class(_) => {
                 todo!()
             }
@@ -338,6 +352,19 @@ impl<'vm> VM<'vm> {
                 todo!()
             }
             _ => panic!("Non loadable constant pointed to by instruction ldc."),
+        };
+        self.frames[top].stack.push(value);
+        Ok(())
+    }
+
+    fn load_const2(&mut self, index: &usize) -> Result<()> {
+        let top = self.frames.len() - 1;
+        let cp = self.frames[top].cp;
+        let constant = cp.get(*index).unwrap();
+        let value = match constant {
+            Constant::Long(l) => Value::Long(*l),
+            Constant::Double(d) => Value::Double(*d),
+            _ => panic!("Non long or double constant pointed to by instruction ldc2w."),
         };
         self.frames[top].stack.push(value);
         Ok(())
@@ -413,6 +440,7 @@ impl<'vm> VM<'vm> {
         let top = self.frames.len() - 1;
         if let Constant::Class(class_name) = self.frames[top].cp.get(*class_index).unwrap() {
             let name = self.frames[top].cp.get_utf8(*class_name)?;
+            println!("unpack;;Loading class {name}");
             let static_alloc = self.load_class(name)?;
 
             if let Constant::NameAndType {
