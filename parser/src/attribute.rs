@@ -261,6 +261,9 @@ pub struct RecordComponent {
     pub runtime_annotations: Vec<RuntimeAnnotation>,
 }
 
+//TODO remove if I cannot find a use for this.
+// I cannot seem to remember why this is here or if I decided not to use it
+// in lieu of finding a better alternative.
 /// Used to tell parsers if the attributes being parsed are for a
 /// Class | Interface | Record.
 #[derive(Debug, Default, Eq, PartialEq, Hash, Clone)]
