@@ -25,7 +25,9 @@ pub enum Instruction {
     ANewArray(u16),
     AReturn,
     ArrayLength,
+    /// Store reference into local variable 
     AStore(u8),
+    /// Store reference into local variable 
     AStore0,
     AStore1,
     AStore2,
@@ -181,8 +183,8 @@ pub enum Instruction {
     LConst1,
     /// Push item from run-time constant pool.
     Ldc(usize),
-    LdcW(u16),
-    Ldc2W(u16),
+    LdcW(usize),
+    Ldc2W(usize),
     LDiv,
     LLoad(u8),
     LLoad0,
@@ -219,6 +221,7 @@ pub enum Instruction {
     PutField(u16),
     PutStatic(u16),
     Ret(u8),
+    /// Used to return from a `void` method.
     Return,
     SaLoad,
     SaStore,
@@ -416,8 +419,8 @@ impl Instruction {
                 9 => LConst0,
                 10 => LConst1,
                 18 => Ldc(cursor.read_u8()? as usize),
-                19 => LdcW(cursor.read_u16()?),
-                20 => Ldc2W(cursor.read_u16()?),
+                19 => LdcW(cursor.read_u16()? as usize),
+                20 => Ldc2W(cursor.read_u16()? as usize),
                 109 => LDiv,
                 22 => LLoad(cursor.read_u8()?),
                 30 => LLoad0,
