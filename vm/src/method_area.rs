@@ -6,10 +6,10 @@ use std::{
 
 use anyhow::{bail, Result};
 
-use crate::{alloc::static_alloc::StaticAlloc, class::Class};
+use crate::{alloc::static_fields::StaticFields, class::Class, static_data::StaticData};
 
-const STATIC_ALLOC_SIZE: isize = mem::size_of::<StaticAlloc>() as isize;
-const STATIC_ALLOC_ALIGN: isize = mem::align_of::<StaticAlloc>() as isize;
+const STATIC_ALLOC_SIZE: isize = mem::size_of::<StaticFields>() as isize;
+const STATIC_ALLOC_ALIGN: isize = mem::align_of::<StaticFields>() as isize;
 
 const CLASS_SIZE: isize = mem::size_of::<Class>() as isize;
 const CLASS_ALIGN: isize = mem::align_of::<Class>() as isize;
@@ -18,12 +18,12 @@ const MIN_SIZE: isize = CLASS_SIZE * 32;
 
 pub(crate) struct MethodArea {
     classes: *mut Class,
-    fields: *mut StaticAlloc,
+    fields: *mut StaticFields,
     len: usize,
     //TODO rename to cap or capacity to match Vec API
     // since this struct is effectively a Vec. Seems more idiomatic, ig.
     size: usize,
-    s_marker: PhantomData<StaticAlloc>,
+    s_marker: PhantomData<StaticFields>,
     c_marker: PhantomData<Class>,
 }
 
@@ -38,12 +38,12 @@ impl MethodArea {
         }
 
         let size = size / 2;
-        let s_layout = Layout::array::<StaticAlloc>((size / STATIC_ALLOC_SIZE) as usize).unwrap();
+        let s_layout = Layout::array::<StaticFields>((size / STATIC_ALLOC_SIZE) as usize).unwrap();
         let c_layout = Layout::array::<Class>((size / CLASS_SIZE) as usize).unwrap();
         // SAFETY: Since the method only takes an isize, which is then used to figure
         // out the number of elements, `s_layout` and `c_layout` are always valid.
         unsafe {
-            let s_alloc = alloc::alloc(s_layout) as *mut StaticAlloc;
+            let s_alloc = alloc::alloc(s_layout) as *mut StaticFields;
             let c_alloc = alloc::alloc(c_layout) as *mut Class;
             if s_alloc.is_null() || c_alloc.is_null() {
                 bail!("Allocation error while allocating method area.");
@@ -68,7 +68,7 @@ impl MethodArea {
         // SAFETY: We just checked that there is sufficient room in the method area.
         unsafe {
             let index = self.len;
-            ptr::write(self.fields.add(index), StaticAlloc::new(&class, index));
+            ptr::write(self.fields.add(index), StaticFields::new(&class, index));
             ptr::write(self.classes.add(index), class);
             self.len += 1;
 
@@ -76,16 +76,22 @@ impl MethodArea {
         }
     }
 
-    pub(crate) fn get_mut_fields(&mut self, index: usize) -> Result<&'static mut StaticAlloc> {
+    pub(crate) fn get_mut_fields(&mut self, index: usize) -> Result<&'static mut StaticFields> {
         unsafe { Ok(&mut *(self.fields.add(index))) }
     }
 
-    pub(crate) fn get_fields(&self, index: usize) -> Result<&'static StaticAlloc> {
-        unsafe { Ok(&*(self.fields.add(index) as *const StaticAlloc)) }
+    pub(crate) fn get_fields(&self, index: usize) -> Result<&'static StaticFields> {
+        unsafe { Ok(&*(self.fields.add(index) as *const StaticFields)) }
     }
 
     pub(crate) fn get_class(&self, index: usize) -> Result<&'static Class> {
         unsafe { Ok(&*(self.classes.add(index))) }
+    }
+
+    pub(crate) fn class_data(&mut self, index: usize) -> Result<StaticData> {
+        let class = self.get_class(index)?;
+        let fields = self.get_mut_fields(index)?;
+        Ok(StaticData::new(class, fields))
     }
 
     unsafe fn deallocate_objs(&mut self) {
@@ -104,7 +110,7 @@ impl Drop for MethodArea {
             self.deallocate_objs();
             alloc::dealloc(
                 self.fields as *mut u8,
-                Layout::array::<StaticAlloc>(self.size / STATIC_ALLOC_SIZE as usize).unwrap(),
+                Layout::array::<StaticFields>(self.size / STATIC_ALLOC_SIZE as usize).unwrap(),
             );
             alloc::dealloc(
                 self.classes as *mut u8,
