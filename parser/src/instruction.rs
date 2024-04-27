@@ -25,9 +25,9 @@ pub enum Instruction {
     ANewArray(u16),
     AReturn,
     ArrayLength,
-    /// Store reference into local variable 
+    /// Store reference into local variable
     AStore(u8),
-    /// Store reference into local variable 
+    /// Store reference into local variable
     AStore0,
     AStore1,
     AStore2,
