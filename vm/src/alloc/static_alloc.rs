@@ -1,33 +1,28 @@
 use crate::{
     alloc::{alloc_type::Static, oop::HeapAlloc},
     class::Class,
-    value::Value,
 };
+use std::ops::{Deref, DerefMut};
 
 #[derive(Debug)]
+#[repr(transparent)]
 pub(crate) struct StaticAlloc {
-    class: Class,
     alloc: HeapAlloc<Static>,
 }
 
 impl StaticAlloc {
-    pub(crate) fn new(class: Class, index: usize) -> Self {
+    pub(crate) fn new(class: &Class, index: usize) -> Self {
         let alloc = HeapAlloc::<Static>::new(&class, index);
-        Self { class, alloc }
+        Self { alloc }
     }
+}
 
-    pub(crate) fn get_class(&self) -> &'static Class {
-        unsafe {
-            let raw = &self.class as *const Class;
-            raw.as_ref().unwrap()
-        }
-    }
+impl Deref for StaticAlloc {
+    type Target = HeapAlloc<Static>;
 
-    pub(crate) fn get_field(&self, name: &str) -> &'static Value {
-        self.alloc.get_field(name).unwrap()
-    }
+    fn deref(&self) -> &Self::Target { &self.alloc }
+}
 
-    pub(crate) fn get_field_mut(&mut self, name: &str) -> &'static mut Value {
-        self.alloc.get_field_mut(name).unwrap()
-    }
+impl DerefMut for StaticAlloc {
+    fn deref_mut(&mut self) -> &mut Self::Target { &mut self.alloc }
 }

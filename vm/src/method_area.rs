@@ -11,79 +11,89 @@ use crate::{alloc::static_alloc::StaticAlloc, class::Class};
 const STATIC_ALLOC_SIZE: isize = mem::size_of::<StaticAlloc>() as isize;
 const STATIC_ALLOC_ALIGN: isize = mem::align_of::<StaticAlloc>() as isize;
 
+const CLASS_SIZE: isize = mem::size_of::<Class>() as isize;
+const CLASS_ALIGN: isize = mem::align_of::<Class>() as isize;
+
+const MIN_SIZE: isize = CLASS_SIZE * 32;
+
 pub(crate) struct MethodArea {
-    data: *mut StaticAlloc,
-    next_aligned: *mut StaticAlloc,
-    end: usize,
+    classes: *mut Class,
+    fields: *mut StaticAlloc,
+    len: usize,
+    //TODO rename to cap or capacity to match Vec API
+    // since this struct is effectively a Vec. Seems more idiomatic, ig.
     size: usize,
-    owned: PhantomData<StaticAlloc>,
+    s_marker: PhantomData<StaticAlloc>,
+    c_marker: PhantomData<Class>,
 }
 
 impl MethodArea {
-    const METHOD_AREA_SIZE: isize = mem::size_of::<u8>() as isize * 1_000_000 * 128;
+    const METHOD_AREA_SIZE: isize = mem::size_of::<u8>() as isize * 1_000_000 * 256;
 
     pub(crate) fn new() -> Result<Self> { Self::with_size(Self::METHOD_AREA_SIZE) }
 
     pub(crate) fn with_size(size: isize) -> Result<Self> {
-        if size == 0 {
-            bail!("Method area cannot be allocated with a 0 size.");
+        if size < MIN_SIZE {
+            bail!("Method area size must be at least: {MIN_SIZE} bytes.");
         }
-        let layout = Layout::array::<StaticAlloc>((size / STATIC_ALLOC_SIZE) as usize).unwrap();
+
+        let size = size / 2;
+        let s_layout = Layout::array::<StaticAlloc>((size / STATIC_ALLOC_SIZE) as usize).unwrap();
+        let c_layout = Layout::array::<Class>((size / CLASS_SIZE) as usize).unwrap();
         // SAFETY: Since the method only takes an isize, which is then used to figure
-        // out the number of elements, `layout` is always valid.
+        // out the number of elements, `s_layout` and `c_layout` are always valid.
         unsafe {
-            let data = alloc::alloc(layout) as *mut StaticAlloc;
-            if data.is_null() {
+            let s_alloc = alloc::alloc(s_layout) as *mut StaticAlloc;
+            let c_alloc = alloc::alloc(c_layout) as *mut Class;
+            if s_alloc.is_null() || c_alloc.is_null() {
                 bail!("Allocation error while allocating method area.");
             }
 
             Ok(Self {
-                data,
-                next_aligned: data,
-                end: data as usize + size as usize,
+                classes: c_alloc,
+                fields: s_alloc,
+                len: 0,
                 size: size as usize,
-                owned: PhantomData,
+                s_marker: PhantomData,
+                c_marker: PhantomData,
             })
         }
     }
 
     pub(crate) fn push(&mut self, class: Class) -> Result<usize> {
-        if (self.next_aligned as usize + STATIC_ALLOC_SIZE as usize) >= self.end {
+        if self.len == (self.size / CLASS_SIZE as usize) {
             bail!("Method area is out of memory.");
         }
 
         // SAFETY: We just checked that there is sufficient room in the method area.
         unsafe {
-            let index =
-                (self.next_aligned as usize - self.data as usize) / STATIC_ALLOC_SIZE as usize;
-            ptr::write(self.next_aligned, StaticAlloc::new(class, index));
+            let index = self.len;
+            ptr::write(self.fields.add(index), StaticAlloc::new(&class, index));
+            ptr::write(self.classes.add(index), class);
+            self.len += 1;
 
-            let next = self.next_aligned.offset(1);
-            // Prevent a segfault
-            if (next as usize) < self.end {
-                self.next_aligned = next;
-            }
             Ok(index)
         }
     }
 
-    pub(crate) fn get_mut(&mut self, index: usize) -> Result<&'static mut StaticAlloc> {
-        unsafe { Ok(&mut *(self.data.add(index))) }
+    pub(crate) fn get_mut_fields(&mut self, index: usize) -> Result<&'static mut StaticAlloc> {
+        unsafe { Ok(&mut *(self.fields.add(index))) }
     }
 
-    pub(crate) fn get(&self, index: usize) -> Result<&'static StaticAlloc> {
-        unsafe { Ok(&*(self.data.add(index) as *const StaticAlloc)) }
+    pub(crate) fn get_fields(&self, index: usize) -> Result<&'static StaticAlloc> {
+        unsafe { Ok(&*(self.fields.add(index) as *const StaticAlloc)) }
     }
 
     pub(crate) fn get_class(&self, index: usize) -> Result<&'static Class> {
-        unsafe { Ok((*(self.data.add(index) as *const StaticAlloc)).get_class()) }
+        unsafe { Ok(&*(self.classes.add(index))) }
     }
 
     unsafe fn deallocate_objs(&mut self) {
-        let mut cursor = self.data;
-        while (cursor as usize) < self.next_aligned as usize {
-            let _ = ptr::read(cursor);
-            cursor = cursor.add(1);
+        let c_ptr = self.classes;
+        let s_ptr = self.fields;
+        for index in 0..self.len {
+            let _ = ptr::read(c_ptr.add(index));
+            let _ = ptr::read(s_ptr.add(index));
         }
     }
 }
@@ -93,8 +103,12 @@ impl Drop for MethodArea {
         unsafe {
             self.deallocate_objs();
             alloc::dealloc(
-                self.data as *mut u8,
+                self.fields as *mut u8,
                 Layout::array::<StaticAlloc>(self.size / STATIC_ALLOC_SIZE as usize).unwrap(),
+            );
+            alloc::dealloc(
+                self.classes as *mut u8,
+                Layout::array::<Class>(self.size / CLASS_SIZE as usize).unwrap(),
             );
         }
     }
@@ -146,57 +160,54 @@ mod tests {
 
         let mut met_area = MethodArea::new().unwrap();
 
-        let offset = met_area.push(object_class.clone()).unwrap();
-        let retrieved = met_area.get(offset).unwrap();
+        let index = met_area.push(object_class.clone()).unwrap();
+        let retrieved = met_area.get_class(index).unwrap();
 
-        assert_eq!(object_class.this_class, retrieved.get_class().this_class);
-        assert_eq!(object_class.super_class, retrieved.get_class().super_class);
-        assert_eq!(object_class.attributes, retrieved.get_class().attributes);
-        assert_eq!(object_class.interfaces, retrieved.get_class().interfaces);
-        assert_eq!(object_class.cp, retrieved.get_class().cp);
-        assert_eq!(object_class.fields, retrieved.get_class().fields);
-        assert_eq!(object_class.methods, retrieved.get_class().methods);
+        assert_eq!(object_class.this_class, retrieved.this_class);
+        assert_eq!(object_class.super_class, retrieved.super_class);
+        assert_eq!(object_class.attributes, retrieved.attributes);
+        assert_eq!(object_class.interfaces, retrieved.interfaces);
+        assert_eq!(object_class.cp, retrieved.cp);
+        assert_eq!(object_class.fields, retrieved.fields);
+        assert_eq!(object_class.methods, retrieved.methods);
     }
 
     #[test]
-    #[cfg(miri)]
     fn get_retrieve_miri() {
         let class = init_default_class();
         let cloned = class.clone();
 
         let mut met_area = MethodArea::new().unwrap();
 
-        let offset = met_area.push(cloned).unwrap();
-        let retrieved = met_area.get(offset).unwrap();
+        let index = met_area.push(cloned).unwrap();
+        let retrieved = met_area.get_class(index).unwrap();
 
-        assert_eq!(class.this_class, retrieved.get_class().this_class);
-        assert_eq!(class.super_class, retrieved.get_class().super_class);
-        assert_eq!(class.attributes, retrieved.get_class().attributes);
-        assert_eq!(class.interfaces, retrieved.get_class().interfaces);
-        assert_eq!(class.cp, retrieved.get_class().cp);
-        assert_eq!(class.fields, retrieved.get_class().fields);
-        assert_eq!(class.methods, retrieved.get_class().methods);
+        assert_eq!(class.this_class, retrieved.this_class);
+        assert_eq!(class.super_class, retrieved.super_class);
+        assert_eq!(class.attributes, retrieved.attributes);
+        assert_eq!(class.interfaces, retrieved.interfaces);
+        assert_eq!(class.cp, retrieved.cp);
+        assert_eq!(class.fields, retrieved.fields);
+        assert_eq!(class.methods, retrieved.methods);
     }
 
     #[test]
-    #[cfg(miri)]
     fn get_retrieve_many() {
         const CAP: usize = 2;
 
         let class = init_default_class();
         let mut met_area = MethodArea::new().unwrap();
-        let mut offsets = Vec::with_capacity(CAP);
+        let mut indices = Vec::with_capacity(CAP);
 
         for _ in 0..CAP {
             let cloned = class.clone();
 
-            let offset = met_area.push(cloned).unwrap();
-            offsets.push(offset);
+            let index = met_area.push(cloned).unwrap();
+            indices.push(index);
         }
 
-        for offset in offsets {
-            let retrieved = met_area.get(offset).unwrap();
-            let retrieved_class = retrieved.get_class();
+        for index in indices {
+            let retrieved_class = met_area.get_class(index).unwrap();
 
             assert_eq!(class.this_class, retrieved_class.this_class);
             assert_eq!(class.this_class, retrieved_class.this_class);
