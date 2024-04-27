@@ -7,11 +7,11 @@ use sumatra_parser::{
 };
 
 use crate::{
-    alloc::static_alloc::StaticAlloc,
     call_frame::CallFrame,
     class::Class,
     lli::{class_manager::ClassManager, response::Response},
     method_area::MethodArea,
+    static_data::StaticData,
     value::Value,
 };
 
@@ -45,28 +45,28 @@ impl<'vm> VM<'vm> {
     }
 
     pub fn run(&mut self, c_entry: &str) -> Result<()> {
-        let main = if !c_entry.ends_with(".class") {
+        let c_data = if !c_entry.ends_with(".class") {
             self.load_class(&format!("{c_entry}{}", ".class"))?
         } else {
             self.load_class(c_entry)?
         };
-        let main_class = main.get_class();
-        let m_method = find_main(main_class)?;
-        let cp = &main_class.cp;
+        let main = c_data.class;
+        let m_method = find_main(main)?;
+        let cp = &main.cp;
         let frame = CallFrame::new(m_method, cp);
         self.frames.push(frame);
         while !self.frames.is_empty() {
             self.execute_frame()?;
         }
 
-        // let value = main.get_field("name");
-        // println!("Printing Main.name : {value:?}");
-        //
-        // let value = main.get_field("field");
-        // println!("Printing Simple.field : {value:?}");
-        // 
-        // let value = main.get_field("pi");
-        // println!("Printing Simple.field : {value:?}");
+        let value = c_data.get_field("name")?;
+        println!("Printing Main.name : {value:?}");
+
+        let value = c_data.get_field("field")?;
+        println!("Printing Simple.field : {value:?}");
+
+        let value = c_data.get_field("pi")?;
+        println!("Printing Simple.field : {value:?}");
 
         Ok(())
     }
@@ -94,7 +94,7 @@ impl<'vm> VM<'vm> {
                 Instruction::ArrayLength => todo!(),
                 Instruction::AStore(_) => todo!(),
                 Instruction::AStore0 => self.a_store_n(0)?,
-                Instruction::AStore1 =>  self.a_store_n(1)?,
+                Instruction::AStore1 => self.a_store_n(1)?,
                 Instruction::AStore2 => self.a_store_n(2)?,
                 Instruction::AStore3 => self.a_store_n(3)?,
                 Instruction::AThrow => todo!(),
@@ -294,11 +294,8 @@ impl<'vm> VM<'vm> {
         self.frames.pop();
         Ok(())
     }
-    
-    fn a_store_n(&mut self, n: usize) -> Result<()>{
 
-        todo!()
-    }
+    fn a_store_n(&mut self, n: usize) -> Result<()> { todo!() }
 
     fn invoke_static(&mut self, method_index: &usize) -> Result<()> {
         let top = self.frames.len() - 1;
@@ -308,7 +305,7 @@ impl<'vm> VM<'vm> {
         } = self.frames[top].cp.get(*method_index).unwrap()
         {
             let (name_index, desc_index, alloc) = self.unpack(class_index, name_and_type_index)?;
-            let class = alloc.get_class();
+            let class = alloc.class;
             let met_name = self.construct_m_name(name_index, desc_index)?;
             let method = class.methods.get(&met_name).unwrap();
             // TODO implement native method calls.
@@ -379,7 +376,7 @@ impl<'vm> VM<'vm> {
         } = self.frames[top].cp.get(index).unwrap()
         {
             let (name_index, _, alloc) = self.unpack(class_index, name_and_type_index)?;
-            let field_val = alloc.get_field(self.frames[top].cp.get_utf8(name_index)?);
+            let field_val = alloc.get_field(self.frames[top].cp.get_utf8(name_index)?)?;
             self.frames[top].stack.push(field_val.clone());
         }
         Ok(())
@@ -392,9 +389,8 @@ impl<'vm> VM<'vm> {
             name_and_type_index,
         } = self.frames[top].cp.get(field_index).unwrap()
         {
-            let (f_name, alloc) = self.unpack_f_name(class_index, name_and_type_index)?;
-            let field = alloc.get_field_mut(&f_name);
-            *field = self.frames[top].stack.pop().unwrap();
+            let (f_name, mut data) = self.unpack_f_name(class_index, name_and_type_index)?;
+            data.set_field(&f_name, self.frames[top].stack.pop().unwrap())?;
         } else {
             bail!("Expected Constant::FieldRef for a put_static instruction.");
         };
@@ -405,13 +401,13 @@ impl<'vm> VM<'vm> {
 // Utility functions are seperated into a different impl block for ease of
 // navigation.
 impl<'vm> VM<'vm> {
-    fn load_class(&mut self, name: &str) -> Result<&'static mut StaticAlloc> {
+    fn load_class(&mut self, name: &str) -> Result<StaticData> {
         match self.class_manager.request(name, &mut self.method_area) {
             Ok(Response::InitReq(class, alloc_index)) => {
                 self.init_class(class)?;
-                self.method_area.get_mut(alloc_index)
+                self.method_area.class_data(alloc_index)
             }
-            Ok(Response::Ready(alloc_index)) => self.method_area.get_mut(alloc_index),
+            Ok(Response::Ready(alloc_index)) => self.method_area.class_data(alloc_index),
             Err(e) => bail!(e),
             _ => panic!("Manager returned a not found!"),
         }
@@ -430,28 +426,28 @@ impl<'vm> VM<'vm> {
     /// Takes in constant pool indices for the `Constant::Class(class_name)` and
     /// the `Constant::NameAndType` and returns the `name_index`,
     /// `descriptor_index`,  and a `&mut StaticAlloc` of the class pointed
-    /// to by `class_name`. The returned &mut StaticAlloc will have a fully
+    /// to by `class_name`. The returned StaticData will have a fully
     /// initialize Class.
     fn unpack(
         &mut self,
         class_index: &usize,
         name_and_type: &usize,
-    ) -> Result<(usize, usize, &'static mut StaticAlloc)> {
+    ) -> Result<(usize, usize, StaticData)> {
         let top = self.frames.len() - 1;
         if let Constant::Class(class_name) = self.frames[top].cp.get(*class_index).unwrap() {
             let name = self.frames[top].cp.get_utf8(*class_name)?;
             println!("unpack;;Loading class {name}");
-            let static_alloc = self.load_class(name)?;
+            let static_data = self.load_class(name)?;
 
             if let Constant::NameAndType {
                 name_index,
                 descriptor_index,
             } = self.frames[top].cp.get(*name_and_type).unwrap()
             {
-                Ok((*name_index, *descriptor_index, static_alloc))
+                Ok((*name_index, *descriptor_index, static_data))
             } else {
                 bail!(
-                    "Provided name_and_type_index did not point to a
+                    "Provided name_and_type_index did not point to a \
                 NameAndType constant."
                 );
             }
@@ -473,11 +469,11 @@ impl<'vm> VM<'vm> {
         &mut self,
         class_index: &usize,
         name_and_type: &usize,
-    ) -> Result<(String, &'static mut StaticAlloc)> {
-        let (name_index, _, alloc) = self.unpack(class_index, name_and_type)?;
+    ) -> Result<(String, StaticData)> {
+        let (name_index, _, data) = self.unpack(class_index, name_and_type)?;
         let top = self.frames.len() - 1;
         let f_name = self.frames[top].cp.get_utf8(name_index)?.into();
-        Ok((f_name, alloc))
+        Ok((f_name, data))
     }
 
     /// Takes in constant pool indices for the `Constant::Class(class_name)` and
@@ -490,10 +486,10 @@ impl<'vm> VM<'vm> {
         &mut self,
         class_index: &usize,
         name_and_type: &usize,
-    ) -> Result<(String, &'static mut StaticAlloc)> {
-        let (name_index, descr_index, alloc) = self.unpack(class_index, name_and_type)?;
+    ) -> Result<(String, StaticData)> {
+        let (name_index, descr_index, data) = self.unpack(class_index, name_and_type)?;
         let name = self.construct_m_name(name_index, descr_index)?;
-        Ok((name, alloc))
+        Ok((name, data))
     }
 
     #[inline]
