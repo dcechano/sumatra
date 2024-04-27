@@ -11,5 +11,6 @@ pub enum Value {
     Long(i64),
     Float(f32),
     StringConst(String),
+    ReturnAddress(usize),
     Ref(*mut HeapAlloc<NonStatic>),
 }
