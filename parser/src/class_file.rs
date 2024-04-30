@@ -1,8 +1,6 @@
 use std::path::Path;
 
 use anyhow::{bail, Context, Result};
-use bitflags::Flags;
-use byteorder::ReadBytesExt;
 
 use crate::{
     attribute::ClassFileAttributes, class_reader::ClassReader, constant_pool::ConstantPool,
