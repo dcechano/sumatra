@@ -212,20 +212,64 @@ impl FromStr for ReturnDescriptor {
     }
 }
 
+impl ReturnDescriptor {
+    pub fn is_void(&self) -> bool {
+        match self {
+            ReturnDescriptor::NonVoid(_) => false,
+            ReturnDescriptor::Void => true,
+            _ => panic!("Descriptor is not valid."),
+        }
+    }
+}
+
 #[derive(Debug, Default, Eq, PartialEq, Hash, Clone)]
 pub struct Params(Vec<FieldType>);
 
-impl Deref for Params {
-    type Target = Vec<FieldType>;
-
-    fn deref(&self) -> &Self::Target { &self.0 }
+impl Params {
+    fn num_params(&self) -> usize {
+        self.0.len()
+    }
+    
+    fn get_param(&self, index: usize) -> FieldType {
+        self.0[index].clone()
+    }
+    
+    fn try_get_param(&mut self, index: usize) -> Result<FieldType> {
+        match index < self.0.len() {
+            true => Ok(self.0.remove(index)),
+            false => bail!("Invalid index into the MethodParams array."),
+        }
+    }
+    
+    fn into_vec(self) -> Vec<FieldType> {
+        self.0
+    }
 }
 
 #[derive(Debug, Default, Eq, PartialEq, Hash, Clone)]
 pub struct MethodDescriptor(Params, ReturnDescriptor);
 
 impl MethodDescriptor {
-    pub fn len(&self) -> usize { self.0.len() }
+    pub fn num_params(&self) -> usize { self.0.num_params() }
+    pub fn get_param(&self, index: usize) -> FieldType {
+        self.0.get_param(index)
+    }
+    
+    pub fn try_get_param(&mut self, index: usize) -> Result<FieldType> {
+        self.0.try_get_param(index)
+    }
+    
+    pub fn get_params(&self) -> Params {
+        self.0.clone()
+    }
+    
+    pub fn get_return_descriptor(&self) -> ReturnDescriptor {
+        self.1.clone()
+    }
+    
+    fn is_void(&self) -> bool {
+        self.1.is_void()
+    }
 }
 
 impl FromStr for MethodDescriptor {
