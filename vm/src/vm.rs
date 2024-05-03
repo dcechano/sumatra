@@ -9,6 +9,7 @@ use sumatra_parser::{
 use crate::{
     call_frame::CallFrame,
     class::Class,
+    compare::Compare,
     lli::{class_manager::ClassManager, response::Response},
     method_area::MethodArea,
     static_data::StaticData,
@@ -61,36 +62,26 @@ impl VM {
             self.execute_frame()?;
         }
 
-        let value = c_data.get_field("name")?;
-        println!("Printing Main.name : {value:?}");
-
-        let value = c_data.get_field("field")?;
-        println!("Printing Simple.field : {value:?}");
-
-        let value = c_data.get_field("pi")?;
-        println!("Printing Simple.field : {value:?}");
-
         Ok(())
     }
 
     fn execute_frame(&mut self) -> Result<()> {
-        let top = self.frames.len() - 1;
-        let code = &self.frames[top].method.code;
+        let code = &self.frame().method.code;
         let op_code = &code.op_code;
-        println!("\nExecuting method: {}", self.frames[top].method.name);
-        while let Some(code) = op_code.get(self.frames[top].pc) {
-            if self.frames[top].method.name != "<clinit>" {
+        println!("\nExecuting method: {}", self.frame().method.name);
+        while let Some(code) = op_code.get(self.frame().pc) {
+            if self.frame().method.name != "<clinit>" {
                 println!("\tExecuting code: {code:?}");
             }
             match code {
                 Instruction::AaLoad => todo!(),
                 Instruction::AaStore => todo!(),
-                Instruction::AaConstNull => self.frames[top].stack.push(Value::Null),
-                Instruction::ALoad(_) => todo!(),
-                Instruction::ALoad0 => todo!(),
-                Instruction::ALoad1 => todo!(),
-                Instruction::ALoad2 => todo!(),
-                Instruction::ALoad3 => todo!(),
+                Instruction::AaConstNull => self.frame_mut().stack.push(Value::Null),
+                Instruction::ALoad(index) => self.a_load(*index as usize)?,
+                Instruction::ALoad0 => self.a_load(0)?,
+                Instruction::ALoad1 => self.a_load(1)?,
+                Instruction::ALoad2 => self.a_load(2)?,
+                Instruction::ALoad3 => self.a_load(3)?,
                 Instruction::ANewArray(_) => todo!(),
                 Instruction::AReturn => todo!(),
                 Instruction::ArrayLength => todo!(),
@@ -102,7 +93,7 @@ impl VM {
                 Instruction::AThrow => todo!(),
                 Instruction::BaLoad => todo!(),
                 Instruction::BaStore => todo!(),
-                Instruction::BiPush(byte) => self.frames[top].stack.push(Value::Int(*byte as i32)),
+                Instruction::BiPush(byte) => self.frame_mut().stack.push(Value::Int(*byte as i32)),
                 Instruction::CaLoad => todo!(),
                 Instruction::CaStore => todo!(),
                 Instruction::Checkcast(_) => todo!(),
@@ -179,58 +170,104 @@ impl VM {
                 Instruction::IaLoad => todo!(),
                 Instruction::IAnd => todo!(),
                 Instruction::IaStore => todo!(),
-                Instruction::IConstM1 => todo!(),
-                Instruction::IConst0 => todo!(),
-                Instruction::IConst1 => todo!(),
-                Instruction::IConst2 => todo!(),
-                Instruction::IConst3 => todo!(),
-                Instruction::IConst4 => todo!(),
-                Instruction::IConst5 => todo!(),
+                Instruction::IConstM1 => self.iconst_n(-1),
+                Instruction::IConst0 => self.iconst_n(0),
+                Instruction::IConst1 => self.iconst_n(1),
+                Instruction::IConst2 => self.iconst_n(2),
+                Instruction::IConst3 => self.iconst_n(3),
+                Instruction::IConst4 => self.iconst_n(4),
+                Instruction::IConst5 => self.iconst_n(5),
                 Instruction::IDiv => todo!(),
                 Instruction::IfAcmpeq(_) => todo!(),
                 Instruction::IfAcmpne(_) => todo!(),
-                Instruction::IfIcmpeq(_) => todo!(),
-                Instruction::IfIcmpne(_) => todo!(),
-                Instruction::IfIcmplt(_) => todo!(),
-                Instruction::IfIcmpge(_) => todo!(),
-                Instruction::IfIcmpgt(_) => todo!(),
-                Instruction::IfIcmple(_) => todo!(),
-                Instruction::Ifeq(_) => todo!(),
-                Instruction::Ifne(_) => todo!(),
-                Instruction::Iflt(_) => todo!(),
-                Instruction::Ifge(_) => todo!(),
-                Instruction::Ifgt(_) => todo!(),
-                Instruction::Ifle(_) => todo!(),
+                Instruction::IfIcmpeq(offset) => {
+                    if self.ifcmp(*offset as usize, Compare::Equal) {
+                        continue;
+                    }
+                }
+                Instruction::IfIcmpne(offset) => {
+                    if self.ifcmp(*offset as usize, Compare::NotEqual) {
+                        continue;
+                    }
+                }
+                Instruction::IfIcmplt(offset) => {
+                    if self.ifcmp(*offset as usize, Compare::LessThan) {
+                        continue;
+                    }
+                }
+                Instruction::IfIcmpge(offset) => {
+                    if self.ifcmp(*offset as usize, Compare::GreaterOrEqual) {
+                        continue;
+                    }
+                }
+                Instruction::IfIcmpgt(offset) => {
+                    if self.ifcmp(*offset as usize, Compare::GreaterThan) {
+                        continue;
+                    }
+                }
+                Instruction::IfIcmple(offset) => {
+                    if self.ifcmp(*offset as usize, Compare::LessOrEqual) {
+                        continue;
+                    }
+                }
+                Instruction::Ifeq(offset) => {
+                    if self.if_cond(*offset as usize, Compare::Equal) {
+                        continue;
+                    }
+                }
+                Instruction::Ifne(offset) => {
+                    if self.if_cond(*offset as usize, Compare::NotEqual) {
+                        continue;
+                    }
+                }
+                Instruction::Iflt(offset) => {
+                    if self.if_cond(*offset as usize, Compare::LessThan) {
+                        continue;
+                    }
+                }
+                Instruction::Ifge(offset) => {
+                    if self.if_cond(*offset as usize, Compare::GreaterOrEqual) {
+                        continue;
+                    }
+                }
+                Instruction::Ifgt(offset) => {
+                    if self.if_cond(*offset as usize, Compare::GreaterThan) {
+                        continue;
+                    }
+                }
+                Instruction::Ifle(offset) => {
+                    if self.if_cond(*offset as usize, Compare::LessOrEqual) {
+                        continue;
+                    }
+                }
                 Instruction::IfNonNull(_) => todo!(),
                 Instruction::IfNull(_) => todo!(),
                 Instruction::Iinc(_, _) => todo!(),
-                Instruction::ILoad(_) => todo!(),
-                Instruction::ILoad0 => todo!(),
-                Instruction::ILoad1 => todo!(),
-                Instruction::ILoad2 => todo!(),
-                Instruction::ILoad3 => todo!(),
+                Instruction::ILoad(local_index) => self.iload_n(*local_index as usize)?,
+                Instruction::ILoad0 => self.iload_n(0)?,
+                Instruction::ILoad1 => self.iload_n(1)?,
+                Instruction::ILoad2 => self.iload_n(2)?,
+                Instruction::ILoad3 => self.iload_n(3)?,
                 Instruction::IMul => todo!(),
                 Instruction::INeg => todo!(),
                 Instruction::InstanceOf(_) => todo!(),
-                Instruction::InvokeDynamic(_, _, _) => todo!(),
+                Instruction::InvokeDynamic(index, _, _) => println!("\tInvokeDynamic: {index}"),
                 Instruction::InvokeInterface(_, _, _) => todo!(),
                 Instruction::InvokeSpecial(_) => todo!(),
                 Instruction::InvokeStatic(method_index) => {
                     self.invoke_static(&(*method_index as usize))?
                 }
-                Instruction::InvokeVirtual(method_index) => {
-                    println!("INVOKE_VIRTUAL!: #{method_index}");
-                }
+                Instruction::InvokeVirtual(index) => println!("\tInvokeVirtual: {index}"),
                 Instruction::IOr => todo!(),
-                Instruction::IRem => todo!(),
+                Instruction::IRem => self.irem()?,
                 Instruction::IReturn => todo!(),
                 Instruction::IShL => todo!(),
                 Instruction::IShR => todo!(),
-                Instruction::IStore(_) => todo!(),
-                Instruction::IStore0 => todo!(),
-                Instruction::IStore1 => todo!(),
-                Instruction::IStore2 => todo!(),
-                Instruction::IStore3 => todo!(),
+                Instruction::IStore(local_index) => self.istore_n(*local_index as usize)?,
+                Instruction::IStore0 => self.istore_n(0)?,
+                Instruction::IStore1 => self.istore_n(1)?,
+                Instruction::IStore2 => self.istore_n(2)?,
+                Instruction::IStore3 => self.istore_n(3)?,
                 Instruction::ISub => todo!(),
                 Instruction::IuShR => todo!(),
                 Instruction::IxOr => todo!(),
@@ -290,79 +327,91 @@ impl VM {
                 Instruction::TableSwitch { .. } => todo!(),
                 Instruction::Wide(winstr) => todo!(),
             }
-            self.frames[top].pc += 1;
+            self.frame_mut().pc += 1;
         }
-        println!("Exiting method: {}", self.frames[top].method.name);
+        println!("Exiting method: {}", self.frame().method.name);
         self.frames.pop();
         Ok(())
     }
 
     fn a_store_n(&mut self, local_index: usize) -> Result<()> {
-        let top = self.frames.len() - 1;
-        // TODO remove print statements.
-        println!(
-            "Parsed descriptor: {:?}",
-            self.frames[top].method.parsed_descriptor
-        );
-        println!("Local index: {local_index}\n");
-        
-        let operand = self.frames[top].stack.pop().unwrap();
-
+        let frame = self.frame_mut();
+        let operand = frame.stack.pop().unwrap();
         match operand {
-/*            Value::Ref(obj) => {
-                match self.frames[top].locals.get_mut(local_index).unwrap() {
-                    Value::Ref(target) => {
-                        println!("Target of a_store_n: {:?}", unsafe { &**target; });
-                        println!("Operand of a_store_n: {:?}", unsafe { &*obj; });
-                        *target = obj;
-                    }                            
-                    _ => panic!("Expected a Reference type for the target of instruction a_store_n.")
-                    
-                }
+            value @ (Value::ReturnAddress(_) | Value::Ref(_) | Value::StringConst(_)) => {
+                *frame.locals.get_mut(local_index).unwrap() = value;
             }
-            string @ Value::StringConst(_) => {
-                match self.frames[top].locals.get_mut(local_index).unwrap() {
-                    Value::Ref(target) => {
-                        println!("Target of a_store_n: {:?}", unsafe { &**target; });
-                        println!("Operand of a_store_n: {:?}", unsafe { &*obj; });
-                        *target = obj
-                    }
-                    _ => panic!("Expected a Reference type for the target of instruction a_store_n.")
-
-                }
-                
-                
-                if let Value::Ref(target) = self.frames[top].stack.get_mut(local_index).unwrap() {
-                    println!("operand was a Value::StringConst.");
-                    println!("Target of a_store_n: {:?}", unsafe { &**target; });
-                    // println!("Operand of a_store_n: {:?}", unsafe { &*obj; });
-                    // *target = obj;
-                } else {
-                    panic!("Expected a Reference type for the target of instruction a_store_n.");
-                };
-            }
-            */
-            value @ ( Value::ReturnAddress(_)  | Value::Ref(_) | Value::StringConst(_)) => {
-                println!("Printing locals: {:?}", self.frames[top].locals);
-                *self.frames[top].locals.get_mut(local_index).unwrap() = value;
-            }
-            _ =>  panic!("Expected a Reference type or Value::ReturnAddress for the operand of instruction a_store_n.: {operand:?}")
+            _ => panic!(
+                "Expected a Reference type or Value::ReturnAddress for the operand \
+                    of instruction a_store_n.: {operand:?}"
+            ),
         };
         Ok(())
     }
 
+    fn a_load(&mut self, local_index: usize) -> Result<()> {
+        let frame = self.frame_mut();
+        let object = frame.load(local_index)?;
+        if !matches!(
+            object,
+            (Value::Ref(_) | Value::ReturnAddress(_) | Value::StringConst(_))
+        ) {
+            bail!("Expected ref type for a_load instruction.");
+        }
+
+        Ok(frame.push(object))
+    }
+
+    fn iconst_n(&mut self, int: i32) { self.frame_mut().push(Value::Int(int)); }
+
+    fn ifcmp(&mut self, offset: usize, cmp: Compare) -> bool {
+        let frame = self.frame_mut();
+        let value2 = frame.stack.pop().unwrap();
+        let value1 = frame.stack.pop().unwrap();
+        let jmp = Self::if_in(value1, value2, cmp);
+        if jmp {
+            self.frame_mut().pc += offset;
+        }
+        jmp
+    }
+
+    fn if_in(value1: Value, value2: Value, cmp: Compare) -> bool {
+        match cmp {
+            Compare::Equal => value1 == value2,
+            Compare::NotEqual => value1 != value2,
+            Compare::LessThan => value1 < value2,
+            Compare::GreaterOrEqual => value1 >= value2,
+            Compare::GreaterThan => value1 > value2,
+            Compare::LessOrEqual => value1 <= value2,
+        }
+    }
+
+    fn if_cond(&mut self, offset: usize, cmp: Compare) -> bool {
+        let frame = self.frame_mut();
+        let int = frame.pop();
+        if !matches!(int, Value::Int(_)) {
+            panic!("Expected int for if_cond instruction.");
+        }
+        let jmp = Self::if_in(int, Value::Int(0), cmp);
+        if jmp {
+            frame.pc += offset;
+        }
+        jmp
+    }
+
     fn invoke_static(&mut self, method_index: &usize) -> Result<()> {
-        let top = self.frames.len() - 1;
         let stack_size = self.stack.len();
+        let frame = self.frame();
         if let Constant::MethodRef {
             class_index,
             name_and_type_index,
-        } = self.frames[top].cp.get(*method_index).unwrap()
+        } = frame.cp.get(*method_index).unwrap()
         {
             let (name_index, desc_index, alloc) = self.unpack(class_index, name_and_type_index)?;
             let class = alloc.class;
             let met_name = self.construct_m_name(name_index, desc_index)?;
             let method = class.methods.get(&met_name).unwrap();
+
             // TODO implement native method calls.
             if method.is_native() {
                 println!("Method was a native method. Ignoring.");
@@ -370,14 +419,17 @@ impl VM {
             } else {
                 // TODO implement a proper way to pass in the local variable to the stack frame.
                 let num_params = method.parsed_descriptor.num_params();
-                println!("stack_size: {stack_size} num_locals: {num_params}");
-                let params = if num_params == 0 && stack_size == 0 {
-                    vec![Value::Null]
-                } else {
-                    Vec::from(&self.stack[stack_size - num_params..stack_size])
-                };
-                
-                let frame = CallFrame::new(method, &class.cp, num_params, params);
+                let max_locals = method.code.max_locals as usize;
+                println!(
+                    "stack_size: {stack_size} num_locals: {num_params}, max_locals: {max_locals}"
+                );
+
+                let frame = CallFrame::new(
+                    method,
+                    &class.cp,
+                    num_params,
+                    self.construct_locals(max_locals, num_params)?,
+                );
                 self.frames.push(frame);
                 self.execute_frame()
             }
@@ -386,9 +438,41 @@ impl VM {
         }
     }
 
+    fn iload_n(&mut self, local_index: usize) -> Result<()> {
+        let frame = self.frame_mut();
+
+        let int = frame.load(local_index)?;
+        Ok(frame.push(int))
+    }
+
+    fn istore_n(&mut self, local_index: usize) -> Result<()> {
+        let frame = self.frame_mut();
+        let int = frame.pop();
+        if !matches!(int, Value::Int(_)) {
+            bail!("Expected a int for istore instruction.");
+        }
+        Ok(*frame.locals.get_mut(local_index).unwrap() = int)
+    }
+
+    fn irem(&mut self) -> Result<()> {
+        let frame = self.frame_mut();
+        let value2 = frame.pop();
+        let value1 = frame.pop();
+        if let Value::Int(int1) = value1 {
+            if let Value::Int(int2) = value2 {
+                if int2 == 0 {
+                    bail!("Cannot use 0 in modular arithmetic.");
+                }
+                self.frame_mut().push(Value::Int(int1 % int2));
+                return Ok(());
+            }
+        }
+        bail!("expected 2 integers for irem instruction.");
+    }
+
     fn load_const(&mut self, index: &usize) -> Result<()> {
-        let top = self.frames.len() - 1;
-        let cp = self.frames[top].cp;
+        let frame = self.frame_mut();
+        let cp = frame.cp;
         let constant = cp.get(*index).unwrap();
         let value = match constant {
             // Only these Constants are considered to be loadable:
@@ -414,47 +498,44 @@ impl VM {
             }
             _ => panic!("Non loadable constant pointed to by instruction ldc."),
         };
-        self.frames[top].stack.push(value);
+        frame.stack.push(value);
         Ok(())
     }
 
     fn load_const2(&mut self, index: &usize) -> Result<()> {
-        let top = self.frames.len() - 1;
-        let cp = self.frames[top].cp;
+        let frame = self.frame_mut();
+        let cp = frame.cp;
         let constant = cp.get(*index).unwrap();
         let value = match constant {
             Constant::Long(l) => Value::Long(*l),
             Constant::Double(d) => Value::Double(*d),
             _ => panic!("Non long or double constant pointed to by instruction ldc2w."),
         };
-        self.frames[top].stack.push(value);
+        frame.stack.push(value);
         Ok(())
     }
 
     fn get_static(&mut self, index: usize) -> Result<()> {
-        // This method cannot be called if there is not at least 1 stack frame.
-        let top = self.frames.len() - 1;
         if let Constant::FieldRef {
             class_index,
             name_and_type_index,
-        } = self.frames[top].cp.get(index).unwrap()
+        } = self.frame().cp.get(index).unwrap()
         {
             let (name_index, _, alloc) = self.unpack(class_index, name_and_type_index)?;
-            let field_val = alloc.get_field(self.frames[top].cp.get_utf8(name_index)?)?;
-            self.frames[top].stack.push(field_val.clone());
+            let field_val = alloc.get_field(self.frame().cp.get_utf8(name_index)?)?;
+            self.frame_mut().stack.push(field_val.clone());
         }
         Ok(())
     }
 
     fn put_static(&mut self, field_index: usize) -> Result<()> {
-        let top = self.frames.len() - 1;
         if let Constant::FieldRef {
             class_index,
             name_and_type_index,
-        } = self.frames[top].cp.get(field_index).unwrap()
+        } = self.frame().cp.get(field_index).unwrap()
         {
             let (f_name, mut data) = self.unpack_f_name(class_index, name_and_type_index)?;
-            data.set_field(&f_name, self.frames[top].stack.pop().unwrap())?;
+            data.set_field(&f_name, self.frame_mut().stack.pop().unwrap())?;
         } else {
             bail!("Expected Constant::FieldRef for a put_static instruction.");
         };
@@ -504,16 +585,15 @@ impl VM {
         class_index: &usize,
         name_and_type: &usize,
     ) -> Result<(usize, usize, StaticData)> {
-        let top = self.frames.len() - 1;
-        if let Constant::Class(class_name) = self.frames[top].cp.get(*class_index).unwrap() {
-            let name = self.frames[top].cp.get_utf8(*class_name)?;
-            println!("unpack;;Loading class {name}");
+        let frame = self.frame();
+        if let Constant::Class(class_name) = frame.cp.get(*class_index).unwrap() {
+            let name = frame.cp.get_utf8(*class_name)?;
             let static_data = self.load_class(name)?;
 
             if let Constant::NameAndType {
                 name_index,
                 descriptor_index,
-            } = self.frames[top].cp.get(*name_and_type).unwrap()
+            } = self.frame().cp.get(*name_and_type).unwrap()
             {
                 Ok((*name_index, *descriptor_index, static_data))
             } else {
@@ -542,8 +622,7 @@ impl VM {
         name_and_type: &usize,
     ) -> Result<(String, StaticData)> {
         let (name_index, _, data) = self.unpack(class_index, name_and_type)?;
-        let top = self.frames.len() - 1;
-        let f_name = self.frames[top].cp.get_utf8(name_index)?.into();
+        let f_name = self.frame().cp.get_utf8(name_index)?.into();
         Ok((f_name, data))
     }
 
@@ -563,10 +642,26 @@ impl VM {
         Ok((name, data))
     }
 
+    fn construct_locals(&self, max_locals: usize, num_params: usize) -> Result<Vec<Value>> {
+        if num_params > max_locals {
+            bail!("number of method parameters was larger than the max locals.");
+        }
+        let stack_size = self.stack.len();
+
+        Ok(match (num_params, max_locals) {
+            (0, 0) => vec![],
+            (0, _) => Value::default_vec(max_locals),
+            _ => {
+                let mut params = Vec::from(&self.stack[stack_size - num_params..stack_size]);
+                Value::populate_locals(max_locals, &mut params);
+                params
+            }
+        })
+    }
+
     #[inline]
     fn construct_m_name(&self, name_index: usize, descr_index: usize) -> Result<String> {
-        let top = self.frames.len() - 1;
-        let cp = self.frames[top].cp;
+        let cp = self.frame().cp;
         let name = cp.get_utf8(name_index)?;
         let descr = cp.get_utf8(descr_index)?;
         Ok(format!("{name}{descr}"))
