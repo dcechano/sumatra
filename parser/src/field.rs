@@ -2,6 +2,7 @@ use crate::{
     attribute::RuntimeAnnotation, constant::Constant, desc_types::FieldDescriptor,
     flags::FieldAccessFlags,
 };
+use crate::desc_types::MethodDescriptor;
 
 #[derive(Debug, Default, PartialEq, Clone)]
 pub struct Field {
@@ -14,4 +15,18 @@ pub struct Field {
     pub synthetic: bool,
     pub deprecated: bool,
     pub runtime_annotations: Vec<RuntimeAnnotation>,
+}
+
+impl Field {
+    pub fn is_static(&self) -> bool {
+        self.access_flags.contains(FieldAccessFlags::STATIC)
+    }
+    
+    pub fn is_final(&self) -> bool {
+        self.access_flags.contains(FieldAccessFlags::FINAL)
+    }
+
+    pub fn get_parsed_descriptor(&self) -> FieldDescriptor {
+        self.parsed_descriptor.clone()
+    }
 }

@@ -18,3 +18,21 @@ pub struct Method {
     pub runtime_annotations: Vec<RuntimeAnnotation>,
     pub attributes: Vec<Attribute>,
 }
+
+impl Method {
+    pub fn is_static(&self) -> bool {
+        self.access_flags.contains(MethodAccessFlags::STATIC)
+    }
+
+    pub fn is_native(&self) -> bool {
+        self.access_flags.contains(MethodAccessFlags::NATIVE)
+    }
+    
+    pub fn num_params(&self) -> usize {
+        self.parsed_descriptor.num_params()
+    }
+    
+    pub fn get_parsed_descriptor(&self) -> MethodDescriptor {
+        self.parsed_descriptor.clone()
+    }
+}
