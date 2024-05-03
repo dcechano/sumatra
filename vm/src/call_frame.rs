@@ -8,8 +8,9 @@ use crate::value::Value;
 pub(crate) struct CallFrame<'vm> {
     pub(crate) method: &'vm Method,
     pub(crate) pc: usize,
-    pub(crate) locals: Vec<&'vm Value>,
+    pub(crate) num_locals: usize,
     pub(crate) stack: Vec<Value>,
+    pub(crate) locals: Vec<Value>,
     pub(crate) cp: &'vm ConstantPool,
 }
 //
@@ -26,11 +27,12 @@ pub(crate) struct CallFrame<'vm> {
 // }
 
 impl<'vm> CallFrame<'vm> {
-    pub(crate) fn new(method: &'vm Method, cp: &'vm ConstantPool) -> Self {
+    pub(crate) fn new(method: &'vm Method, cp: &'vm ConstantPool, num_locals: usize, locals: Vec<Value>) -> Self {
         Self {
             method,
             pc: 0,
-            locals: vec![],
+            num_locals,
+            locals,
             stack: vec![],
             cp,
         }

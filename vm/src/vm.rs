@@ -53,7 +53,9 @@ impl<'vm> VM<'vm> {
         let main = c_data.class;
         let m_method = find_main(main)?;
         let cp = &main.cp;
-        let frame = CallFrame::new(m_method, cp);
+        let num_locals = m_method.parsed_descriptor.num_params();
+        //TODO implement arguments to pass into main function
+        let frame = CallFrame::new(m_method, cp, num_locals, vec![Value::default()]);
         self.frames.push(frame);
         while !self.frames.is_empty() {
             self.execute_frame()?;
@@ -100,7 +102,7 @@ impl<'vm> VM<'vm> {
                 Instruction::AThrow => todo!(),
                 Instruction::BaLoad => todo!(),
                 Instruction::BaStore => todo!(),
-                Instruction::BiPush(_) => todo!(),
+                Instruction::BiPush(byte) => self.frames[top].stack.push(Value::Int(*byte as i32)),
                 Instruction::CaLoad => todo!(),
                 Instruction::CaStore => todo!(),
                 Instruction::Checkcast(_) => todo!(),
@@ -295,10 +297,63 @@ impl<'vm> VM<'vm> {
         Ok(())
     }
 
-    fn a_store_n(&mut self, n: usize) -> Result<()> { todo!() }
+    fn a_store_n(&mut self, local_index: usize) -> Result<()> {
+        let top = self.frames.len() - 1;
+        // TODO remove print statements.
+        println!(
+            "Parsed descriptor: {:?}",
+            self.frames[top].method.parsed_descriptor
+        );
+        println!("Local index: {local_index}\n");
+        
+        let operand = self.frames[top].stack.pop().unwrap();
+
+        match operand {
+/*            Value::Ref(obj) => {
+                match self.frames[top].locals.get_mut(local_index).unwrap() {
+                    Value::Ref(target) => {
+                        println!("Target of a_store_n: {:?}", unsafe { &**target; });
+                        println!("Operand of a_store_n: {:?}", unsafe { &*obj; });
+                        *target = obj;
+                    }                            
+                    _ => panic!("Expected a Reference type for the target of instruction a_store_n.")
+                    
+                }
+            }
+            string @ Value::StringConst(_) => {
+                match self.frames[top].locals.get_mut(local_index).unwrap() {
+                    Value::Ref(target) => {
+                        println!("Target of a_store_n: {:?}", unsafe { &**target; });
+                        println!("Operand of a_store_n: {:?}", unsafe { &*obj; });
+                        *target = obj
+                    }
+                    _ => panic!("Expected a Reference type for the target of instruction a_store_n.")
+
+                }
+                
+                
+                if let Value::Ref(target) = self.frames[top].stack.get_mut(local_index).unwrap() {
+                    println!("operand was a Value::StringConst.");
+                    println!("Target of a_store_n: {:?}", unsafe { &**target; });
+                    // println!("Operand of a_store_n: {:?}", unsafe { &*obj; });
+                    // *target = obj;
+                } else {
+                    panic!("Expected a Reference type for the target of instruction a_store_n.");
+                };
+            }
+            */
+            value @ ( Value::ReturnAddress(_)  | Value::Ref(_) | Value::StringConst(_)) => {
+                println!("Printing locals: {:?}", self.frames[top].locals);
+                *self.frames[top].locals.get_mut(local_index).unwrap() = value;
+            }
+            _ =>  panic!("Expected a Reference type or Value::ReturnAddress for the operand of instruction a_store_n.: {operand:?}")
+        };
+        Ok(())
+    }
 
     fn invoke_static(&mut self, method_index: &usize) -> Result<()> {
         let top = self.frames.len() - 1;
+        let stack_size = self.stack.len();
         if let Constant::MethodRef {
             class_index,
             name_and_type_index,
@@ -309,11 +364,20 @@ impl<'vm> VM<'vm> {
             let met_name = self.construct_m_name(name_index, desc_index)?;
             let method = class.methods.get(&met_name).unwrap();
             // TODO implement native method calls.
-            if method.access_flags.contains(MethodAccessFlags::NATIVE) {
+            if method.is_native() {
                 println!("Method was a native method. Ignoring.");
                 Ok(())
             } else {
-                let frame = CallFrame::new(method, &class.cp);
+                // TODO implement a proper way to pass in the local variable to the stack frame.
+                let num_params = method.parsed_descriptor.num_params();
+                println!("stack_size: {stack_size} num_locals: {num_params}");
+                let params = if num_params == 0 && stack_size == 0 {
+                    vec![Value::Null]
+                } else {
+                    Vec::from(&self.stack[stack_size - num_params..stack_size])
+                };
+                
+                let frame = CallFrame::new(method, &class.cp, num_params, params);
                 self.frames.push(frame);
                 self.execute_frame()
             }
@@ -418,7 +482,8 @@ impl<'vm> VM<'vm> {
     fn init_class(&mut self, class: &'static Class) -> Result<()> {
         println!("Initializing class: {:?}", class.get_name());
         let clinit = class.methods.get(CLINIT).unwrap();
-        let frame = CallFrame::new(clinit, &class.cp);
+        // clinit always takes 0 arguments
+        let frame = CallFrame::new(clinit, &class.cp, 0, vec![Value::default()]);
         self.frames.push(frame);
         self.execute_frame()
     }
