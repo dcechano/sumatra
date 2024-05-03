@@ -4,7 +4,7 @@ use std::{ops::Deref, str::FromStr};
 //TODO refactor APIs to implement FromStr or parse or something, where
 // possible.
 
-#[derive(Debug, Eq, PartialEq)]
+#[derive(Debug, Default, Eq, PartialEq, Hash, Clone)]
 pub enum Primitive {
     Byte,
     Char,
@@ -14,6 +14,8 @@ pub enum Primitive {
     Long,
     Short,
     Boolean,
+    #[default]
+    Invalid,
 }
 
 impl From<u8> for Primitive {
@@ -32,14 +34,16 @@ impl From<u8> for Primitive {
     }
 }
 
-#[derive(Debug, Eq, PartialEq)]
+#[derive(Debug, Default, Eq, PartialEq, Hash, Clone)]
 pub enum FieldType {
     Base(Primitive),
     Object(String),
     Array(ArrayType, usize),
+    #[default]
+    Invalid,
 }
 
-#[derive(Debug, Eq, PartialEq)]
+#[derive(Debug, Eq, PartialEq, Hash, Clone)]
 pub enum ArrayType {
     Object(String),
     Primitive(Primitive),
@@ -177,10 +181,12 @@ impl FieldType {
     }
 }
 
-#[derive(Debug, Eq, PartialEq)]
+#[derive(Debug, Default, Eq, PartialEq, Hash, Clone)]
 pub enum ReturnDescriptor {
     NonVoid(FieldType),
     Void,
+    #[default]
+    Invalid,
 }
 
 impl FromStr for ReturnDescriptor {
@@ -204,7 +210,7 @@ impl FromStr for ReturnDescriptor {
         Ok(Self::NonVoid(f_type))    }
 }
 
-#[derive(Debug, Eq, PartialEq)]
+#[derive(Debug, Default, Eq, PartialEq, Hash, Clone)]
 pub struct Params(Vec<FieldType>);
 
 impl Deref for Params {
@@ -213,7 +219,7 @@ impl Deref for Params {
     fn deref(&self) -> &Self::Target { &self.0 }
 }
 
-#[derive(Debug, Eq, PartialEq)]
+#[derive(Debug, Default, Eq, PartialEq, Hash, Clone)]
 pub struct MethodDescriptor(Params, ReturnDescriptor);
 
 impl FromStr for MethodDescriptor {
@@ -243,7 +249,7 @@ impl FromStr for MethodDescriptor {
     }
 }
 
-#[derive(Debug, Eq, PartialEq)]
+#[derive(Debug, Default, Eq, PartialEq, Clone)]
 pub struct FieldDescriptor(FieldType);
 
 impl FromStr for FieldDescriptor {
@@ -265,6 +271,7 @@ mod tests {
 
     const STRING: &str = "java/lang/String;";
     const OBJECT: &str = "java/lang/Object;";
+    const X509: &str = "javax/security/cert/X509Certificate;";
 
     #[test]
     fn test_ftype_object() {
