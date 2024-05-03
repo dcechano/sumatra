@@ -59,12 +59,8 @@ impl CallFrame {
             Some(value) => Ok(value.clone()),
         }
     }
-    
-    pub(crate) fn push(&mut self, value: Value) {
-        self.stack.push(value)
-    }
-    
-    pub(crate) fn pop(&mut self) -> Value {
-        self.stack.pop().unwrap()
-    }
+
+    pub(crate) fn push(&mut self, value: Value) { self.stack.push(value) }
+
+    pub(crate) fn pop(&mut self) -> Value { self.stack.pop().unwrap() }
 }
