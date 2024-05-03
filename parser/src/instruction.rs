@@ -1,7 +1,6 @@
 use std::convert::TryFrom;
 
 use anyhow::{bail, Result};
-use byteorder::ReadBytesExt;
 
 use crate::{
     class_reader::ClassReader,
