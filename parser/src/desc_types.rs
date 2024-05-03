@@ -53,33 +53,30 @@ impl FromStr for FieldType {
     type Err = anyhow::Error;
 
     fn from_str(desc: &str) -> Result<Self> {
-        if desc.is_empty(){
-            bail!("Invalid FieldType: Descriptor cannot be empty.");
+        if desc.is_empty() {
+            bail!("Invalid FieldType: descriptor cannot be empty.");
         }
         let bytes = desc.as_bytes();
         match bytes[0] {
             b'L' => {
                 let (object, remaining) = Self::parse_object(desc)?;
-                if !remaining.is_empty(){
+                if !remaining.is_empty() {
                     bail!("FieldType had text remaining after parse");
-                    
                 }
                 Ok(FieldType::Object(object))
             }
             b'B' | b'C' | b'D' | b'F' | b'I' | b'J' | b'S' | b'Z' => {
                 let primitive = Primitive::from(bytes[0]);
                 let remaining = if desc.len() == 1 { "" } else { &desc[1..] };
-                if !remaining.is_empty(){
+                if !remaining.is_empty() {
                     bail!("FieldType had text remaining after parse");
-
                 }
                 Ok(FieldType::Base(primitive))
             }
             b'[' => {
                 let (array, len, remaining) = Self::parse_array(desc)?;
-                if !remaining.is_empty(){
+                if !remaining.is_empty() {
                     bail!("FieldType had text remaining after parse");
-
                 }
                 Ok(FieldType::Array(array, len))
             }
@@ -94,9 +91,8 @@ impl FromStr for FieldType {
 impl FieldType {
     pub fn parse_and_remainder(desc: &str) -> Result<(Self, &str)> {
         let bytes = desc.as_bytes();
-        if desc.is_empty(){
-            bail!("Invalid FieldType: Descriptor cannot be empty.");
-            
+        if desc.is_empty() {
+            bail!("Invalid field type: descriptor cannot be empty.");
         }
         match bytes[0] {
             b'L' => {
@@ -125,41 +121,45 @@ impl FieldType {
         } else if !desc.starts_with('L') {
             bail!("Invalid object descriptor: input did not start with 'L'.");
         }
+
         let bytes = desc.as_bytes();
         match desc.find(';') {
             None => bail!("Invalid object descriptor: No terminating ';'."),
-            Some(index) => {
-                let string = bytes[1..=index]
+            Some(i) => {
+                let string = bytes[1..=i]
                     .iter()
                     .map(|byte| *byte as char)
                     .collect::<String>();
-                let remaining = if index + 1 < bytes.len() {
-                    &desc[index + 1..]
-                } else {
+
+                let remaining = if i + 1 == bytes.len() {
                     ""
+                } else {
+                    &desc[i + 1..]
                 };
                 Ok((string, remaining))
             }
         }
     }
-    
+
     fn parse_array(desc: &str) -> Result<(ArrayType, usize, &str)> {
-        if desc.len() <= 2 {
+        if desc.len() < 2 {
             bail!("Invalid array descriptor: descriptor not long enough.");
         }
+
         let bytes = desc.as_bytes();
         let mut i = 0;
         while bytes[i] == b'[' {
             i += 1;
             if i == bytes.len() {
-                bail!("Invalid array descriptor: No Class provided.");
+                bail!("Invalid array descriptor: no class provided.");
             }
         }
 
+        let size = i;
         match bytes[i] {
             b'L' => {
                 let (name, remaining) = Self::parse_object(&desc[i..])?;
-                Ok((ArrayType::Object(name), i, remaining))
+                Ok((ArrayType::Object(name), size, remaining))
             }
             b'B' | b'C' | b'D' | b'F' | b'I' | b'J' | b'S' | b'Z' => {
                 let remaining = if i + 1 == desc.len() {
@@ -169,12 +169,12 @@ impl FieldType {
                 };
                 Ok((
                     ArrayType::Primitive(Primitive::from(bytes[i])),
-                    i,
+                    size,
                     remaining,
                 ))
             }
             token => bail!(
-                "Invalid array descriptor: Invalid token '{}'.",
+                "Invalid array descriptor: invalid token '{}'.",
                 token as char
             ),
         }
@@ -193,21 +193,23 @@ impl FromStr for ReturnDescriptor {
     type Err = anyhow::Error;
 
     fn from_str(desc: &str) -> Result<Self> {
-        if desc.is_empty(){
-            bail!("Invalid return descriptor: Descriptor cannot be empty.");
+        if desc.is_empty() {
+            bail!("Invalid return descriptor: descriptor cannot be empty.");
         }
+
         if desc.starts_with('V') {
             if desc.len() != 1 {
-                bail!("Invalid return descriptor: Nothing should follow a 'V' token.");
+                bail!("Invalid return descriptor: nothing should follow a 'V' token.");
             }
             return Ok(Self::Void);
         }
 
         let (f_type, remainder) = FieldType::parse_and_remainder(desc)?;
         if !remainder.is_empty() {
-            bail!("Invalid return token: Nothing should follow the field type.");
+            bail!("Invalid return token: nothing should follow the field type.");
         }
-        Ok(Self::NonVoid(f_type))    }
+        Ok(Self::NonVoid(f_type))
+    }
 }
 
 #[derive(Debug, Default, Eq, PartialEq, Hash, Clone)]
@@ -222,27 +224,31 @@ impl Deref for Params {
 #[derive(Debug, Default, Eq, PartialEq, Hash, Clone)]
 pub struct MethodDescriptor(Params, ReturnDescriptor);
 
+impl MethodDescriptor {
+    pub fn len(&self) -> usize { self.0.len() }
+}
+
 impl FromStr for MethodDescriptor {
     type Err = anyhow::Error;
 
     fn from_str(desc: &str) -> Result<Self> {
-        if desc.is_empty(){
-            bail!("Invalid method descriptor: Descriptor cannot be empty.");
-
-        }
-        if !desc.starts_with('(') {
-            bail!("Invalid method descriptor: Expected '('.");
-        }
-        if desc.len() < 2 {
+        if desc.is_empty() {
+            bail!("Invalid method descriptor: descriptor cannot be empty.");
+        } else if !desc.starts_with('(') {
+            bail!("Invalid method descriptor: expected '('.");
+        } else if desc.len() < 2 {
             bail!("Invalid method descriptor: descriptor is too short.");
         }
+
         let mut remaining = &desc[1..];
         let mut params = Vec::new();
-        while !remaining.is_empty() && !remaining.starts_with(')') {
+
+        while !remaining.starts_with(')') {
             let (f_type, remainder) = FieldType::parse_and_remainder(remaining)?;
             remaining = remainder;
             params.push(f_type);
         }
+
         // &remaining[1..] to skip over the ')'
         let r_type = remaining[1..].parse::<ReturnDescriptor>()?;
         Ok(Self(Params(params), r_type))
@@ -276,14 +282,14 @@ mod tests {
     #[test]
     fn test_ftype_object() {
         let desc = format!("{}{}", "L", STRING);
-        let f_type= desc.parse::<FieldType>().unwrap();
+        let f_type = desc.parse::<FieldType>().unwrap();
         assert_eq!(f_type, FieldType::Object(STRING.to_string()))
     }
 
     #[test]
     fn test_ftype_base() {
         let desc = "I";
-        let f_type= desc.parse::<FieldType>().unwrap();
+        let f_type = desc.parse::<FieldType>().unwrap();
         assert_eq!(f_type, FieldType::Base(Primitive::Int))
     }
 
@@ -298,7 +304,7 @@ mod tests {
     #[test]
     fn test_ftype_array_primitive() {
         let desc = "[[[J";
-        let f_type= desc.parse::<FieldType>().unwrap();
+        let f_type = desc.parse::<FieldType>().unwrap();
         assert_eq!(f_type, FieldType::Array(ArrayPrimitive(Primitive::Long), 3))
     }
 
@@ -400,14 +406,12 @@ mod tests {
         let _ = desc.parse::<FieldType>().unwrap();
     }
 
-
     #[test]
     #[should_panic]
     fn invalid_ftype_empty() {
         let desc = "";
         let _ = desc.parse::<FieldType>().unwrap();
     }
-
 
     #[test]
     #[should_panic]
@@ -429,14 +433,14 @@ mod tests {
         let desc = "";
         let _ = desc.parse::<MethodDescriptor>().unwrap();
     }
-    
+
     #[test]
     #[should_panic]
     fn invalid_return_desc_extra_text() {
         let desc = "IJ";
         let _ = desc.parse::<ReturnDescriptor>().unwrap();
     }
-    
+
     #[test]
     #[should_panic]
     fn invalid_return_desc_empty() {
