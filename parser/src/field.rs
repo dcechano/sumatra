@@ -1,8 +1,9 @@
 use crate::{
-    attribute::RuntimeAnnotation, constant::Constant, desc_types::FieldDescriptor,
+    attribute::RuntimeAnnotation,
+    constant::Constant,
+    desc_types::{FieldDescriptor, MethodDescriptor},
     flags::FieldAccessFlags,
 };
-use crate::desc_types::MethodDescriptor;
 
 #[derive(Debug, Default, PartialEq, Clone)]
 pub struct Field {
@@ -18,15 +19,9 @@ pub struct Field {
 }
 
 impl Field {
-    pub fn is_static(&self) -> bool {
-        self.access_flags.contains(FieldAccessFlags::STATIC)
-    }
-    
-    pub fn is_final(&self) -> bool {
-        self.access_flags.contains(FieldAccessFlags::FINAL)
-    }
+    pub fn is_static(&self) -> bool { self.access_flags.contains(FieldAccessFlags::STATIC) }
 
-    pub fn get_parsed_descriptor(&self) -> FieldDescriptor {
-        self.parsed_descriptor.clone()
-    }
+    pub fn is_final(&self) -> bool { self.access_flags.contains(FieldAccessFlags::FINAL) }
+
+    pub fn get_parsed_descriptor(&self) -> FieldDescriptor { self.parsed_descriptor.clone() }
 }
