@@ -34,6 +34,7 @@ pub enum Instruction {
     AThrow,
     BaLoad,
     BaStore,
+    /// The immediate byte is sign-extended to an int value. That value is pushed onto the operand stack.
     BiPush(i8),
     CaLoad,
     CaStore,
@@ -160,6 +161,7 @@ pub enum Instruction {
     IReturn,
     IShL,
     IShR,
+    /// Store int into local variable
     IStore(u8),
     IStore0,
     IStore1,
