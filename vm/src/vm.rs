@@ -21,14 +21,14 @@ const INIT: &str = "<init>()V";
 
 const DEFAULT_VEC_SIZE: usize = 128;
 
-pub struct VM<'vm> {
-    pub(crate) frames: Vec<CallFrame<'vm>>,
+pub struct VM {
+    pub(crate) frames: Vec<CallFrame>,
     pub(crate) method_area: MethodArea,
     pub(crate) stack: Vec<Value>,
     pub(crate) class_manager: ClassManager,
 }
 
-impl<'vm> VM<'vm> {
+impl VM {
     pub fn init(c_path: PathBuf) -> Self {
         //TODO find good allocation size for vectors
         let method_area = match MethodArea::new() {
@@ -464,7 +464,13 @@ impl<'vm> VM<'vm> {
 
 // Utility functions are seperated into a different impl block for ease of
 // navigation.
-impl<'vm> VM<'vm> {
+impl VM {
+    #[inline(always)]
+    fn frame_mut(&mut self) -> &mut CallFrame { self.frames.last_mut().unwrap() }
+
+    #[inline(always)]
+    fn frame(&self) -> &CallFrame { self.frames.last().unwrap() }
+
     fn load_class(&mut self, name: &str) -> Result<StaticData> {
         match self.class_manager.request(name, &mut self.method_area) {
             Ok(Response::InitReq(class, alloc_index)) => {
