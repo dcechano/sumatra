@@ -9,7 +9,6 @@ use std::{
 };
 
 use anyhow::{bail, Context, Result};
-use bitflags::Flags;
 use byteorder::{BigEndian, ReadBytesExt};
 
 use crate::{
@@ -56,6 +55,7 @@ use crate::{
         },
     },
     constant_pool::ConstantPool,
+    desc_types::{FieldDescriptor, MethodDescriptor},
     field::Field,
     flags::{
         ExportFlags, FieldAccessFlags, InnerClassAccessFlags, MethodAccessFlags, ModuleFlags,
@@ -525,6 +525,7 @@ impl ClassReader {
 
         let descriptor = cp.get_utf8(self.read_u16()? as usize)?;
         method.descriptor = descriptor.to_string();
+        method.parsed_descriptor = descriptor.parse::<MethodDescriptor>()?;
 
         self.parse_method_attr(cp, &mut method)?;
 
@@ -543,6 +544,7 @@ impl ClassReader {
 
         let descriptor = cp.get_utf8(self.read_u16()? as usize)?;
         field.descriptor = descriptor.to_string();
+        field.parsed_descriptor = descriptor.parse::<FieldDescriptor>()?;
 
         let attributes_count = self.read_u16()? as usize;
         self.parse_field_attr(cp, attributes_count, &mut field)?;
@@ -769,11 +771,6 @@ impl ClassReader {
             descriptor_index,
             runtime_annotations,
         })
-    }
-
-    fn parse_rec_runtime_anno(&mut self, cp: &ConstantPool) -> Result<RuntimeAnnotation> {
-        let name_index = self.read_u16()? as usize;
-        self.parse_runtime_anno(cp, cp.get_utf8(name_index)?.as_bytes())
     }
 
     fn parse_runtime_anno(&mut self, cp: &ConstantPool, name: &[u8]) -> Result<RuntimeAnnotation> {

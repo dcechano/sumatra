@@ -161,7 +161,7 @@ impl FieldType {
                 let remaining = if i + 1 == desc.len() {
                     ""
                 } else {
-                    &desc[i + 2..]
+                    &desc[i + 1..]
                 };
                 Ok((
                     ArrayType::Primitive(Primitive::from(bytes[i])),
@@ -345,6 +345,20 @@ mod tests {
                 ArrayType::Primitive(Primitive::Boolean),
                 2,
             )),
+        );
+        let m_desc = desc.parse::<MethodDescriptor>().unwrap();
+        assert_eq!(m_desc, should_be);
+    }
+
+    #[test]
+    fn test_method_desc3_non_void() {
+        let desc = "([B)Ljavax/security/cert/X509Certificate;";
+        let should_be = MethodDescriptor(
+            Params(vec![FieldType::Array(
+                ArrayType::Primitive(Primitive::Byte),
+                1,
+            )]),
+            ReturnDescriptor::NonVoid(FieldType::Object(X509.to_string())),
         );
         let m_desc = desc.parse::<MethodDescriptor>().unwrap();
         assert_eq!(m_desc, should_be);
