@@ -1,3 +1,5 @@
+#![allow(warnings)] // TODO Remove
+
 use sumatra_parser::class_file::ClassFile;
 use sumatra_vm::{class::Class, vm::VM};
 
@@ -16,7 +18,7 @@ fn main() {
     // println!("Running {:#?}", class);
     // println!("class {:#?}", class_file);
     let mut vm = VM::init(CLASS_PATH.into());
-    vm.run("Main").unwrap()
+    vm.run("Simple.class").unwrap()
 
     // for class in CLASSES {
     //     println!();

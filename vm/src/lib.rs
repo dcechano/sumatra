@@ -1,3 +1,4 @@
+#![allow(warnings)] // TODO Remove
 mod alloc;
 mod call_frame;
 pub mod class;

@@ -1,3 +1,4 @@
+#![allow(warnings)] // TODO Remove
 pub mod annotation;
 pub mod attribute;
 pub mod class_file;
