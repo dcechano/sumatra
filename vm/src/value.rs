@@ -1,5 +1,5 @@
-use std::cmp::Ordering;
 use crate::alloc::{alloc_type::NonStatic, oop::HeapAlloc};
+use std::cmp::Ordering;
 
 #[derive(Default, Debug, Clone)]
 pub enum Value {
@@ -17,11 +17,9 @@ pub enum Value {
 }
 
 impl Value {
-    pub fn default_vec(cap: usize) -> Vec<Value> {
-        vec![Value::Null; cap]
-    }
+    pub fn default_vec(cap: usize) -> Vec<Value> { vec![Value::Null; cap] }
 
-    pub fn populate_locals(num_locals: usize, params: &mut Vec<Value>){
+    pub fn populate_locals(num_locals: usize, params: &mut Vec<Value>) {
         if params.len() > num_locals {
             panic!("The number of locals cannot be the greater than the number of params.");
         }
@@ -37,7 +35,7 @@ impl Value {
             Value::Int(_) => matches!(other, Value::Int(_)),
             Value::Short(_) => matches!(other, Value::Short(_)),
             Value::Byte(_) => matches!(other, Value::Byte(_)),
-            Value::Long(_) => matches!(other,  Value::Long(_)),
+            Value::Long(_) => matches!(other, Value::Long(_)),
             Value::Float(_) => matches!(other, Value::Float(_)),
             Value::StringConst(_) => matches!(other, Value::StringConst(_)),
             Value::ReturnAddress(_) => matches!(other, Value::ReturnAddress(_)),
@@ -55,7 +53,7 @@ impl PartialEq for Value {
         match self {
             Value::Null => true,
             Value::Double(double) => {
-                if let Value::Double(other) = other{
+                if let Value::Double(other) = other {
                     double.partial_cmp(other) == Some(Ordering::Equal)
                 } else {
                     unreachable!()
@@ -100,7 +98,7 @@ impl PartialEq for Value {
                 //TODO this may need to be fixed because last time I checked (long time ago)
                 // this is not how string equality works in Java.
                 if let Value::StringConst(other) = other {
-                   *string == *other
+                    *string == *other
                 } else {
                     unreachable!()
                 }
@@ -122,9 +120,7 @@ impl PartialEq for Value {
         }
     }
 
-    fn ne(&self, other: &Self) -> bool {
-        !self.eq(other)
-    }
+    fn ne(&self, other: &Self) -> bool { !self.eq(other) }
 }
 
 impl Eq for Value {}
