@@ -4,6 +4,7 @@ pub mod class_file;
 mod class_reader;
 pub mod constant;
 pub mod constant_pool;
+mod desc_types;
 pub mod field;
 pub mod flags;
 pub mod instruction;
