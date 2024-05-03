@@ -324,6 +324,7 @@ mod tests {
     const X509: &str = "javax/security/cert/X509Certificate;";
 
     #[test]
+    #[cfg(not(miri))]
     fn test_ftype_object() {
         let desc = format!("{}{}", "L", STRING);
         let f_type = desc.parse::<FieldType>().unwrap();
@@ -331,6 +332,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(not(miri))]
     fn test_ftype_base() {
         let desc = "I";
         let f_type = desc.parse::<FieldType>().unwrap();
@@ -338,6 +340,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(not(miri))]
     fn test_ftype_array_object() {
         let desc = "[[Ljava/lang/String;";
         let (f_type, remainder) = FieldType::parse_and_remainder(desc).unwrap();
@@ -346,6 +349,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(not(miri))]
     fn test_ftype_array_primitive() {
         let desc = "[[[J";
         let f_type = desc.parse::<FieldType>().unwrap();
@@ -353,6 +357,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(not(miri))]
     fn test_return_desc_void() {
         let desc = "V";
         let r_type = desc.parse::<ReturnDescriptor>().unwrap();
@@ -360,6 +365,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(not(miri))]
     fn test_return_desc_non_void() {
         let desc = "[[[[[[[[[[Z";
         let r_type = desc.parse::<ReturnDescriptor>().unwrap();
@@ -373,6 +379,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(not(miri))]
     fn test_method_desc_non_void() {
         let desc = "(Ljava/lang/String;I)Z";
         let should_be = MethodDescriptor(
@@ -387,6 +394,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(not(miri))]
     fn test_method_desc2_non_void() {
         let desc = "(Ljava/lang/String;IJSBLjava/lang/Object;)[[Z";
         let should_be = MethodDescriptor(
@@ -408,6 +416,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(not(miri))]
     fn test_method_desc3_non_void() {
         let desc = "([B)Ljavax/security/cert/X509Certificate;";
         let should_be = MethodDescriptor(
@@ -422,6 +431,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(not(miri))]
     fn test_field_desc() {
         let desc = "[[[J";
         let should_be = FieldDescriptor(FieldType::Array(ArrayType::Primitive(Primitive::Long), 3));
@@ -431,6 +441,7 @@ mod tests {
 
     #[test]
     #[should_panic]
+    #[cfg(not(miri))]
     fn invalid_field_desc_empty() {
         let desc = "";
         let _ = desc.parse::<FieldDescriptor>().unwrap();
@@ -438,6 +449,7 @@ mod tests {
 
     #[test]
     #[should_panic]
+    #[cfg(not(miri))]
     fn invalid_field_desc_array() {
         let desc = "[";
         let _ = desc.parse::<FieldDescriptor>().unwrap();
@@ -445,6 +457,7 @@ mod tests {
 
     #[test]
     #[should_panic]
+    #[cfg(not(miri))]
     fn invalid_ftype() {
         let desc = "java/lang/Object";
         let _ = desc.parse::<FieldType>().unwrap();
@@ -452,6 +465,7 @@ mod tests {
 
     #[test]
     #[should_panic]
+    #[cfg(not(miri))]
     fn invalid_ftype_empty() {
         let desc = "";
         let _ = desc.parse::<FieldType>().unwrap();
@@ -459,6 +473,7 @@ mod tests {
 
     #[test]
     #[should_panic]
+    #[cfg(not(miri))]
     fn invalid_method_desc() {
         let desc = "(Ljava/lang/Object;V";
         let _ = desc.parse::<MethodDescriptor>().unwrap();
@@ -466,6 +481,7 @@ mod tests {
 
     #[test]
     #[should_panic]
+    #[cfg(not(miri))]
     fn invalid_method_desc2() {
         let desc = "()";
         let _ = desc.parse::<MethodDescriptor>().unwrap();
@@ -473,6 +489,7 @@ mod tests {
 
     #[test]
     #[should_panic]
+    #[cfg(not(miri))]
     fn invalid_method_desc_empty() {
         let desc = "";
         let _ = desc.parse::<MethodDescriptor>().unwrap();
@@ -480,6 +497,7 @@ mod tests {
 
     #[test]
     #[should_panic]
+    #[cfg(not(miri))]
     fn invalid_return_desc_extra_text() {
         let desc = "IJ";
         let _ = desc.parse::<ReturnDescriptor>().unwrap();
@@ -487,6 +505,7 @@ mod tests {
 
     #[test]
     #[should_panic]
+    #[cfg(not(miri))]
     fn invalid_return_desc_empty() {
         let desc = "";
         let _ = desc.parse::<ReturnDescriptor>().unwrap();
