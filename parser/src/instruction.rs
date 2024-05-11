@@ -34,7 +34,8 @@ pub enum Instruction {
     AThrow,
     BaLoad,
     BaStore,
-    /// The immediate byte is sign-extended to an int value. That value is pushed onto the operand stack.
+    /// The immediate byte is sign-extended to an int value. That value is
+    /// pushed onto the operand stack.
     BiPush(i8),
     CaLoad,
     CaStore,
