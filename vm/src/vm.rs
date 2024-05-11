@@ -30,6 +30,7 @@ pub struct VM {
 }
 
 impl VM {
+    /// create the VM.
     pub fn init(c_path: PathBuf) -> Self {
         //TODO find good allocation size for vectors
         let method_area = match MethodArea::new() {
@@ -45,6 +46,8 @@ impl VM {
         }
     }
 
+    /// Entry point of the JVM. `c_entry` is the initial class loaded
+    /// by the VM to spin up the Java program.
     pub fn run(&mut self, c_entry: &str) -> Result<()> {
         let c_data = if !c_entry.ends_with(".class") {
             self.load_class(&format!("{c_entry}{}", ".class"))?
@@ -65,6 +68,8 @@ impl VM {
         Ok(())
     }
 
+    /// Executes the top most `CallFrame` on the stack. Frame
+    /// gets popped off the stack before method returns.
     fn execute_frame(&mut self) -> Result<()> {
         let code = &self.frame().method.code;
         let op_code = &code.op_code;
@@ -334,6 +339,10 @@ impl VM {
         Ok(())
     }
 
+    /// Executes the `Instruction::AStore` instruction.`local_index`  
+    /// is the index of the local variable in the currently
+    /// executing frame's local variable array.
+    /// https://docs.oracle.com/javase/specs/jvms/se21/html/jvms-6.html#jvms-6.5.astore_n
     fn a_store_n(&mut self, local_index: usize) -> Result<()> {
         let frame = self.frame_mut();
         let operand = frame.stack.pop().unwrap();
@@ -349,6 +358,9 @@ impl VM {
         Ok(())
     }
 
+    /// Executes the `Instruction::ALoad` instruction. `local_index`  
+    /// is the index of the local variable in the currently
+    /// executing frame's local variable array.
     fn a_load(&mut self, local_index: usize) -> Result<()> {
         let frame = self.frame_mut();
         let object = frame.load(local_index)?;
@@ -362,8 +374,14 @@ impl VM {
         Ok(frame.push(object))
     }
 
+    /// Executes the `Instruction::IConst` instruction. `int` is the integer
+    /// to be pushed on the operand stack.
     fn iconst_n(&mut self, int: i32) { self.frame_mut().push(Value::Int(int)); }
 
+    /// Executes one of the many compare JVM instructions.
+    /// The type of comparison is specified by the `compare::Compare` argument.
+    /// Returns a `bool` representing the result of the comparison.
+    /// Program counter is already updated if necessary.
     fn ifcmp(&mut self, offset: usize, cmp: Compare) -> bool {
         let frame = self.frame_mut();
         let value2 = frame.stack.pop().unwrap();
@@ -375,6 +393,7 @@ impl VM {
         jmp
     }
 
+    /// Helper function for `VM::ifcmp`.
     fn if_in(value1: Value, value2: Value, cmp: Compare) -> bool {
         match cmp {
             Compare::Equal => value1 == value2,
@@ -386,6 +405,7 @@ impl VM {
         }
     }
 
+    /// Similar to `VM::ifcmp` but only operates on Java ints.
     fn if_cond(&mut self, offset: usize, cmp: Compare) -> bool {
         let frame = self.frame_mut();
         let int = frame.pop();
@@ -399,6 +419,9 @@ impl VM {
         jmp
     }
 
+    /// Invoke a static method. `method_index` is the index to the
+    /// `Constant::MethodRef` in the runtime constant pool.
+    /// 
     fn invoke_static(&mut self, method_index: &usize) -> Result<()> {
         let stack_size = self.stack.len();
         let frame = self.frame();
@@ -437,7 +460,10 @@ impl VM {
             bail!("Expected Constant::MethodRef in invoke_static.");
         }
     }
-
+    
+    /// Executes the `Instruction::ILoad` instruction.
+    /// `local_index` is the index to the local variable in the
+    /// locals array.
     fn iload_n(&mut self, local_index: usize) -> Result<()> {
         let frame = self.frame_mut();
 
@@ -445,6 +471,8 @@ impl VM {
         Ok(frame.push(int))
     }
 
+    /// Executes `Instruction::IStore` instruction. `local_index`
+    /// is the index of the local variable in the locals array.
     fn istore_n(&mut self, local_index: usize) -> Result<()> {
         let frame = self.frame_mut();
         let int = frame.pop();
@@ -454,6 +482,8 @@ impl VM {
         Ok(*frame.locals.get_mut(local_index).unwrap() = int)
     }
 
+    /// Executes `Instruction::IRem` instruction and pushes
+    /// result to the operand stack.
     fn irem(&mut self) -> Result<()> {
         let frame = self.frame_mut();
         let value2 = frame.pop();
@@ -469,7 +499,9 @@ impl VM {
         }
         bail!("expected 2 integers for irem instruction.");
     }
-
+    
+    /// Executes the `Instruction::Ldc`, and `Instruction::LdcW` instructions. 
+    /// `index` is the index of the constnat in the runtime constant pool.
     fn load_const(&mut self, index: &usize) -> Result<()> {
         let frame = self.frame_mut();
         let cp = frame.cp;
@@ -502,6 +534,9 @@ impl VM {
         Ok(())
     }
 
+    /// Executes the `Instruction::Ldc2W` instruction.
+    /// `index` is the index of the Java long or Java double
+    /// in the runtime constant pool.
     fn load_const2(&mut self, index: &usize) -> Result<()> {
         let frame = self.frame_mut();
         let cp = frame.cp;
@@ -515,6 +550,9 @@ impl VM {
         Ok(())
     }
 
+    /// Executes the `Instruction::GetStatic` instruction.
+    /// `index` is the index of the `Constant::FieldRef` in the
+    /// runtime constant pool.
     fn get_static(&mut self, index: usize) -> Result<()> {
         if let Constant::FieldRef {
             class_index,
@@ -528,6 +566,9 @@ impl VM {
         Ok(())
     }
 
+    /// Executes the `Instruction::PutStatic` instruction.
+    /// `field_index` is the index of the `Constant::FieldRef` in the
+    /// runtime constant pool.
     fn put_static(&mut self, field_index: usize) -> Result<()> {
         if let Constant::FieldRef {
             class_index,
@@ -546,12 +587,18 @@ impl VM {
 // Utility functions are seperated into a different impl block for ease of
 // navigation.
 impl VM {
+    
+    /// Return a mutable reference to the top most call frame.
     #[inline(always)]
     fn frame_mut(&mut self) -> &mut CallFrame { self.frames.last_mut().unwrap() }
 
+    /// Return a shared reference to the top most call frame.
     #[inline(always)]
     fn frame(&self) -> &CallFrame { self.frames.last().unwrap() }
 
+    /// Load the class definition specified by `name`. If
+    /// the class is found in the `MethodArea`, a `StaticData` object
+    /// is returned. This function handles initialization if necessary.
     fn load_class(&mut self, name: &str) -> Result<StaticData> {
         match self.class_manager.request(name, &mut self.method_area) {
             Ok(Response::InitReq(class, alloc_index)) => {
@@ -642,6 +689,7 @@ impl VM {
         Ok((name, data))
     }
 
+    /// Construct the local variables array and return it.
     fn construct_locals(&self, max_locals: usize, num_params: usize) -> Result<Vec<Value>> {
         if num_params > max_locals {
             bail!("number of method parameters was larger than the max locals.");
@@ -659,6 +707,7 @@ impl VM {
         })
     }
 
+    /// Construct a method name from the index to the name, and the index to the descriptor.
     #[inline]
     fn construct_m_name(&self, name_index: usize, descr_index: usize) -> Result<String> {
         let cp = self.frame().cp;
