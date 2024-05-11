@@ -16,10 +16,15 @@ pub enum Instruction {
     AaLoad,
     AaStore,
     AaConstNull,
+    /// Load reference from local variable
     ALoad(u8),
+    /// Load reference from local variable
     ALoad0,
+    /// Load reference from local variable
     ALoad1,
+    /// Load reference from local variable
     ALoad2,
+    /// Load reference from local variable
     ALoad3,
     ANewArray(u16),
     AReturn,
@@ -28,8 +33,11 @@ pub enum Instruction {
     AStore(u8),
     /// Store reference into local variable
     AStore0,
+    /// Store reference into local variable
     AStore1,
+    /// Store reference into local variable
     AStore2,
+    /// Store reference into local variable
     AStore3,
     AThrow,
     BaLoad,
@@ -115,12 +123,19 @@ pub enum Instruction {
     IaLoad,
     IAnd,
     IaStore,
+    /// Push int constant -1.
     IConstM1,
+    /// Push int constant 0.
     IConst0,
+    /// Push int constant 1.
     IConst1,
+    /// Push int constant 2.
     IConst2,
+    /// Push int constant 3.
     IConst3,
+    /// Push int constant 4.
     IConst4,
+    /// Push int constant 5.
     IConst5,
     IDiv,
     IfAcmpeq(i16),
@@ -131,19 +146,30 @@ pub enum Instruction {
     IfIcmpge(i16),
     IfIcmpgt(i16),
     IfIcmple(i16),
+    /// Branch to offset if int on operand stack == 0
     Ifeq(i16),
+    /// Branch to offset if int on operand stack != 0
     Ifne(i16),
+    /// Branch to offset if int on operand stack < 0
     Iflt(i16),
+    /// Branch to offset if int on operand stack >= 0
     Ifge(i16),
+    /// Branch to offset if int on operand stack > 0
     Ifgt(i16),
+    /// Branch to offset if int on operand stack <= 0
     Ifle(i16),
     IfNonNull(i16),
     IfNull(i16),
     Iinc(u8, i8), // TODO double check the spec on this one. It was confusing.
+    /// load local int variable at supplied index and push to operand stack.
     ILoad(u8),
+    /// load local int variable at index 0 and push to operand stack.
     ILoad0,
+    /// load local int variable at index 1 and push to operand stack.
     ILoad1,
+    /// load local int variable at index 2 and push to operand stack.
     ILoad2,
+    /// load local int variable at index 3 and push to operand stack.
     ILoad3,
     IMul,
     INeg,
@@ -158,7 +184,10 @@ pub enum Instruction {
     /// Invoke instance method; dispatch based on class
     InvokeVirtual(usize),
     IOr,
+    /// Pop two integers off the operand stack, calculate the 
+    /// remainder and push the result.
     IRem,
+    /// Return integer at the top of the operand stack.
     IReturn,
     IShL,
     IShR,
@@ -185,7 +214,9 @@ pub enum Instruction {
     LConst1,
     /// Push item from run-time constant pool.
     Ldc(usize),
+    /// Push item from run-time constant pool (wide index).
     LdcW(usize),
+    /// Push long or double from run-time constant pool (wide index).
     Ldc2W(usize),
     LDiv,
     LLoad(u8),
@@ -221,6 +252,9 @@ pub enum Instruction {
     Pop,
     Pop2,
     PutField(u16),
+    /// Assign value on top of operand stack to the 
+    /// class field found in the runtime constant pool
+    /// at the given index.
     PutStatic(u16),
     Ret(u8),
     /// Used to return from a `void` method.
