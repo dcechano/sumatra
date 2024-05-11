@@ -79,6 +79,8 @@ const CLASS_EXT: &[u8] = b"class";
 pub(crate) struct ClassReader(Cursor<Vec<u8>>);
 
 impl ClassReader {
+    
+    /// Create a new `ClassReader`.
     #[inline]
     pub(crate) fn new<P: AsRef<Path>>(path: P) -> Result<Self> {
         let ext = path
@@ -95,50 +97,61 @@ impl ClassReader {
         Ok(Self(Cursor::new(buffer)))
     }
 
+    /// Create a `ClassReader` from an already obtained byte buffer.
     #[inline]
     pub(crate) fn with_buffer(buffer: &[u8]) -> Self { Self(Cursor::new(buffer.into())) }
 
+    /// Read `u8`.
     #[inline]
     pub(crate) fn read_u8(&mut self) -> Result<u8> { self.0.read_u8().context("Failed to read u8") }
 
+    /// Read `i8`.
     #[inline]
     pub(crate) fn read_i8(&mut self) -> Result<i8> { self.0.read_i8().context("Failed to read i8") }
 
+    /// Read `u16`.
     #[inline]
     pub(crate) fn read_u16(&mut self) -> Result<u16> {
         self.0.read_u16::<BigEndian>().context("Failed to read u16")
     }
 
+    /// Read `i16`.
     #[inline]
     pub(crate) fn read_i16(&mut self) -> Result<i16> {
         self.0.read_i16::<BigEndian>().context("Failed to read i16")
     }
 
+    /// Read `u32`.
     #[inline]
     pub(crate) fn read_u32(&mut self) -> Result<u32> {
         self.0.read_u32::<BigEndian>().context("Failed to read u32")
     }
 
+    /// Read `i32`.
     #[inline]
     pub(crate) fn read_i32(&mut self) -> Result<i32> {
         self.0.read_i32::<BigEndian>().context("Failed to read i32")
     }
 
+    /// Read `u64`.
     #[inline]
     pub(crate) fn read_u64(&mut self) -> Result<u64> {
         self.0.read_u64::<BigEndian>().context("Failed to read u64")
     }
 
+    /// Read `i64`.
     #[inline]
     pub(crate) fn read_i64(&mut self) -> Result<i64> {
         self.0.read_i64::<BigEndian>().context("Failed to read i64")
     }
 
+    /// Read `f32`.
     #[inline]
     pub(crate) fn read_f32(&mut self) -> Result<f32> {
         self.0.read_f32::<BigEndian>().context("Failed to read f32")
     }
 
+    /// Read `f64`.
     #[inline]
     pub(crate) fn read_f64(&mut self) -> Result<f64> {
         self.0.read_f64::<BigEndian>().context("Failed to read f64")
@@ -146,6 +159,8 @@ impl ClassReader {
 }
 
 impl ClassReader {
+    
+    /// Read and interpret the next bytes as the constant pool.
     pub(crate) fn parse_cp(&mut self) -> Result<ConstantPool> {
         let cp_count = self.read_u16()? as usize - 1;
         let mut cp = ConstantPool::new(cp_count);
@@ -217,6 +232,7 @@ impl ClassReader {
         Ok(cp)
     }
 
+    /// Read and interpret the next bytes as the class methods.
     pub(crate) fn parse_methods(
         &mut self,
         cp: &ConstantPool,
@@ -232,6 +248,7 @@ impl ClassReader {
         Ok(methods)
     }
 
+    /// Read and interpret the next bytes as the method attributes. 
     fn parse_method_attr(&mut self, cp: &ConstantPool, method: &mut Method) -> Result<()> {
         let mut sig_present = false;
         let mut exc_present = false;
@@ -293,6 +310,7 @@ impl ClassReader {
         Ok(())
     }
 
+    /// Read the next `length` bytes and do not attempt to interpret.
     fn parse_unrec_attr(
         &mut self,
         length: usize,
@@ -308,6 +326,7 @@ impl ClassReader {
         Ok(bytes)
     }
 
+    /// Read and interpret the next bytes as the `Code` attribute.
     fn parse_code_attr(&mut self, cp: &ConstantPool) -> Result<Code> {
         let mut code = Code::default();
 
@@ -327,6 +346,7 @@ impl ClassReader {
         Ok(code)
     }
 
+    /// Read and interpret the next bytes as the Exceptions table.
     fn parse_exceptions_table(&mut self, cp: &ConstantPool) -> Result<Vec<Exception>> {
         let table_len = self.read_u16()? as usize;
         let table = (0..table_len)
@@ -352,6 +372,7 @@ impl ClassReader {
         Ok(table)
     }
 
+    /// Read and interpret the next bytes as the inner attributes of the `Code` attribute.
     fn parse_code_inner_attr(&mut self, cp: &ConstantPool, code: &mut Code) -> Result<()> {
         let code_attr_name = self.read_u16()?;
         let name = cp.get_utf8(code_attr_name as usize).context(
@@ -377,6 +398,7 @@ impl ClassReader {
         Ok(())
     }
 
+    /// Read and interpret the next bytes as the `LineNumberTable`.
     fn parse_line_number_table(&mut self) -> Result<LineNumberTable> {
         let table_len = self.read_u16()?;
         let table = (0..table_len)
@@ -390,6 +412,7 @@ impl ClassReader {
         Ok(LineNumberTable(table))
     }
 
+    /// Read and interpret the next bytes as the `LocalVariableTable`.
     fn parse_local_var_table(&mut self, cp: &ConstantPool) -> Result<LocalVariableTable> {
         let table_len = self.read_u16()?;
         let table = (0..table_len)
@@ -417,6 +440,7 @@ impl ClassReader {
         Ok(LocalVariableTable(table))
     }
 
+    /// Read and interpret the next bytes as the `StackMapTable`.
     fn parse_stack_map_table(&mut self) -> Result<StackMapTable> {
         let table_len = self.read_u16()?;
         let entries = (0..table_len)
@@ -425,6 +449,7 @@ impl ClassReader {
         Ok(StackMapTable(entries))
     }
 
+    /// Read and interpret the next bytes as the `LocalVariableTypeTable`.
     fn parse_local_type_table(&mut self, cp: &ConstantPool) -> Result<LocalVariableTypeTable> {
         let lvtt_len = self.read_u16()?;
         let lvtt= (0..lvtt_len).map(|_| {
@@ -447,6 +472,7 @@ impl ClassReader {
         Ok(LocalVariableTypeTable(lvtt))
     }
 
+    /// Read and interpret the next bytes as the `StackMapFrame`.
     fn read_smf(&mut self) -> Result<StackMapFrame> {
         let smf = match self.read_u8()? {
             0..=63 => StackMapFrame::SameFrame,
@@ -482,6 +508,7 @@ impl ClassReader {
         Ok(smf)
     }
 
+    /// Read and interpret the next bytes as `size` verification_type attributes.
     fn v_type_vec(&mut self, size: usize) -> Result<Vec<VType>> {
         let vec = (0..size)
             .map(|_| self.get_v_type())
@@ -489,6 +516,7 @@ impl ClassReader {
         Ok(vec)
     }
 
+    /// Read and interpret the next bytes as the verification_type attribute.
     fn get_v_type(&mut self) -> Result<VType> {
         let mut v_type = VType::try_from(self.read_u8()?)?;
         match v_type {
@@ -503,6 +531,7 @@ impl ClassReader {
         Ok(v_type)
     }
 
+    /// Read and interpret the next bytes as the class fields.
     pub(crate) fn parse_fields(&mut self, cp: &ConstantPool) -> Result<Vec<Field>> {
         let fields_len = self.read_u16()?;
         let fields = (0..fields_len)
@@ -510,7 +539,8 @@ impl ClassReader {
             .collect::<Result<Vec<Field>>>()?;
         Ok(fields)
     }
-
+    
+    /// Read and interpret the next bytes as a `Method`.
     fn parse_method(&mut self, cp: &ConstantPool, min_ver: u16, maj_ver: u16) -> Result<Method> {
         let mut method = Method {
             access_flags: MethodAccessFlags::from_bits(self.read_u16()?)
@@ -532,6 +562,7 @@ impl ClassReader {
         Ok(method)
     }
 
+    /// Read and interpret the next bytes as a `Field`.
     fn parse_field(&mut self, cp: &ConstantPool) -> Result<Field> {
         let mut field = Field::default();
 
@@ -551,7 +582,8 @@ impl ClassReader {
 
         Ok(field)
     }
-
+    
+    /// Read and interpret the next bytes as the `Field` attributes.
     fn parse_field_attr(
         &mut self,
         cp: &ConstantPool,
@@ -610,6 +642,7 @@ impl ClassReader {
         Ok(())
     }
 
+    /// Read and interpret the next bytes as the class' list of interface indices
     pub(crate) fn parse_interfaces(&mut self) -> Result<Vec<usize>> {
         let interfaces_len = self.read_u16()?;
         let interfaces = (0..interfaces_len)
@@ -621,6 +654,7 @@ impl ClassReader {
         Ok(interfaces)
     }
 
+    /// Read and interpret the next bytes as the attributes for the `ClassFile`.
     pub(crate) fn parse_class_attr(
         &mut self,
         cp: &ConstantPool,
@@ -732,6 +766,7 @@ impl ClassReader {
         Ok(())
     }
 
+    /// Read and interpret the next bytes as the `Record` attributes.
     fn parse_record_attr(&mut self, cp: &ConstantPool, rcrd_parsed: &mut bool) -> Result<Record> {
         if *rcrd_parsed {
             bail!("There can only be at most one Record attribute per class.");
@@ -745,6 +780,7 @@ impl ClassReader {
         Ok(Record(components))
     }
 
+    /// Read and interpret the next bytes as the `RecordComponent` attribute.
     fn parse_rec_comp(&mut self, cp: &ConstantPool) -> Result<RecordComponent> {
         let name_index = self.read_u16()? as usize;
         Self::verify_utf8(
@@ -805,6 +841,8 @@ impl ClassReader {
         Ok(anno)
     }
 
+    /// Read and interpret the next bytes as the `RuntimeVisible` and `RuntimeInvisible` 
+    /// annotations.
     fn parse_invis_vis_anno(&mut self, cp: &ConstantPool) -> Result<Vec<Annotation>> {
         let num_anno = self.read_u16()? as usize;
         (0..num_anno)
@@ -812,6 +850,7 @@ impl ClassReader {
             .collect::<Result<Vec<Annotation>>>()
     }
 
+    /// Read and interpret the next bytes as the list of parameter annotations.
     fn parse_para_anno(&mut self, cp: &ConstantPool) -> Result<Vec<ParameterAnnotation>> {
         let num_para = self.read_u8()? as usize;
         (0..num_para)
@@ -819,6 +858,7 @@ impl ClassReader {
             .collect::<Result<Vec<ParameterAnnotation>>>()
     }
 
+    /// Read and interpret the next bytes as a list of type annotations. 
     fn parse_type_anno(&mut self, cp: &ConstantPool) -> Result<Vec<TypeAnnotation>> {
         /*
             TODO This function may need to be changed due to different target_types
@@ -843,6 +883,7 @@ impl ClassReader {
             .collect::<Result<Vec<TypeAnnotation>>>()
     }
 
+    /// Read and interpret the next bytes as the `Signature` attribute. 
     fn parse_sig_attr(&mut self, cp: &ConstantPool, contains_sig: &mut bool) -> Result<String> {
         if *contains_sig {
             bail!("Attribute cannot have more that one Signature attribute")
@@ -853,6 +894,7 @@ impl ClassReader {
         Ok(sig.to_string())
     }
 
+    /// Read and interpret the next bytes as a `TypePath`.
     fn parse_type_path(&mut self) -> Result<TypePath> {
         let path_len = self.read_u8()?;
         let entries = (0..path_len)
@@ -866,6 +908,7 @@ impl ClassReader {
         Ok(TypePath(entries))
     }
 
+    /// Read and interpret the next bytes as a `TypeTarget`.
     fn parse_type_target(&mut self) -> Result<TypeTarget> {
         let value = self.read_u8()?;
         let type_target = match value {
@@ -925,6 +968,8 @@ impl ClassReader {
         };
         Ok(type_target)
     }
+    
+    /// Read and interpret the next bytes as the `ModulePackages` attribute.
     fn parse_module_pckgs_attr(&mut self, cp: &ConstantPool) -> Result<ModulePackages> {
         let package_len = self.read_u16()? as usize;
         let package_index = (0..package_len).map(|_| {
@@ -937,6 +982,7 @@ impl ClassReader {
         Ok(ModulePackages(package_index))
     }
 
+    /// Read and interpret the next bytes as `BootstrapMethods`.
     fn parse_btstrp_methods_attr(&mut self, btstr_prased: &mut bool) -> Result<BootstrapMethods> {
         if *btstr_prased {
             bail!("ClassFile Attributes cannot have more than one BootstrapMethods.");
@@ -957,6 +1003,7 @@ impl ClassReader {
         Ok(BootstrapMethods(methods))
     }
 
+    /// Read and interpret the next bytes as the inner class attributes.
     fn parse_inner_class_attr(&mut self, cp: &ConstantPool) -> Result<InnerClasses> {
         let class_len = self.read_u16()? as usize;
         let mut classes = Vec::with_capacity(class_len);
@@ -999,6 +1046,7 @@ impl ClassReader {
         Ok(InnerClasses(classes))
     }
 
+    /// Read and interpret the next bytes as `Module` attributes.
     fn parse_module_attr(&mut self, cp: &ConstantPool) -> Result<attribute::Module> {
         let module_name_index = self.read_u16()? as usize;
 
@@ -1043,6 +1091,7 @@ impl ClassReader {
         })
     }
 
+    /// Read and interpret the next bytes as the `Requires` attribute.
     fn parse_requires(&mut self, cp: &ConstantPool) -> Result<Requires> {
         let requires_index = self.read_u16()? as usize;
         if !matches!(cp.get(requires_index as usize), Some(Module { .. })) {
@@ -1066,6 +1115,7 @@ impl ClassReader {
         })
     }
 
+    /// Read and interpret the next bytes as the `Exports` attribute.
     fn parse_exports(&mut self, cp: &ConstantPool) -> Result<Exports> {
         let exports_index = self.read_u16()? as usize;
         if !matches!(cp.get(exports_index as usize), Some(Package { .. })) {
@@ -1096,6 +1146,8 @@ impl ClassReader {
         })
     }
 
+
+    /// Read and interpret the next bytes as a `Opens`.
     fn parse_opens(&mut self, cp: &ConstantPool) -> Result<Opens> {
         let opens_index = self.read_u16()? as usize;
         if !matches!(cp.get(opens_index as usize), Some(Package { .. })) {
@@ -1125,6 +1177,7 @@ impl ClassReader {
         })
     }
 
+    /// Read and interpret the next bytes as a `Provides`.
     fn parse_provides(&mut self, cp: &ConstantPool) -> Result<Provides> {
         let provides_index = self.read_u16()? as usize;
         if !matches!(cp.get(provides_index), Some(Class { .. })) {
@@ -1139,6 +1192,7 @@ impl ClassReader {
         })
     }
 
+    /// Read the next `length` bytes. No interpretation implemented.
     #[inline]
     pub(crate) fn read_bytes(&mut self, length: usize) -> Result<Vec<u8>> {
         (0..length)
@@ -1146,6 +1200,7 @@ impl ClassReader {
             .collect::<Result<Vec<u8>>>()
     }
 
+    /// Read the next `length` `u16`s. No interpretation implemented.
     #[inline]
     pub(crate) fn read_u16s(&mut self, length: usize) -> Result<Vec<u16>> {
         (0..length)
@@ -1153,6 +1208,8 @@ impl ClassReader {
             .collect::<Result<Vec<u16>>>()
     }
 
+    /// Read and interpret the next `length` bytes as indices to the constant pool,
+    /// where `Constant::Class` entries can be found.
     fn read_classes(
         &mut self,
         length: usize,
@@ -1169,6 +1226,7 @@ impl ClassReader {
         Ok(classes)
     }
 
+    /// Verifies the constant pool entry at the provided `index` is a `Constant::UTF8`.
     #[inline]
     fn verify_utf8(cp: &ConstantPool, index: usize, message: &'static str) -> Result<()> {
         if cp.get_utf8(index).is_err() {
@@ -1177,6 +1235,7 @@ impl ClassReader {
         Ok(())
     }
 
+    /// Read and interpret the next bytes as the `ElementValue` attribute.
     fn parse_element_value(&mut self, cp: &ConstantPool) -> Result<ElementValue> {
         let tag = self.read_u8()? as char;
         let element_value = match tag {
@@ -1252,6 +1311,7 @@ impl ClassReader {
         Ok(element_value)
     }
 
+    /// Helper method for parsing `RuntimeVisible` and `RuntimeInvisible` annotations.
     fn parse_invis_vis_inner_anno(&mut self, cp: &ConstantPool) -> Result<Annotation> {
         let type_index = self.read_u16()? as usize;
         Self::verify_utf8(
@@ -1266,6 +1326,7 @@ impl ClassReader {
         })
     }
 
+    /// Read and interpret the next bytes as an array of `ElementPairs` attributes.
     fn parse_element_pairs(&mut self, cp: &ConstantPool) -> Result<Vec<ElementPairs>> {
         let pairs_len = self.read_u16()? as usize;
         (0..pairs_len)
@@ -1280,6 +1341,8 @@ impl ClassReader {
             })
             .collect::<Result<Vec<ElementPairs>>>()
     }
+    
+    /// Read and interpret the given bytes as a JVM compliant Utf8 string.
     fn parse_jvm_utf8(bytes: &[u8]) -> Result<String> {
         fn parse_u32(decoded_string: &mut String, code: u32) -> Result<()> {
             match char::from_u32(code) {
@@ -1371,6 +1434,7 @@ fn log_unrec_attr(name: &str, context: &str) -> Result<()> {
     Ok(())
 }
 
+/// Helper function that confirms the `ClassReader`'s cursor is where it is expected.
 #[inline]
 fn validate_cursor(curr: u64, expect: u64) -> Result<()> {
     if curr != expect {
