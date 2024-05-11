@@ -803,7 +803,7 @@ impl TryFrom<u8> for Instruction {
 impl TryFrom<Instruction> for WideInstruction {
     type Error = anyhow::Error;
 
-    fn try_from(inst: Instruction) -> Result<Self, Self::Error> {
+    fn try_from(inst: Instruction) -> Result<Self> {
         let wcode = match inst {
             Iinc(_, _) => WideInstruction::Iinc(0, 0),
             ILoad(_) => WideInstruction::ILoad(0),
