@@ -52,6 +52,13 @@ impl CallFrame {
         Ok(())
     }
 
+    /// Returns a local variable for mutating.
+    pub(crate) fn get_local(&mut self, index: usize) -> &mut Value {
+        self.locals.get_mut(index).expect(&format!(
+            "{index} was not a valid index into the locals array."
+        ))
+    }
+
     /// Retrieves a value from the local variable array.
     pub(crate) fn load(&self, index: usize) -> Result<Value> {
         match self.locals.get(index) {
