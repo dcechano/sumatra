@@ -399,6 +399,17 @@ impl VM {
     /// to be pushed on the operand stack.
     fn iconst_n(&mut self, int: i32) { self.frame_mut().push(Value::Int(int)); }
 
+    /// Exectutes the `Instruction::Iinc` instruction. `index` is the index of
+    /// the local variable to incremented by `inc`.
+    fn iinc(&mut self, index: usize, inc: i32) {
+        let frame = self.frame_mut();
+        if let Value::Int(num) = frame.get_local(index) {
+            *num += inc;
+        } else {
+            panic!("Int was expected for instruction iinc.");
+        }
+    }
+
     /// Executes one of the many compare JVM instructions.
     /// The type of comparison is specified by the `compare::Compare` argument.
     /// Returns a `bool` representing the result of the comparison.
@@ -409,7 +420,7 @@ impl VM {
         let value1 = frame.stack.pop().unwrap();
         let jmp = Self::if_in(value1, value2, cmp);
         if jmp {
-            self.frame_mut().pc += offset;
+            self.frame_mut().pc = offset;
         }
         jmp
     }
