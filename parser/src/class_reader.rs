@@ -79,7 +79,6 @@ const CLASS_EXT: &[u8] = b"class";
 pub(crate) struct ClassReader(Cursor<Vec<u8>>);
 
 impl ClassReader {
-    
     /// Create a new `ClassReader`.
     #[inline]
     pub(crate) fn new<P: AsRef<Path>>(path: P) -> Result<Self> {
@@ -159,7 +158,6 @@ impl ClassReader {
 }
 
 impl ClassReader {
-    
     /// Read and interpret the next bytes as the constant pool.
     pub(crate) fn parse_cp(&mut self) -> Result<ConstantPool> {
         let cp_count = self.read_u16()? as usize - 1;
@@ -248,7 +246,7 @@ impl ClassReader {
         Ok(methods)
     }
 
-    /// Read and interpret the next bytes as the method attributes. 
+    /// Read and interpret the next bytes as the method attributes.
     fn parse_method_attr(&mut self, cp: &ConstantPool, method: &mut Method) -> Result<()> {
         let mut sig_present = false;
         let mut exc_present = false;
@@ -372,7 +370,8 @@ impl ClassReader {
         Ok(table)
     }
 
-    /// Read and interpret the next bytes as the inner attributes of the `Code` attribute.
+    /// Read and interpret the next bytes as the inner attributes of the `Code`
+    /// attribute.
     fn parse_code_inner_attr(&mut self, cp: &ConstantPool, code: &mut Code) -> Result<()> {
         let code_attr_name = self.read_u16()?;
         let name = cp.get_utf8(code_attr_name as usize).context(
@@ -508,7 +507,8 @@ impl ClassReader {
         Ok(smf)
     }
 
-    /// Read and interpret the next bytes as `size` verification_type attributes.
+    /// Read and interpret the next bytes as `size` verification_type
+    /// attributes.
     fn v_type_vec(&mut self, size: usize) -> Result<Vec<VType>> {
         let vec = (0..size)
             .map(|_| self.get_v_type())
@@ -539,7 +539,7 @@ impl ClassReader {
             .collect::<Result<Vec<Field>>>()?;
         Ok(fields)
     }
-    
+
     /// Read and interpret the next bytes as a `Method`.
     fn parse_method(&mut self, cp: &ConstantPool, min_ver: u16, maj_ver: u16) -> Result<Method> {
         let mut method = Method {
@@ -582,7 +582,7 @@ impl ClassReader {
 
         Ok(field)
     }
-    
+
     /// Read and interpret the next bytes as the `Field` attributes.
     fn parse_field_attr(
         &mut self,
@@ -642,7 +642,8 @@ impl ClassReader {
         Ok(())
     }
 
-    /// Read and interpret the next bytes as the class' list of interface indices
+    /// Read and interpret the next bytes as the class' list of interface
+    /// indices
     pub(crate) fn parse_interfaces(&mut self) -> Result<Vec<usize>> {
         let interfaces_len = self.read_u16()?;
         let interfaces = (0..interfaces_len)
@@ -841,8 +842,8 @@ impl ClassReader {
         Ok(anno)
     }
 
-    /// Read and interpret the next bytes as the `RuntimeVisible` and `RuntimeInvisible` 
-    /// annotations.
+    /// Read and interpret the next bytes as the `RuntimeVisible` and
+    /// `RuntimeInvisible` annotations.
     fn parse_invis_vis_anno(&mut self, cp: &ConstantPool) -> Result<Vec<Annotation>> {
         let num_anno = self.read_u16()? as usize;
         (0..num_anno)
@@ -858,7 +859,7 @@ impl ClassReader {
             .collect::<Result<Vec<ParameterAnnotation>>>()
     }
 
-    /// Read and interpret the next bytes as a list of type annotations. 
+    /// Read and interpret the next bytes as a list of type annotations.
     fn parse_type_anno(&mut self, cp: &ConstantPool) -> Result<Vec<TypeAnnotation>> {
         /*
             TODO This function may need to be changed due to different target_types
@@ -883,7 +884,7 @@ impl ClassReader {
             .collect::<Result<Vec<TypeAnnotation>>>()
     }
 
-    /// Read and interpret the next bytes as the `Signature` attribute. 
+    /// Read and interpret the next bytes as the `Signature` attribute.
     fn parse_sig_attr(&mut self, cp: &ConstantPool, contains_sig: &mut bool) -> Result<String> {
         if *contains_sig {
             bail!("Attribute cannot have more that one Signature attribute")
@@ -968,7 +969,7 @@ impl ClassReader {
         };
         Ok(type_target)
     }
-    
+
     /// Read and interpret the next bytes as the `ModulePackages` attribute.
     fn parse_module_pckgs_attr(&mut self, cp: &ConstantPool) -> Result<ModulePackages> {
         let package_len = self.read_u16()? as usize;
@@ -1146,7 +1147,6 @@ impl ClassReader {
         })
     }
 
-
     /// Read and interpret the next bytes as a `Opens`.
     fn parse_opens(&mut self, cp: &ConstantPool) -> Result<Opens> {
         let opens_index = self.read_u16()? as usize;
@@ -1208,8 +1208,8 @@ impl ClassReader {
             .collect::<Result<Vec<u16>>>()
     }
 
-    /// Read and interpret the next `length` bytes as indices to the constant pool,
-    /// where `Constant::Class` entries can be found.
+    /// Read and interpret the next `length` bytes as indices to the constant
+    /// pool, where `Constant::Class` entries can be found.
     fn read_classes(
         &mut self,
         length: usize,
@@ -1226,7 +1226,8 @@ impl ClassReader {
         Ok(classes)
     }
 
-    /// Verifies the constant pool entry at the provided `index` is a `Constant::UTF8`.
+    /// Verifies the constant pool entry at the provided `index` is a
+    /// `Constant::UTF8`.
     #[inline]
     fn verify_utf8(cp: &ConstantPool, index: usize, message: &'static str) -> Result<()> {
         if cp.get_utf8(index).is_err() {
@@ -1311,7 +1312,8 @@ impl ClassReader {
         Ok(element_value)
     }
 
-    /// Helper method for parsing `RuntimeVisible` and `RuntimeInvisible` annotations.
+    /// Helper method for parsing `RuntimeVisible` and `RuntimeInvisible`
+    /// annotations.
     fn parse_invis_vis_inner_anno(&mut self, cp: &ConstantPool) -> Result<Annotation> {
         let type_index = self.read_u16()? as usize;
         Self::verify_utf8(
@@ -1326,7 +1328,8 @@ impl ClassReader {
         })
     }
 
-    /// Read and interpret the next bytes as an array of `ElementPairs` attributes.
+    /// Read and interpret the next bytes as an array of `ElementPairs`
+    /// attributes.
     fn parse_element_pairs(&mut self, cp: &ConstantPool) -> Result<Vec<ElementPairs>> {
         let pairs_len = self.read_u16()? as usize;
         (0..pairs_len)
@@ -1341,7 +1344,7 @@ impl ClassReader {
             })
             .collect::<Result<Vec<ElementPairs>>>()
     }
-    
+
     /// Read and interpret the given bytes as a JVM compliant Utf8 string.
     fn parse_jvm_utf8(bytes: &[u8]) -> Result<String> {
         fn parse_u32(decoded_string: &mut String, code: u32) -> Result<()> {
@@ -1434,7 +1437,8 @@ fn log_unrec_attr(name: &str, context: &str) -> Result<()> {
     Ok(())
 }
 
-/// Helper function that confirms the `ClassReader`'s cursor is where it is expected.
+/// Helper function that confirms the `ClassReader`'s cursor is where it is
+/// expected.
 #[inline]
 fn validate_cursor(curr: u64, expect: u64) -> Result<()> {
     if curr != expect {
