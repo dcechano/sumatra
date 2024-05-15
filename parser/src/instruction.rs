@@ -1,6 +1,6 @@
 use std::{collections::HashMap, convert::TryFrom};
 
-use anyhow::{anyhow, bail, Result};
+use anyhow::{bail, Result};
 
 use crate::{
     class_reader::ClassReader,

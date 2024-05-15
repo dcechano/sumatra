@@ -3,7 +3,7 @@ use std::path::PathBuf;
 use anyhow::{bail, Result};
 
 use sumatra_parser::{
-    constant::Constant, flags::MethodAccessFlags, instruction::Instruction, method::Method,
+    constant::Constant, instruction::Instruction, method::Method,
 };
 
 use crate::{
@@ -74,9 +74,10 @@ impl VM {
         let code = &self.frame().method.code;
         let op_code = &code.op_code;
         println!("\nExecuting method: {}", self.frame().method.name);
+        let mut i = 0;
         while let Some(code) = op_code.get(self.frame().pc) {
             if self.frame().method.name != "<clinit>" {
-                println!("\tExecuting code: {code:?}");
+                println!("\t{code:?}");
             }
             match code {
                 Instruction::AaLoad => todo!(),
@@ -203,8 +204,6 @@ impl VM {
                         continue;
                     }
                 }
-                Instruction::IfIcmpge(offset) => {
-                    if self.ifcmp(*offset as usize, Compare::GreaterOrEqual) {
                 Instruction::IfIcmpge(index) => {
                     if self.ifcmp(*index, Compare::GreaterOrEqual) {
                         continue;
@@ -261,13 +260,13 @@ impl VM {
                 Instruction::IMul => todo!(),
                 Instruction::INeg => todo!(),
                 Instruction::InstanceOf(_) => todo!(),
-                Instruction::InvokeDynamic(index, _, _) => println!("\tInvokeDynamic: {index}"),
+                Instruction::InvokeDynamic(index, _, _) => println!("\t    InvokeDynamic: {index}"),
                 Instruction::InvokeInterface(_, _, _) => todo!(),
                 Instruction::InvokeSpecial(_) => todo!(),
                 Instruction::InvokeStatic(method_index) => {
                     self.invoke_static(&(*method_index as usize))?
                 }
-                Instruction::InvokeVirtual(index) => println!("\tInvokeVirtual: {index}"),
+                Instruction::InvokeVirtual(index) => println!("\t    InvokeVirtual: {index}"),
                 Instruction::IOr => todo!(),
                 Instruction::IRem => self.irem()?,
                 Instruction::IReturn => todo!(),
@@ -338,6 +337,7 @@ impl VM {
                 Instruction::Wide(winstr) => todo!(),
             }
             self.frame_mut().pc += 1;
+            i += 1;
         }
         println!("Exiting method: {}", self.frame().method.name);
         self.frames.pop();
@@ -437,7 +437,7 @@ impl VM {
         }
     }
 
-    /// Similar to `VM::ifcmp` but only operates on Java ints.
+    /// Similar to `VM::ifcmp` but only operates on Java ints and compares to 0.
     fn if_cond(&mut self, offset: usize, cmp: Compare) -> bool {
         let frame = self.frame_mut();
         let int = frame.pop();
@@ -470,7 +470,6 @@ impl VM {
                 println!("Method was a native method. Ignoring.");
                 Ok(())
             } else {
-                // TODO implement a proper way to pass in the local variable to the stack frame.
                 let num_params = method.parsed_descriptor.num_params();
                 let max_locals = method.code.max_locals as usize;
                 
@@ -733,7 +732,8 @@ impl VM {
         })
     }
 
-    /// Construct a method name from the index to the name, and the index to the descriptor.
+    /// Construct a method name from the index to the name, and the index to the
+    /// descriptor.
     #[inline]
     fn construct_m_name(&self, name_index: usize, descr_index: usize) -> Result<String> {
         let cp = self.frame().cp;
