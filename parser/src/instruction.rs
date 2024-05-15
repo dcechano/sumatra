@@ -51,6 +51,7 @@ pub enum Instruction {
     D2F,
     D2I,
     D2L,
+    /// Add double
     DAdd,
     DaLoad,
     DaStore,
@@ -72,10 +73,15 @@ pub enum Instruction {
     DNeg,
     DRem,
     DReturn,
+    /// Store double into local variable n and n + 1.
     DStore(u8),
+    /// Store double into local variable 0 and 1.
     DStore0,
+    /// Store double into local variable 1 and 2.
     DStore1,
+    /// Store double into local variable 2 and 3.
     DStore2,
+    /// Store double into local variable 3 and 4.
     DStore3,
     DSub,
     Dup,

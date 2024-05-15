@@ -74,7 +74,6 @@ impl VM {
         let code = &self.frame().method.code;
         let op_code = &code.op_code;
         println!("\nExecuting method: {}", self.frame().method.name);
-        let mut i = 0;
         while let Some(code) = op_code.get(self.frame().pc) {
             if self.frame().method.name != "<clinit>" {
                 println!("\t{code:?}");
@@ -106,7 +105,7 @@ impl VM {
                 Instruction::D2F => todo!(),
                 Instruction::D2I => todo!(),
                 Instruction::D2L => todo!(),
-                Instruction::DAdd => todo!(),
+                Instruction::DAdd => self.dadd()?,
                 Instruction::DaLoad => todo!(),
                 Instruction::DaStore => todo!(),
                 Instruction::Dcmpg => todo!(),
@@ -123,11 +122,11 @@ impl VM {
                 Instruction::DNeg => todo!(),
                 Instruction::DRem => todo!(),
                 Instruction::DReturn => todo!(),
-                Instruction::DStore(_) => todo!(),
-                Instruction::DStore0 => todo!(),
-                Instruction::DStore1 => todo!(),
-                Instruction::DStore2 => todo!(),
-                Instruction::DStore3 => todo!(),
+                Instruction::DStore(local_index) => self.dstore_n(*local_index as usize)?,
+                Instruction::DStore0 => self.dstore_n(0)?,
+                Instruction::DStore1 => self.dstore_n(1)?,
+                Instruction::DStore2 => self.dstore_n(2)?,
+                Instruction::DStore3 => self.dstore_n(3)?,
                 Instruction::DSub => todo!(),
                 Instruction::Dup => todo!(),
                 Instruction::DupX1 => todo!(),
@@ -336,8 +335,8 @@ impl VM {
                 Instruction::TableSwitch { .. } => todo!(),
                 Instruction::Wide(winstr) => todo!(),
             }
+            println!("\tSTACK: {:?}", self.frame().stack);
             self.frame_mut().pc += 1;
-            i += 1;
         }
         println!("Exiting method: {}", self.frame().method.name);
         self.frames.pop();
@@ -378,6 +377,18 @@ impl VM {
 
         Ok(frame.push(object))
     }
+
+    /// Executes the `Instruction::DAdd` instruction.
+    fn dadd(&mut self) -> Result<()> {
+        let frame = self.frame_mut();
+        let value2 = frame.pop();
+        let value1 = frame.pop();
+        let sum = match (value2, value1) {
+            (Value::Double(double2), Value::Double(double1)) => double2 + double1,
+            _ => bail!("Expected 2 doubles for dadd instruction."),
+        };
+        Ok(frame.push(Value::Double(sum)))
+    }
     
     /// Executes the `Instruction::DLoad<local_index>` instruction. `local_index`
     /// is the index of the local variable in the currently
@@ -395,6 +406,20 @@ impl VM {
         Ok(frame.push(double))
     }
 
+    /// Executes the `Instruction::DStore<local_index>` instruction. `local_index`
+    /// is the index of the local variable in the currently
+    /// executing frame's local variable array. 
+    fn dstore_n(&mut self, local_index: usize) -> Result<()> {
+        let frame = self.frame_mut();
+        let double = frame.pop();
+        if !matches!(double, Value::Double(_)) {
+            bail!("Expected a double for dstore instruction.");
+        }
+        
+        *frame.locals.get_mut(local_index + 1).unwrap() = double.clone();
+        Ok(*frame.locals.get_mut(local_index).unwrap() = double)
+    }
+    
     /// Executes the `Instruction::IConst` instruction. `int` is the integer
     /// to be pushed on the operand stack.
     fn iconst_n(&mut self, int: i32) { self.frame_mut().push(Value::Int(int)); }
