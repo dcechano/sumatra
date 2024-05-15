@@ -1,6 +1,6 @@
-use std::convert::TryFrom;
+use std::{collections::HashMap, convert::TryFrom};
 
-use anyhow::{bail, Result};
+use anyhow::{anyhow, bail, Result};
 
 use crate::{
     class_reader::ClassReader,
@@ -111,8 +111,8 @@ pub enum Instruction {
     /// get `static` field from class and add to stack,
     /// where the operand is index of class in the constant pool.
     GetStatic(usize),
-    GoTo(i16),
-    GoToW(i32),
+    GoTo(usize),
+    GoToW(usize),
     I2B,
     I2C,
     I2D,
@@ -138,28 +138,28 @@ pub enum Instruction {
     /// Push int constant 5.
     IConst5,
     IDiv,
-    IfAcmpeq(i16),
-    IfAcmpne(i16),
-    IfIcmpeq(i16),
-    IfIcmpne(i16),
-    IfIcmplt(i16),
-    IfIcmpge(i16),
-    IfIcmpgt(i16),
-    IfIcmple(i16),
+    IfAcmpeq(usize),
+    IfAcmpne(usize),
+    IfIcmpeq(usize),
+    IfIcmpne(usize),
+    IfIcmplt(usize),
+    IfIcmpge(usize),
+    IfIcmpgt(usize),
+    IfIcmple(usize),
     /// Branch to offset if int on operand stack == 0
-    Ifeq(i16),
+    Ifeq(usize),
     /// Branch to offset if int on operand stack != 0
-    Ifne(i16),
+    Ifne(usize),
     /// Branch to offset if int on operand stack < 0
-    Iflt(i16),
+    Iflt(usize),
     /// Branch to offset if int on operand stack >= 0
-    Ifge(i16),
+    Ifge(usize),
     /// Branch to offset if int on operand stack > 0
-    Ifgt(i16),
+    Ifgt(usize),
     /// Branch to offset if int on operand stack <= 0
-    Ifle(i16),
-    IfNonNull(i16),
-    IfNull(i16),
+    Ifle(usize),
+    IfNonNull(usize),
+    IfNull(usize),
     Iinc(u8, i8), // TODO double check the spec on this one. It was confusing.
     /// load local int variable at supplied index and push to operand stack.
     ILoad(u8),
@@ -293,7 +293,22 @@ impl Instruction {
     pub fn from_bytes(bytes: &[u8]) -> Result<Vec<Self>> {
         let mut cursor = ClassReader::with_buffer(bytes);
         let mut instructions = Vec::with_capacity(bytes.len());
+
+        /*
+            This vector is to keep track of how many bytes have been processed at any instruction.
+            This helps to figure out what offset to give the Goto instruction since the class file
+            uses bytes as the Goto index not the instruction index (sumatra uses instruction index).
+            If Goto has byte n in bytecode, the instruction index for that byte is at byte_to_instr[n].
+        */
+        let mut byte_to_instr = vec![0; bytes.len()];
+        /*
+            The jmp_registry contains all entries in the byte_to_instr that contain a "jmp" instruction.
+            the key is index of the instruction in the instructions vector, the value is the byte to jump to.
+        */
+        let mut jmp_registry = HashMap::with_capacity(bytes.len());
+
         while cursor.position() != bytes.len() as u64 {
+            *byte_to_instr.get_mut(cursor.position() as usize).unwrap() = instructions.len();
             let instruction = match cursor.read_u8()? {
                 50 => AaLoad,
                 83 => AaStore,
@@ -379,8 +394,20 @@ impl Instruction {
                 102 => FSub,
                 180 => GetField(cursor.read_u16()?),
                 178 => GetStatic(cursor.read_u16()? as usize),
-                167 => GoTo((cursor.position() - 1) as i16 + cursor.read_i16()?),
-                200 => GoToW((cursor.position() - 1) as i32 + cursor.read_i32()?),
+                167 => {
+                    jmp_registry.insert(
+                        instructions.len(),
+                        (cursor.position() - 1) as i16 + cursor.read_i16()?,
+                    );
+                    GoTo(0)
+                }
+                200 => {
+                    jmp_registry.insert(
+                        instructions.len(),
+                        (cursor.position() - 1) as i16 + cursor.read_i16()?,
+                    );
+                    GoToW(0)
+                }
                 145 => I2B,
                 146 => I2C,
                 135 => I2D,
@@ -399,22 +426,122 @@ impl Instruction {
                 7 => IConst4,
                 8 => IConst5,
                 108 => IDiv,
-                165 => IfAcmpeq(cursor.read_i16()?),
-                166 => IfAcmpne(cursor.read_i16()?),
-                159 => IfIcmpeq(cursor.read_i16()?),
-                160 => IfIcmpne(cursor.read_i16()?),
-                161 => IfIcmplt(cursor.read_i16()?),
-                162 => IfIcmpge(cursor.read_i16()?),
-                163 => IfIcmpgt(cursor.read_i16()?),
-                164 => IfIcmple(cursor.read_i16()?),
-                153 => Ifeq(cursor.read_i16()?),
-                154 => Ifne(cursor.read_i16()?),
-                155 => Iflt(cursor.read_i16()?),
-                156 => Ifge(cursor.read_i16()?),
-                157 => Ifgt(cursor.read_i16()?),
-                158 => Ifle(cursor.read_i16()?),
-                199 => IfNonNull(cursor.read_i16()?),
-                198 => IfNull(cursor.read_i16()?),
+                165 => {
+                    jmp_registry.insert(
+                        instructions.len(),
+                        (cursor.position() - 1) as i16 + cursor.read_i16()?,
+                    );
+                    IfAcmpeq(0)
+                }
+                166 => {
+                    jmp_registry.insert(
+                        instructions.len(),
+                        (cursor.position() - 1) as i16 + cursor.read_i16()?,
+                    );
+                    IfAcmpne(0)
+                }
+                159 => {
+                    jmp_registry.insert(
+                        instructions.len(),
+                        (cursor.position() - 1) as i16 + cursor.read_i16()?,
+                    );
+                    IfIcmpeq(0)
+                }
+                160 => {
+                    jmp_registry.insert(
+                        instructions.len(),
+                        (cursor.position() - 1) as i16 + cursor.read_i16()?,
+                    );
+                    IfIcmpne(0)
+                }
+                161 => {
+                    jmp_registry.insert(
+                        instructions.len(),
+                        (cursor.position() - 1) as i16 + cursor.read_i16()?,
+                    );
+                    IfIcmplt(0)
+                }
+                162 => {
+                    //TODO Remove debug print
+                    let x = (cursor.position() - 1) as i16 + cursor.read_i16()?;
+                    println!("Bytes is: {x}");
+                    jmp_registry.insert(
+                        instructions.len(),
+                        x,
+                    );
+                    IfIcmpge(0)
+                }
+                163 => {
+
+                    jmp_registry.insert(
+                        instructions.len(),
+                        (cursor.position() - 1) as i16 + cursor.read_i16()?,
+                    );
+                    IfIcmpgt(0)
+                }
+                164 => {
+                    jmp_registry.insert(
+                        instructions.len(),
+                        (cursor.position() - 1) as i16 + cursor.read_i16()?,
+                    );
+                    IfIcmple(0)
+                }
+                153 => {
+                    jmp_registry.insert(
+                        instructions.len(),
+                        (cursor.position() - 1) as i16 + cursor.read_i16()?,
+                    );
+                    Ifeq(0)
+                }
+                154 => {
+                    jmp_registry.insert(
+                        instructions.len(),
+                        (cursor.position() - 1) as i16 + cursor.read_i16()?,
+                    );
+                    Ifne(0)
+                }
+                155 => {
+                    jmp_registry.insert(
+                        instructions.len(),
+                        (cursor.position() - 1) as i16 + cursor.read_i16()?,
+                    );
+                    Iflt(0)
+                }
+                156 => {
+                    jmp_registry.insert(
+                        instructions.len(),
+                        (cursor.position() - 1) as i16 + cursor.read_i16()?,
+                    );
+                    Ifge(0)
+                }
+                157 => {
+                    jmp_registry.insert(
+                        instructions.len(),
+                        (cursor.position() - 1) as i16 + cursor.read_i16()?,
+                    );
+                    Ifgt(0)
+                }
+                158 => {
+                    jmp_registry.insert(
+                        instructions.len(),
+                        (cursor.position() - 1) as i16 + cursor.read_i16()?,
+                    );
+                    Ifle(0)
+                }
+                199 => {
+                    jmp_registry.insert(
+                        instructions.len(),
+                        (cursor.position() - 1) as i16 + cursor.read_i16()?,
+                    );
+                    IfNonNull(cursor.read_i16()? as usize)
+                }
+                198 => {
+                    jmp_registry.insert(
+                        instructions.len(),
+                        (cursor.position() - 1) as i16 + cursor.read_i16()?,
+                    );
+                    IfNull(cursor.read_i16()? as usize)
+                }
                 132 => Iinc(cursor.read_u8()?, cursor.read_i8()?),
                 21 => ILoad(cursor.read_u8()?),
                 26 => ILoad0,
@@ -554,6 +681,9 @@ impl Instruction {
             };
             instructions.push(instruction)
         }
+        if !jmp_registry.is_empty() {
+            Self::fix_jmps(jmp_registry, &byte_to_instr, &mut instructions);
+        }
         instructions.shrink_to_fit();
         Ok(instructions)
     }
@@ -579,6 +709,43 @@ impl Instruction {
             invalid => bail!("Invalid Opcode for Wide instruction: {invalid:?}."),
         };
         Ok(opcode)
+    }
+
+    fn fix_jmps(
+        registry: HashMap<usize, i16>,
+        byte_to_instr: &[usize],
+        instrs: &mut [Instruction],
+    ) {
+        /*
+            1. Get jmp_instr_index and jmp_byte from registry.
+            2. Use jmp_instr_index to get the jmp instruction to be modified via instrs slice.
+            3. mutate the operand in the retrieved jmp instruction to point to an instruction by
+               converting the jmp_byte to an instruction via byte_to_instr slice.
+        */
+        for (jmp_instr_index, jmp_byte) in registry.into_iter() {
+            let jmp_instr = instrs.get_mut(jmp_instr_index).unwrap();
+            match jmp_instr {
+                IfAcmpeq(ind) => *ind = byte_to_instr[jmp_byte as usize],
+                IfAcmpne(ind) => *ind = byte_to_instr[jmp_byte as usize],
+                IfIcmpeq(ind) => *ind = byte_to_instr[jmp_byte as usize],
+                IfIcmpne(ind) => *ind = byte_to_instr[jmp_byte as usize],
+                IfIcmplt(ind) => *ind = byte_to_instr[jmp_byte as usize],
+                IfIcmpge(ind) => *ind = byte_to_instr[jmp_byte as usize],
+                IfIcmpgt(ind) => *ind = byte_to_instr[jmp_byte as usize],
+                IfIcmple(ind) => *ind = byte_to_instr[jmp_byte as usize],
+                Ifeq(ind) => *ind = byte_to_instr[jmp_byte as usize],
+                Ifne(ind) => *ind = byte_to_instr[jmp_byte as usize],
+                Iflt(ind) => *ind = byte_to_instr[jmp_byte as usize],
+                Ifge(ind) => *ind = byte_to_instr[jmp_byte as usize],
+                Ifgt(ind) => *ind = byte_to_instr[jmp_byte as usize],
+                Ifle(ind) => *ind = byte_to_instr[jmp_byte as usize],
+                IfNonNull(ind) => *ind = byte_to_instr[jmp_byte as usize],
+                IfNull(ind) => *ind = byte_to_instr[jmp_byte as usize],
+                GoTo(ind) => *ind = byte_to_instr[jmp_byte as usize],
+                GoToW(ind) => *ind = byte_to_instr[jmp_byte as usize],
+                _ => unreachable!(),
+            }
+        }
     }
 }
 impl TryFrom<u8> for Instruction {

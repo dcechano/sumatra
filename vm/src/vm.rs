@@ -163,7 +163,10 @@ impl VM {
                 Instruction::FSub => todo!(),
                 Instruction::GetField(_) => todo!(),
                 Instruction::GetStatic(index) => self.get_static(*index)?,
-                Instruction::GoTo(_) => todo!(),
+                Instruction::GoTo(instr) => {
+                    self.frame_mut().pc = *instr;
+                    continue;
+                }
                 Instruction::GoToW(_) => todo!(),
                 Instruction::I2B => todo!(),
                 Instruction::I2C => todo!(),
@@ -185,69 +188,71 @@ impl VM {
                 Instruction::IDiv => todo!(),
                 Instruction::IfAcmpeq(_) => todo!(),
                 Instruction::IfAcmpne(_) => todo!(),
-                Instruction::IfIcmpeq(offset) => {
-                    if self.ifcmp(*offset as usize, Compare::Equal) {
+                Instruction::IfIcmpeq(index) => {
+                    if self.ifcmp(*index, Compare::Equal) {
                         continue;
                     }
                 }
-                Instruction::IfIcmpne(offset) => {
-                    if self.ifcmp(*offset as usize, Compare::NotEqual) {
+                Instruction::IfIcmpne(index) => {
+                    if self.ifcmp(*index, Compare::NotEqual) {
                         continue;
                     }
                 }
-                Instruction::IfIcmplt(offset) => {
-                    if self.ifcmp(*offset as usize, Compare::LessThan) {
+                Instruction::IfIcmplt(index) => {
+                    if self.ifcmp(*index, Compare::LessThan) {
                         continue;
                     }
                 }
                 Instruction::IfIcmpge(offset) => {
                     if self.ifcmp(*offset as usize, Compare::GreaterOrEqual) {
+                Instruction::IfIcmpge(index) => {
+                    if self.ifcmp(*index, Compare::GreaterOrEqual) {
                         continue;
                     }
                 }
-                Instruction::IfIcmpgt(offset) => {
-                    if self.ifcmp(*offset as usize, Compare::GreaterThan) {
+                Instruction::IfIcmpgt(index) => {
+                    if self.ifcmp(*index, Compare::GreaterThan) {
                         continue;
                     }
                 }
-                Instruction::IfIcmple(offset) => {
-                    if self.ifcmp(*offset as usize, Compare::LessOrEqual) {
+                Instruction::IfIcmple(index) => {
+                    if self.ifcmp(*index, Compare::LessOrEqual) {
                         continue;
                     }
                 }
-                Instruction::Ifeq(offset) => {
-                    if self.if_cond(*offset as usize, Compare::Equal) {
+                Instruction::Ifeq(index) => {
+                    if self.if_cond(*index, Compare::Equal) {
                         continue;
                     }
                 }
-                Instruction::Ifne(offset) => {
-                    if self.if_cond(*offset as usize, Compare::NotEqual) {
+                Instruction::Ifne(index) => {
+                    if self.if_cond(*index, Compare::NotEqual) {
                         continue;
                     }
                 }
-                Instruction::Iflt(offset) => {
-                    if self.if_cond(*offset as usize, Compare::LessThan) {
+                Instruction::Iflt(index) => {
+                    if self.if_cond(*index, Compare::LessThan) {
                         continue;
                     }
                 }
-                Instruction::Ifge(offset) => {
-                    if self.if_cond(*offset as usize, Compare::GreaterOrEqual) {
+                Instruction::Ifge(index) => {
+                    if self.if_cond(*index, Compare::GreaterOrEqual) {
                         continue;
                     }
                 }
-                Instruction::Ifgt(offset) => {
-                    if self.if_cond(*offset as usize, Compare::GreaterThan) {
+                Instruction::Ifgt(index) => {
+                    if self.if_cond(*index, Compare::GreaterThan) {
                         continue;
                     }
                 }
-                Instruction::Ifle(offset) => {
-                    if self.if_cond(*offset as usize, Compare::LessOrEqual) {
+                Instruction::Ifle(index) => {
+                    if self.if_cond(*index, Compare::LessOrEqual) {
                         continue;
                     }
                 }
                 Instruction::IfNonNull(_) => todo!(),
                 Instruction::IfNull(_) => todo!(),
-                Instruction::Iinc(_, _) => todo!(),
+                Instruction::Iinc(index, inc) => self.iinc(*index as usize, *inc as i32),
                 Instruction::ILoad(local_index) => self.iload_n(*local_index as usize)?,
                 Instruction::ILoad0 => self.iload_n(0)?,
                 Instruction::ILoad1 => self.iload_n(1)?,
@@ -414,7 +419,7 @@ impl VM {
         }
         let jmp = Self::if_in(int, Value::Int(0), cmp);
         if jmp {
-            frame.pc += offset;
+            frame.pc = offset;
         }
         jmp
     }
@@ -694,13 +699,13 @@ impl VM {
         if num_params > max_locals {
             bail!("number of method parameters was larger than the max locals.");
         }
-        let stack_size = self.stack.len();
+        let stack_size = self.frame().stack.len();
 
         Ok(match (num_params, max_locals) {
             (0, 0) => vec![],
             (0, _) => Value::default_vec(max_locals),
             _ => {
-                let mut params = Vec::from(&self.stack[stack_size - num_params..stack_size]);
+                let mut params = Vec::from(&self.frame().stack[stack_size - num_params..stack_size]);
                 Value::populate_locals(max_locals, &mut params);
                 params
             }
