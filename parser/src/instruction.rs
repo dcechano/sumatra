@@ -188,7 +188,7 @@ pub enum Instruction {
     /// Invoke instance method; dispatch based on class
     InvokeVirtual(usize),
     IOr,
-    /// Pop two integers off the operand stack, calculate the 
+    /// Pop two integers off the operand stack, calculate the
     /// remainder and push the result.
     IRem,
     /// Return integer at the top of the operand stack.
@@ -256,7 +256,7 @@ pub enum Instruction {
     Pop,
     Pop2,
     PutField(u16),
-    /// Assign value on top of operand stack to the 
+    /// Assign value on top of operand stack to the
     /// class field found in the runtime constant pool
     /// at the given index.
     PutStatic(u16),
