@@ -453,9 +453,7 @@ impl VM {
 
     /// Invoke a static method. `method_index` is the index to the
     /// `Constant::MethodRef` in the runtime constant pool.
-    /// 
     fn invoke_static(&mut self, method_index: &usize) -> Result<()> {
-        let stack_size = self.stack.len();
         let frame = self.frame();
         if let Constant::MethodRef {
             class_index,
@@ -475,10 +473,7 @@ impl VM {
                 // TODO implement a proper way to pass in the local variable to the stack frame.
                 let num_params = method.parsed_descriptor.num_params();
                 let max_locals = method.code.max_locals as usize;
-                println!(
-                    "stack_size: {stack_size} num_locals: {num_params}, max_locals: {max_locals}"
-                );
-
+                
                 let frame = CallFrame::new(
                     method,
                     &class.cp,
@@ -492,7 +487,7 @@ impl VM {
             bail!("Expected Constant::MethodRef in invoke_static.");
         }
     }
-    
+
     /// Executes the `Instruction::ILoad` instruction.
     /// `local_index` is the index to the local variable in the
     /// locals array.
@@ -531,8 +526,8 @@ impl VM {
         }
         bail!("expected 2 integers for irem instruction.");
     }
-    
-    /// Executes the `Instruction::Ldc`, and `Instruction::LdcW` instructions. 
+
+    /// Executes the `Instruction::Ldc`, and `Instruction::LdcW` instructions.
     /// `index` is the index of the constnat in the runtime constant pool.
     fn load_const(&mut self, index: &usize) -> Result<()> {
         let frame = self.frame_mut();
@@ -619,7 +614,6 @@ impl VM {
 // Utility functions are seperated into a different impl block for ease of
 // navigation.
 impl VM {
-    
     /// Return a mutable reference to the top most call frame.
     #[inline(always)]
     fn frame_mut(&mut self) -> &mut CallFrame { self.frames.last_mut().unwrap() }
