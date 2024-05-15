@@ -113,11 +113,11 @@ impl VM {
                 Instruction::DConst0 => todo!(),
                 Instruction::DConst1 => todo!(),
                 Instruction::DDiv => todo!(),
-                Instruction::DLoad(_) => todo!(),
-                Instruction::DLoad0 => todo!(),
-                Instruction::DLoad1 => todo!(),
-                Instruction::DLoad2 => todo!(),
-                Instruction::DLoad3 => todo!(),
+                Instruction::DLoad(local_index) => self.dload_n(*local_index as usize)?,
+                Instruction::DLoad0 => self.dload_n(0)?,
+                Instruction::DLoad1 => self.dload_n(1)?,
+                Instruction::DLoad2 => self.dload_n(2)?,
+                Instruction::DLoad3 => self.dload_n(3)?,
                 Instruction::DMul => todo!(),
                 Instruction::DNeg => todo!(),
                 Instruction::DRem => todo!(),
@@ -377,6 +377,22 @@ impl VM {
         }
 
         Ok(frame.push(object))
+    }
+    
+    /// Executes the `Instruction::DLoad<local_index>` instruction. `local_index`
+    /// is the index of the local variable in the currently
+    /// executing frame's local variable array.
+    fn dload_n(&mut self, local_index: usize) -> Result<()> {
+        let frame = self.frame_mut();
+        let double = frame.load(local_index)?;
+        if !matches!(
+            double,
+            Value::Double(_)
+        ) {
+            bail!("Expected ref type for a_load instruction.");
+        }
+
+        Ok(frame.push(double))
     }
 
     /// Executes the `Instruction::IConst` instruction. `int` is the integer
