@@ -60,9 +60,13 @@ pub enum Instruction {
     DConst1,
     DDiv,
     DLoad(u8),
+    /// Load double from local variable 0
     DLoad0,
+    /// Load double from local variable 1
     DLoad1,
+    /// Load double from local variable 2
     DLoad2,
+    /// Load double from local variable 3
     DLoad3,
     DMul,
     DNeg,
