@@ -23,7 +23,6 @@ const DEFAULT_VEC_SIZE: usize = 128;
 pub struct VM {
     pub(crate) frames: Vec<CallFrame>,
     pub(crate) method_area: MethodArea,
-    pub(crate) stack: Vec<Value>,
     pub(crate) class_manager: ClassManager,
 }
 
@@ -39,7 +38,6 @@ impl VM {
         Self {
             frames: Vec::with_capacity(DEFAULT_VEC_SIZE),
             method_area,
-            stack: Vec::with_capacity(DEFAULT_VEC_SIZE),
             class_manager: ClassManager::new(c_path),
         }
     }
