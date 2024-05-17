@@ -2,9 +2,7 @@ use std::path::PathBuf;
 
 use anyhow::{bail, Result};
 
-use sumatra_parser::{
-    constant::Constant, instruction::Instruction, method::Method,
-};
+use sumatra_parser::{constant::Constant, instruction::Instruction, method::Method};
 
 use crate::{
     call_frame::CallFrame,
@@ -410,7 +408,7 @@ impl VM {
         if !matches!(double, Value::Double(_)) {
             bail!("Expected a double for dstore instruction.");
         }
-        
+
         *frame.locals.get_mut(local_index + 1).unwrap() = double.clone();
         Ok(*frame.locals.get_mut(local_index).unwrap() = double)
     }
