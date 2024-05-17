@@ -65,7 +65,7 @@ impl VM {
 
     /// Executes the top most `CallFrame` on the stack. Frame
     /// gets popped off the stack before method returns.
-    fn execute_frame(&mut self) -> Result<()> {
+    fn execute_frame(&mut self) -> Result<Option<Value>> {
         let code = &self.frame().method.code;
         let op_code = &code.op_code;
         println!("\nExecuting method: {}", self.frame().method.name);
@@ -116,7 +116,7 @@ impl VM {
                 Instruction::DMul => todo!(),
                 Instruction::DNeg => todo!(),
                 Instruction::DRem => todo!(),
-                Instruction::DReturn => todo!(),
+                Instruction::DReturn => return Ok(Some(self.return_val())),
                 Instruction::DStore(local_index) => self.dstore_n(*local_index as usize)?,
                 Instruction::DStore0 => self.dstore_n(0)?,
                 Instruction::DStore1 => self.dstore_n(1)?,
@@ -149,7 +149,7 @@ impl VM {
                 Instruction::FMul => todo!(),
                 Instruction::FNeg => todo!(),
                 Instruction::FRem => todo!(),
-                Instruction::FReturn => todo!(),
+                Instruction::FReturn => return Ok(Some(self.return_val())),
                 Instruction::FStore(_) => todo!(),
                 Instruction::FStore0 => todo!(),
                 Instruction::FStore1 => todo!(),
@@ -258,12 +258,14 @@ impl VM {
                 Instruction::InvokeInterface(_, _, _) => todo!(),
                 Instruction::InvokeSpecial(_) => todo!(),
                 Instruction::InvokeStatic(method_index) => {
-                    self.invoke_static(&(*method_index as usize))?
+                    if let Some(value) = self.invoke_static(&(*method_index as usize))? {
+                        self.frame_mut().stack.push(value);
+                    }
                 }
                 Instruction::InvokeVirtual(index) => println!("\t    InvokeVirtual: {index}"),
                 Instruction::IOr => todo!(),
                 Instruction::IRem => self.irem()?,
-                Instruction::IReturn => todo!(),
+                Instruction::IReturn => return Ok(Some(self.return_val())),
                 Instruction::IShL => todo!(),
                 Instruction::IShR => todo!(),
                 Instruction::IStore(local_index) => self.istore_n(*local_index as usize)?,
@@ -300,7 +302,7 @@ impl VM {
                 Instruction::LookUpSwitch { .. } => todo!(),
                 Instruction::LOr => todo!(),
                 Instruction::LRem => todo!(),
-                Instruction::LReturn => todo!(),
+                Instruction::LReturn => return Ok(Some(self.return_val())),
                 Instruction::LShL => todo!(),
                 Instruction::LShR => todo!(),
                 Instruction::LStore(_) => todo!(),
@@ -330,12 +332,12 @@ impl VM {
                 Instruction::TableSwitch { .. } => todo!(),
                 Instruction::Wide(winstr) => todo!(),
             }
-            println!("\tSTACK: {:?}", self.frame().stack);
+            // println!("\tSTACK: {:?}", self.frame().stack);
             self.frame_mut().pc += 1;
         }
         println!("Exiting method: {}", self.frame().method.name);
         self.frames.pop();
-        Ok(())
+        Ok(None)
     }
 
     /// Executes the `Instruction::AStore` instruction.`local_index`  
@@ -399,9 +401,9 @@ impl VM {
         Ok(frame.push(double))
     }
 
-    /// Executes the `Instruction::DStore<local_index>` instruction. `local_index`
-    /// is the index of the local variable in the currently
-    /// executing frame's local variable array. 
+    /// Executes the `Instruction::DStore<local_index>` instruction.
+    /// `local_index` is the index of the local variable in the currently
+    /// executing frame's local variable array.
     fn dstore_n(&mut self, local_index: usize) -> Result<()> {
         let frame = self.frame_mut();
         let double = frame.pop();
@@ -471,7 +473,7 @@ impl VM {
 
     /// Invoke a static method. `method_index` is the index to the
     /// `Constant::MethodRef` in the runtime constant pool.
-    fn invoke_static(&mut self, method_index: &usize) -> Result<()> {
+    fn invoke_static(&mut self, method_index: &usize) -> Result<Option<Value>> {
         let frame = self.frame();
         if let Constant::MethodRef {
             class_index,
@@ -486,11 +488,11 @@ impl VM {
             // TODO implement native method calls.
             if method.is_native() {
                 println!("Method was a native method. Ignoring.");
-                Ok(())
+                Ok(None)
             } else {
                 let num_params = method.parsed_descriptor.num_params();
                 let max_locals = method.code.max_locals as usize;
-                
+
                 let frame = CallFrame::new(
                     method,
                     &class.cp,
@@ -626,6 +628,13 @@ impl VM {
         };
         Ok(())
     }
+
+    fn return_val(&mut self) -> Value {
+        println!("Exiting {}", self.frame().method.name);
+        let value = self.frame_mut().pop();
+        self.frames.pop();
+        value
+    }
 }
 
 // Utility functions are seperated into a different impl block for ease of
@@ -656,7 +665,7 @@ impl VM {
 
     /// Take a static reference to a class and push its '<clinit>'
     /// method as a stack frame to `vm.frames`.
-    fn init_class(&mut self, class: &'static Class) -> Result<()> {
+    fn init_class(&mut self, class: &'static Class) -> Result<Option<Value>> {
         println!("Initializing class: {:?}", class.get_name());
         let clinit = class.methods.get(CLINIT).unwrap();
         // clinit always takes 0 arguments
