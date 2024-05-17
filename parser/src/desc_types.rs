@@ -227,14 +227,16 @@ pub struct Params(Vec<FieldType>);
 
 impl Params {
     fn num_params(&self) -> usize {
-        println!("Params: {:?}", self.0);
-        let mut wides = 0;
-        for param in self.0.iter() {
-            if let FieldType::Base(Primitive::Double | Primitive::Long) = param {
-                wides += 1;
-            }
-        }
-        self.0.len() + wides
+        self.0
+            .iter()
+            .map(|field_type| {
+                if let FieldType::Base(Primitive::Double | Primitive::Long) = field_type {
+                    2
+                } else {
+                    1
+                }
+            })
+            .sum()
     }
 
     fn get_param(&self, index: usize) -> FieldType { self.0[index].clone() }
