@@ -472,17 +472,10 @@ impl Instruction {
                     IfIcmplt(0)
                 }
                 162 => {
-                    //TODO Remove debug print
-                    let x = (cursor.position() - 1) as i16 + cursor.read_i16()?;
-                    println!("Bytes is: {x}");
-                    jmp_registry.insert(
-                        instructions.len(),
-                        x,
-                    );
+                    jmp_registry.insert(instructions.len(), (cursor.position() - 1) as i16 + cursor.read_i16()?);
                     IfIcmpge(0)
                 }
                 163 => {
-
                     jmp_registry.insert(
                         instructions.len(),
                         (cursor.position() - 1) as i16 + cursor.read_i16()?,
