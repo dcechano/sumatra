@@ -54,10 +54,7 @@ impl VM {
         };
         let frame = self.construct_main(c_data)?;
         self.frames.push(frame);
-        while !self.frames.is_empty() {
-            self.execute_frame()?;
-        }
-
+        self.execute_frame()?;
         Ok(())
     }
 
