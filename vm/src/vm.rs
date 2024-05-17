@@ -54,12 +54,7 @@ impl VM {
         } else {
             self.load_class(c_entry)?
         };
-        let main = c_data.class;
-        let m_method = find_main(main)?;
-        let cp = &main.cp;
-        let num_locals = m_method.parsed_descriptor.num_params();
-        //TODO implement arguments to pass into main function
-        let frame = CallFrame::new(m_method, cp, num_locals, vec![Value::default()]);
+        let frame = self.construct_main(c_data)?;
         self.frames.push(frame);
         while !self.frames.is_empty() {
             self.execute_frame()?;
@@ -737,7 +732,9 @@ impl VM {
         Ok((name, data))
     }
 
-    /// Construct the local variables array and return it.
+    /// Construct the local variables array and return it. Assumes there is a
+    /// call frame on the stack. If constructing the locals for `main` use
+    /// `construct_main_locals`
     fn construct_locals(&self, max_locals: usize, num_params: usize) -> Result<Vec<Value>> {
         if num_params > max_locals {
             bail!("number of method parameters was larger than the max locals.");
