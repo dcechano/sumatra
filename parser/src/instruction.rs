@@ -472,7 +472,10 @@ impl Instruction {
                     IfIcmplt(0)
                 }
                 162 => {
-                    jmp_registry.insert(instructions.len(), (cursor.position() - 1) as i16 + cursor.read_i16()?);
+                    jmp_registry.insert(
+                        instructions.len(),
+                        (cursor.position() - 1) as i16 + cursor.read_i16()?,
+                    );
                     IfIcmpge(0)
                 }
                 163 => {
