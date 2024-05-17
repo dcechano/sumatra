@@ -387,22 +387,20 @@ impl VM {
             (Value::Double(double2), Value::Double(double1)) => double2 + double1,
             _ => bail!("Expected 2 doubles for dadd instruction."),
         };
+        frame.push(Value::Double(sum));
         Ok(frame.push(Value::Double(sum)))
     }
-    
-    /// Executes the `Instruction::DLoad<local_index>` instruction. `local_index`
-    /// is the index of the local variable in the currently
+
+    /// Executes the `Instruction::DLoad<local_index>` instruction.
+    /// `local_index` is the index of the local variable in the currently
     /// executing frame's local variable array.
     fn dload_n(&mut self, local_index: usize) -> Result<()> {
         let frame = self.frame_mut();
         let double = frame.load(local_index)?;
-        if !matches!(
-            double,
-            Value::Double(_)
-        ) {
-            bail!("Expected ref type for a_load instruction.");
+        if !matches!(double, Value::Double(_)) {
+            bail!("Expected ref type for d_load instruction.");
         }
-
+        frame.push(double.clone());
         Ok(frame.push(double))
     }
 
@@ -419,7 +417,7 @@ impl VM {
         *frame.locals.get_mut(local_index + 1).unwrap() = double.clone();
         Ok(*frame.locals.get_mut(local_index).unwrap() = double)
     }
-    
+
     /// Executes the `Instruction::IConst` instruction. `int` is the integer
     /// to be pushed on the operand stack.
     fn iconst_n(&mut self, int: i32) { self.frame_mut().push(Value::Int(int)); }
@@ -597,8 +595,8 @@ impl VM {
             Constant::Double(d) => Value::Double(*d),
             _ => panic!("Non long or double constant pointed to by instruction ldc2w."),
         };
-        frame.stack.push(value);
-        Ok(())
+        frame.stack.push(value.clone());
+        Ok(frame.stack.push(value))
     }
 
     /// Executes the `Instruction::GetStatic` instruction.
@@ -750,11 +748,26 @@ impl VM {
             (0, 0) => vec![],
             (0, _) => Value::default_vec(max_locals),
             _ => {
-                let mut params = Vec::from(&self.frame().stack[stack_size - num_params..stack_size]);
-                Value::populate_locals(max_locals, &mut params);
-                params
+                let mut locals =
+                    Vec::from(&self.frame().stack[stack_size - num_params..stack_size]);
+                Value::populate_locals(max_locals, &mut locals);
+                locals
             }
         })
+    }
+
+    fn construct_main_locals(&self, m_method: &Method) -> Vec<Value> {
+        Value::default_vec(m_method.code.max_locals as usize)
+    }
+
+    fn construct_main(&self, c_data: StaticData) -> Result<CallFrame> {
+        let main = c_data.class;
+        let m_method = find_main(main)?;
+        let cp = &main.cp;
+        let locals = self.construct_main_locals(&m_method);
+        let num_locals = locals.len();
+        //TODO implement arguments to pass into main function
+        Ok(CallFrame::new(m_method, cp, num_locals, locals))
     }
 
     /// Construct a method name from the index to the name, and the index to the

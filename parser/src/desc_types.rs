@@ -226,7 +226,16 @@ impl ReturnDescriptor {
 pub struct Params(Vec<FieldType>);
 
 impl Params {
-    fn num_params(&self) -> usize { self.0.len() }
+    fn num_params(&self) -> usize {
+        println!("Params: {:?}", self.0);
+        let mut wides = 0;
+        for param in self.0.iter() {
+            if let FieldType::Base(Primitive::Double | Primitive::Long) = param {
+                wides += 1;
+            }
+        }
+        self.0.len() + wides
+    }
 
     fn get_param(&self, index: usize) -> FieldType { self.0[index].clone() }
 
