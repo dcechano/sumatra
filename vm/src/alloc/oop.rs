@@ -22,7 +22,7 @@ use crate::{
 
 pub(crate) struct HeapAlloc<T: AllocType> {
     pub header: Header,
-    pub data: *mut Value,
+    pub fields: *mut Value,
     _phantom: PhantomData<Value>,
     _static: PhantomData<T>,
 }
@@ -46,14 +46,18 @@ impl<T: AllocType> HeapAlloc<T> {
         // ptr now allocated
         let data = match !fields.is_empty() {
             // SAFETY: since fields len is non 0, alloc is safe.
-            true => unsafe { alloc::alloc(Layout::array::<Value>(fields.len()).unwrap()) as *mut Value },
+            true => unsafe {
+                alloc::alloc(Layout::array::<Value>(fields.len()).unwrap()) as *mut Value
+            },
             false => ptr::null_mut(),
         };
         // finish header by populating the offset table
         if !data.is_null() {
             // SAFETY: data is aligned by using Layout::array above where the length
             // of the array is determined by the length of the fields.
-            unsafe { header.populate_table(data, fields); }
+            unsafe {
+                header.populate_table(data, fields);
+            }
         }
         (header, data)
     }
@@ -122,7 +126,7 @@ impl<T: AllocType> HeapAlloc<T> {
 
     #[inline]
     unsafe fn dealloc_data(heap: *mut HeapAlloc<T>) {
-        let data = (*heap).data;
+        let data = (*heap).fields;
         if !data.is_null() {
             // We need not worry about fields.len == 0 because the only way the ptr
             // is not null is that there were fields to justify the initial allocation.
@@ -140,7 +144,7 @@ impl HeapAlloc<Static> {
         let (header, data) = Self::new_inner(class, class_id);
         HeapAlloc {
             header,
-            data,
+            fields: data,
             _phantom: Default::default(),
             _static: Default::default(),
         }
@@ -152,19 +156,21 @@ impl HeapAlloc<NonStatic> {
     #[inline]
     pub(crate) fn new(class: &Class, class_id: usize) -> *mut HeapAlloc<NonStatic> {
         // SAFETY: `Layout::new::<HeapAlloc>())` is valid so alloc is safe.
-        let ptr = unsafe { alloc::alloc(Layout::new::<HeapAlloc<NonStatic>>()) };
+        let ptr = unsafe {
+            alloc::alloc(Layout::new::<HeapAlloc<NonStatic>>()) as *mut HeapAlloc<NonStatic>
+        };
         if ptr.is_null() {
             handle_alloc_error(Layout::new::<HeapAlloc<NonStatic>>())
         }
 
-        let (header, data) = Self::new_inner(class, index);
+        let (header, fields) = Self::new_inner(class, class_id);
         // SAFETY: ptr is valid for writes since we asserted nonnull above.
         unsafe {
             ptr::write(
-                ptr as *mut HeapAlloc<NonStatic>,
+                ptr,
                 HeapAlloc {
                     header,
-                    data,
+                    fields,
                     _phantom: Default::default(),
                     _static: Default::default(),
                 },
