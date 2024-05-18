@@ -1,4 +1,7 @@
-use crate::alloc::{alloc_type::NonStatic, oop::HeapAlloc};
+use crate::{
+    alloc::{alloc_type::NonStatic, oop::HeapAlloc},
+    class::Class,
+};
 use std::cmp::Ordering;
 
 #[derive(Default, Debug, Clone)]
@@ -18,6 +21,12 @@ pub enum Value {
 
 impl Value {
     pub fn default_vec(cap: usize) -> Vec<Value> { vec![Value::Null; cap] }
+
+    /// Allocates a new Java Obj and returns Value::Ref for the new object.
+    pub(crate) fn new_object(class: &Class, class_id: usize) -> Value {
+        let obj = HeapAlloc::<NonStatic>::new(class, class_id);
+        Value::Ref(obj)
+    }
 
     pub fn populate_locals(num_locals: usize, params: &mut Vec<Value>) {
         if params.len() > num_locals {

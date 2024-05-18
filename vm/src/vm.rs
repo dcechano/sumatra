@@ -319,7 +319,7 @@ impl VM {
                 Instruction::MonitorEnter => todo!(),
                 Instruction::MonitorExit => todo!(),
                 Instruction::MultiaNewArray(_, _) => todo!(),
-                Instruction::New(_) => todo!(),
+                Instruction::New(class_index) => self.new_obj(*class_index as usize)?,
                 Instruction::NewArray(_) => todo!(),
                 Instruction::Nop => todo!(),
                 Instruction::Pop => self.pop(),
@@ -610,6 +610,22 @@ impl VM {
         };
         frame.stack.push(value.clone());
         Ok(frame.stack.push(value))
+    }
+
+    /// Executes the `Instruction::New` instruction. `class_index` is an index
+    /// to the runtime constant pool whose entry is a symbolic reference to
+    /// a class or interface. New Java object is pushed on to the operand stack.
+    fn new_obj(&mut self, class_index: usize) -> Result<()> {
+        let frame = self.frame();
+        if let Some(Constant::Class(name_index)) = frame.cp.get(class_index) {
+            let class_name = frame.cp.get_utf8(*name_index)?;
+            let StaticData {
+                class, class_id, ..
+            } = self.load_class(class_name)?;
+            Ok(self.frame_mut().push(Value::new_object(class, class_id)))
+        } else {
+            bail!("Expected a symbolic class reference at index: {class_index}")
+        }
     }
 
     /// Executes the `Instruction::GetStatic` instruction.
