@@ -28,7 +28,7 @@ pub struct VM {
 
 impl VM {
     /// create the VM.
-    pub fn init(c_path: PathBuf) -> Self {
+    pub fn init(jdk: PathBuf, c_path: PathBuf) -> Self {
         //TODO find good allocation size for vectors
         let method_area = match MethodArea::new() {
             Ok(method_area) => method_area,
@@ -38,7 +38,7 @@ impl VM {
         Self {
             frames: Vec::with_capacity(DEFAULT_VEC_SIZE),
             method_area,
-            class_manager: ClassManager::new(c_path),
+            class_manager: ClassManager::new(jdk, c_path),
         }
     }
 

@@ -30,12 +30,15 @@ pub(crate) struct ClassManager {
 }
 
 impl ClassManager {
-    pub(crate) fn new(c_path: PathBuf) -> Self {
+    pub(crate) fn new(jdk: PathBuf, c_path: PathBuf) -> Self {
         Self {
             by_name: HashMap::with_capacity(DEFAULT_CAPACITY),
             by_id: HashMap::with_capacity(DEFAULT_CAPACITY),
             count: AtomicUsize::new(0),
-            loaders: vec![Box::new(BootstrapLoader), Box::new(AppLoader::new(c_path))],
+            loaders: vec![
+                Box::new(BootstrapLoader::new(jdk)),
+                Box::new(AppLoader::new(c_path)),
+            ],
         }
     }
 

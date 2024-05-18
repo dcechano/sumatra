@@ -1,16 +1,44 @@
-use std::{fs::File, io::Read, path::Path};
+use std::{
+    fs::File,
+    io::Read,
+    os::unix::fs::MetadataExt,
+    path::{Path, PathBuf},
+};
 
-use anyhow::{bail, Result};
+use anyhow::{anyhow, bail, Result};
 use zip::ZipArchive;
 
 use sumatra_parser::class_file::ClassFile;
 
 use crate::lli::loader::ClassLoader;
 
-pub(super) struct BootstrapLoader;
+pub(super) struct BootstrapLoader {
+    class_path: PathBuf,
+}
+
+impl BootstrapLoader {
+    pub(crate) fn new(class_path: PathBuf) -> Self { Self { class_path } }
+
+    fn get_file(&self, name: &str) -> Result<ClassFile> {
+        let name = if !name.ends_with(".class") {
+            format!("{name}.class")
+        } else {
+            name.into()
+        };
+
+        let mut file = File::open(self.class_path.join(&name))?;
+
+        let mut contents = Vec::with_capacity(file.metadata().unwrap().size() as usize);
+        file.read_to_end(&mut contents).unwrap();
+        match ClassFile::parse_from_buffer(&contents) {
+            Ok(classfile) => Ok(classfile),
+            Err(e) => Err(anyhow!("Error parsing class file {name}: {e}")),
+        }
+    }
+}
 
 impl ClassLoader for BootstrapLoader {
-    fn get(&mut self, name: &str) -> Result<ClassFile> { unzip_jar(name) }
+    fn get(&mut self, name: &str) -> Result<ClassFile> { self.get_file(name) }
 }
 
 #[inline]
@@ -28,70 +56,3 @@ fn unzip_jar(name: &str) -> Result<ClassFile> {
     file.read_to_end(&mut contents).unwrap();
     ClassFile::parse_from_buffer(&contents)
 }
-
-// #[inline]
-// pub(crate) fn resolve<'met>(
-//     &mut self,
-//     name: &str,
-//     met_area: &'met mut MethodArea,
-// ) -> Result<&'met Class> {
-//     let index = self.resolve_and_index(name, met_area)?;
-//     met_area.get_class(index)
-// }
-
-// #[inline]
-// pub(crate) fn resolve_static<'met>(
-//     &mut self,
-//     name: &str,
-//     met_area: &'met mut MethodArea,
-// ) -> Result<&'met StaticAlloc> {
-//     let index = self.resolve_and_index(name, met_area)?;
-//     met_area.get(index)
-// }
-//
-// pub(crate) fn resolve_static_mut<'met>(
-//     &mut self,
-//     name: &str,
-//     met_area: &'met mut MethodArea,
-// ) -> Result<&'met mut StaticAlloc> {
-//     let index = self.resolve_and_index(name, met_area)?;
-//     met_area.get_mut(index)
-// }
-//
-// #[inline]
-// pub(crate) fn by_name<'met>(
-//     &self,
-//     name: &str,
-//     met_area: &'met mut MethodArea,
-// ) -> Result<&'met Class> {
-//     match self.by_name.get(name) {
-//         None => {
-//             bail!("No class found for name: {name}");
-//         }
-//         Some(index) => self.by_offset(*index, met_area),
-//     }
-// }
-//
-// #[inline]
-// pub(crate) fn by_offset<'met>(
-//     &self,
-//     offset: usize,
-//     met_area: &'met mut MethodArea,
-// ) -> Result<&'met Class> {
-//     met_area.get_class(offset)
-// }
-//
-// #[inline]
-// fn by_offset_unchecked<'met>(
-//     &self,
-//     offset: usize,
-//     met_area: &'met mut MethodArea,
-// ) -> &'met Class {
-//     met_area.get_class(offset).unwrap()
-// }
-//
-// #[inline]
-// fn by_name_unchecked<'met>(&self, name: &str, met_area: &'met mut MethodArea)
-// -> &'met Class {     let index = self.by_name.get(name).unwrap();
-//     self.by_offset_unchecked(*index, met_area)
-// }
