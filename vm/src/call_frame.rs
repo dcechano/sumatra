@@ -29,11 +29,9 @@ impl CallFrame {
             cp,
         }
     }
-    
+
     /// Returns a clone of the value at the top of the operand stack
-    pub(crate) fn clone_top(&self) -> Value {
-        self.stack.last().unwrap().clone()
-    }
+    pub(crate) fn clone_top(&self) -> Value { self.stack.last().unwrap().clone() }
 
     pub(crate) fn insert_local(&mut self, index: usize, value: Value) -> Result<()> {
         match self.locals.get_mut(index) {
@@ -49,9 +47,9 @@ impl CallFrame {
             "{index} was not a valid index into the locals array."
         ))
     }
-    
-    /// Inserts `value` on offset entries from the top of the stack. `offset` is assumed
-    /// to be > 0.
+
+    /// Inserts `value` on offset entries from the top of the stack. `offset` is
+    /// assumed to be > 0.
     pub(crate) fn insert(&mut self, offset: usize, value: Value) {
         let index = self.stack.len() - offset - 1;
         self.stack.insert(index, value)
