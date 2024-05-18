@@ -1,4 +1,4 @@
-use std::{collections::HashMap, convert::TryFrom};
+use std::convert::TryFrom;
 
 use anyhow::{bail, Result};
 
@@ -315,7 +315,7 @@ impl Instruction {
             The jmp_registry contains all entries in the byte_to_instr that contain a "jmp" instruction.
             the key is index of the instruction in the instructions vector, the value is the byte to jump to.
         */
-        let mut jmp_registry = HashMap::with_capacity(bytes.len());
+        let mut jmp_registry = Vec::with_capacity(bytes.len());
 
         while cursor.position() != bytes.len() as u64 {
             *byte_to_instr.get_mut(cursor.position() as usize).unwrap() = instructions.len();
@@ -405,17 +405,17 @@ impl Instruction {
                 180 => GetField(cursor.read_u16()?),
                 178 => GetStatic(cursor.read_u16()? as usize),
                 167 => {
-                    jmp_registry.insert(
+                    jmp_registry.push((
                         instructions.len(),
                         (cursor.position() - 1) as i16 + cursor.read_i16()?,
-                    );
+                    ));
                     GoTo(0)
                 }
                 200 => {
-                    jmp_registry.insert(
+                    jmp_registry.push((
                         instructions.len(),
                         (cursor.position() - 1) as i16 + cursor.read_i16()?,
-                    );
+                    ));
                     GoToW(0)
                 }
                 145 => I2B,
@@ -437,116 +437,116 @@ impl Instruction {
                 8 => IConst5,
                 108 => IDiv,
                 165 => {
-                    jmp_registry.insert(
+                    jmp_registry.push((
                         instructions.len(),
                         (cursor.position() - 1) as i16 + cursor.read_i16()?,
-                    );
+                    ));
                     IfAcmpeq(0)
                 }
                 166 => {
-                    jmp_registry.insert(
+                    jmp_registry.push((
                         instructions.len(),
                         (cursor.position() - 1) as i16 + cursor.read_i16()?,
-                    );
+                    ));
                     IfAcmpne(0)
                 }
                 159 => {
-                    jmp_registry.insert(
+                    jmp_registry.push((
                         instructions.len(),
                         (cursor.position() - 1) as i16 + cursor.read_i16()?,
-                    );
+                    ));
                     IfIcmpeq(0)
                 }
                 160 => {
-                    jmp_registry.insert(
+                    jmp_registry.push((
                         instructions.len(),
                         (cursor.position() - 1) as i16 + cursor.read_i16()?,
-                    );
+                    ));
                     IfIcmpne(0)
                 }
                 161 => {
-                    jmp_registry.insert(
+                    jmp_registry.push((
                         instructions.len(),
                         (cursor.position() - 1) as i16 + cursor.read_i16()?,
-                    );
+                    ));
                     IfIcmplt(0)
                 }
                 162 => {
-                    jmp_registry.insert(
+                    jmp_registry.push((
                         instructions.len(),
                         (cursor.position() - 1) as i16 + cursor.read_i16()?,
-                    );
+                    ));
                     IfIcmpge(0)
                 }
                 163 => {
-                    jmp_registry.insert(
+                    jmp_registry.push((
                         instructions.len(),
                         (cursor.position() - 1) as i16 + cursor.read_i16()?,
-                    );
+                    ));
                     IfIcmpgt(0)
                 }
                 164 => {
-                    jmp_registry.insert(
+                    jmp_registry.push((
                         instructions.len(),
                         (cursor.position() - 1) as i16 + cursor.read_i16()?,
-                    );
+                    ));
                     IfIcmple(0)
                 }
                 153 => {
-                    jmp_registry.insert(
+                    jmp_registry.push((
                         instructions.len(),
                         (cursor.position() - 1) as i16 + cursor.read_i16()?,
-                    );
+                    ));
                     Ifeq(0)
                 }
                 154 => {
-                    jmp_registry.insert(
+                    jmp_registry.push((
                         instructions.len(),
                         (cursor.position() - 1) as i16 + cursor.read_i16()?,
-                    );
+                    ));
                     Ifne(0)
                 }
                 155 => {
-                    jmp_registry.insert(
+                    jmp_registry.push((
                         instructions.len(),
                         (cursor.position() - 1) as i16 + cursor.read_i16()?,
-                    );
+                    ));
                     Iflt(0)
                 }
                 156 => {
-                    jmp_registry.insert(
+                    jmp_registry.push((
                         instructions.len(),
                         (cursor.position() - 1) as i16 + cursor.read_i16()?,
-                    );
+                    ));
                     Ifge(0)
                 }
                 157 => {
-                    jmp_registry.insert(
+                    jmp_registry.push((
                         instructions.len(),
                         (cursor.position() - 1) as i16 + cursor.read_i16()?,
-                    );
+                    ));
                     Ifgt(0)
                 }
                 158 => {
-                    jmp_registry.insert(
+                    jmp_registry.push((
                         instructions.len(),
                         (cursor.position() - 1) as i16 + cursor.read_i16()?,
-                    );
+                    ));
                     Ifle(0)
                 }
                 199 => {
-                    jmp_registry.insert(
+                    jmp_registry.push((
                         instructions.len(),
                         (cursor.position() - 1) as i16 + cursor.read_i16()?,
-                    );
-                    IfNonNull(cursor.read_i16()? as usize)
+                    ));
+                    IfNonNull(0)
                 }
                 198 => {
-                    jmp_registry.insert(
+                    jmp_registry.push((
                         instructions.len(),
                         (cursor.position() - 1) as i16 + cursor.read_i16()?,
-                    );
-                    IfNull(cursor.read_i16()? as usize)
+                    ));
+                    IfNull(0)
                 }
                 132 => Iinc(cursor.read_u8()?, cursor.read_i8()?),
                 21 => ILoad(cursor.read_u8()?),
@@ -717,11 +717,7 @@ impl Instruction {
         Ok(opcode)
     }
 
-    fn fix_jmps(
-        registry: HashMap<usize, i16>,
-        byte_to_instr: &[usize],
-        instrs: &mut [Instruction],
-    ) {
+    fn fix_jmps(registry: Vec<(usize, i16)>, byte_to_instr: &[usize], instrs: &mut [Instruction]) {
         /*
             1. Get jmp_instr_index and jmp_byte from registry.
             2. Use jmp_instr_index to get the jmp instruction to be modified via instrs slice.
