@@ -3,8 +3,6 @@ use sumatra_parser::{constant_pool::ConstantPool, method::Method};
 
 use crate::value::Value;
 
-//TODO rework Call frame to use manual allocation
-// Check the requirements for where call frames should be allocated.
 #[derive(Debug)]
 pub(crate) struct CallFrame {
     pub(crate) method: &'static Method,
@@ -14,18 +12,6 @@ pub(crate) struct CallFrame {
     pub(crate) locals: Vec<Value>,
     pub(crate) cp: &'static ConstantPool,
 }
-//
-// impl<'vm> From<&'vm Method> for CallFrame<'vm> {
-//     fn from(method: &'vm Method, cp: &'vm ConstantPool) -> Self {
-//         CallFrame {
-//             method,
-//             pc: 0,
-//             locals: vec![],
-//             op_stack: vec![],
-//             cp
-//         }
-//     }
-// }
 
 impl CallFrame {
     pub(crate) fn new(
