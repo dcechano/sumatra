@@ -58,12 +58,12 @@ impl ClassFile {
             !class_file.access_flags.contains(ClassAccessFlags::FINAL),
             &mut class_file.attributes,
         )?;
+        // All classes extend java.lang.Object.
         if class_file.super_class < 1
             && cp.get_utf8(class_file.attributes.source_file.0)? != Self::OBJECT
         {
             bail!("All classes must have at least 1 superclass, namely, java.lang.Object.");
         }
-        // All classes extend java.lang.Object.
         class_file.cp = cp;
         Ok(class_file)
     }

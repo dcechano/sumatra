@@ -258,6 +258,7 @@ pub struct Provides {
 pub struct RecordComponent {
     pub name_index: usize,
     pub descriptor_index: usize,
+    pub signature: String,
     pub runtime_annotations: Vec<RuntimeAnnotation>,
 }
 

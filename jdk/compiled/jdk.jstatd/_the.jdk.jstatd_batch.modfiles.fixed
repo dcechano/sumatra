@@ -1,0 +1,17 @@
+/home/dylan/Documents/CProjects/jdk21u/src/jdk.jstatd/share/classes/module-info.java
+/home/dylan/Documents/CProjects/jdk21u/src/jdk.jstatd/share/classes/sun/jvmstat/monitor/remote/RemoteHost.java
+/home/dylan/Documents/CProjects/jdk21u/src/jdk.jstatd/share/classes/sun/jvmstat/monitor/remote/RemoteVm.java
+/home/dylan/Documents/CProjects/jdk21u/src/jdk.jstatd/share/classes/sun/jvmstat/perfdata/monitor/protocol/rmi/MonitoredHostProvider.java
+/home/dylan/Documents/CProjects/jdk21u/src/jdk.jstatd/share/classes/sun/jvmstat/perfdata/monitor/protocol/rmi/MonitoredHostRmiService.java
+/home/dylan/Documents/CProjects/jdk21u/src/jdk.jstatd/share/classes/sun/jvmstat/perfdata/monitor/protocol/rmi/PerfDataBuffer.java
+/home/dylan/Documents/CProjects/jdk21u/src/jdk.jstatd/share/classes/sun/jvmstat/perfdata/monitor/protocol/rmi/RemoteMonitoredVm.java
+/home/dylan/Documents/CProjects/jdk21u/src/jdk.jstatd/share/classes/sun/jvmstat/perfdata/monitor/protocol/rmi/RemoteVmManager.java
+/home/dylan/Documents/CProjects/jdk21u/src/jdk.jstatd/share/classes/sun/tools/jstatd/Jstatd.java
+/home/dylan/Documents/CProjects/jdk21u/src/jdk.jstatd/share/classes/sun/tools/jstatd/RemoteHostImpl.java
+/home/dylan/Documents/CProjects/jdk21u/src/jdk.jstatd/share/classes/sun/tools/jstatd/RemoteVmImpl.java
+/home/dylan/Documents/CProjects/jdk21u/build/linux-x86_64-server-release/jdk/modules/jdk.jstatd/_the.jdk.jstatd.vardeps
+/home/dylan/Documents/CProjects/jdk21u/build/linux-x86_64-server-release/buildtools/depend/_the.COMPILE_DEPEND_batch
+/home/dylan/Documents/CProjects/jdk21u/build/linux-x86_64-server-release/jdk/modules/jdk.jstatd/_the.jdk.jstatd-javacserver.conf
+/home/dylan/Documents/CProjects/jdk21u/build/linux-x86_64-server-release/jdk/modules/java.base/_the.java.base_pubapi
+/home/dylan/Documents/CProjects/jdk21u/build/linux-x86_64-server-release/jdk/modules/java.rmi/_the.java.rmi_pubapi
+/home/dylan/Documents/CProjects/jdk21u/build/linux-x86_64-server-release/jdk/modules/jdk.internal.jvmstat/_the.jdk.internal.jvmstat_pubapi

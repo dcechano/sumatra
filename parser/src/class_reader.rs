@@ -795,17 +795,31 @@ impl ClassReader {
             descriptor_index,
             "descriptor_index in RecordComponent struct didn't point to a UTF8",
         )?;
+
         let attr_count = self.read_u16()? as usize;
-        let runtime_annotations = (0..attr_count)
-            .map(|_| {
-                let name_index = self.read_u16()? as usize;
-                let name = cp.get_utf8(name_index)?;
-                self.parse_runtime_anno(cp, name.as_bytes())
-            })
-            .collect::<Result<Vec<RuntimeAnnotation>>>()?;
+        let mut runtime_annotations = Vec::with_capacity(attr_count);
+        let mut signature = "".to_string();
+        let mut contains_sig = false;
+
+        for _ in 0..attr_count {
+            let name_index = self.read_u16()? as usize;
+            let name = cp.get_utf8(name_index)?;
+            match name.as_bytes() {
+                SIGNATURE => {
+                    let _len = self.read_u32()?;
+                    signature = self.parse_sig_attr(cp, &mut contains_sig).unwrap()
+                }
+                _ => {
+                    let runtime_anno = self.parse_runtime_anno(cp, name.as_bytes())?;
+                    runtime_annotations.push(runtime_anno);
+                }
+            }
+        }
+
         Ok(RecordComponent {
             name_index,
             descriptor_index,
+            signature,
             runtime_annotations,
         })
     }
@@ -834,9 +848,9 @@ impl ClassReader {
                 self.read_u16()? as usize,
                 self.parse_element_value(cp)?,
             )),
-            _ => {
+            name => {
                 // TODO This might not be spec; We may have to ignore unrecognized annotations
-                bail!("Invalid name");
+                bail!("Invalid annotation name: {}", String::from_utf8_lossy(name));
             }
         };
         Ok(anno)

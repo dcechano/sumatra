@@ -1,0 +1,16 @@
+/home/dylan/Documents/CProjects/jdk21u/src/jdk.naming.dns/share/classes/com/sun/jndi/dns/DNSDatagramChannelFactory.java
+/home/dylan/Documents/CProjects/jdk21u/src/jdk.naming.dns/share/classes/com/sun/jndi/dns/DnsClient.java
+/home/dylan/Documents/CProjects/jdk21u/src/jdk.naming.dns/share/classes/com/sun/jndi/dns/DnsContext.java
+/home/dylan/Documents/CProjects/jdk21u/src/jdk.naming.dns/share/classes/com/sun/jndi/dns/DnsContextFactory.java
+/home/dylan/Documents/CProjects/jdk21u/src/jdk.naming.dns/share/classes/com/sun/jndi/dns/DnsName.java
+/home/dylan/Documents/CProjects/jdk21u/src/jdk.naming.dns/share/classes/com/sun/jndi/dns/DnsNameParser.java
+/home/dylan/Documents/CProjects/jdk21u/src/jdk.naming.dns/share/classes/com/sun/jndi/dns/DnsUrl.java
+/home/dylan/Documents/CProjects/jdk21u/src/jdk.naming.dns/share/classes/com/sun/jndi/dns/Header.java
+/home/dylan/Documents/CProjects/jdk21u/src/jdk.naming.dns/share/classes/com/sun/jndi/dns/NameNode.java
+/home/dylan/Documents/CProjects/jdk21u/src/jdk.naming.dns/share/classes/com/sun/jndi/dns/Resolver.java
+/home/dylan/Documents/CProjects/jdk21u/src/jdk.naming.dns/share/classes/com/sun/jndi/dns/ResourceRecord.java
+/home/dylan/Documents/CProjects/jdk21u/src/jdk.naming.dns/share/classes/com/sun/jndi/dns/ResourceRecords.java
+/home/dylan/Documents/CProjects/jdk21u/src/jdk.naming.dns/share/classes/com/sun/jndi/dns/ZoneNode.java
+/home/dylan/Documents/CProjects/jdk21u/src/jdk.naming.dns/share/classes/com/sun/jndi/url/dns/dnsURLContext.java
+/home/dylan/Documents/CProjects/jdk21u/src/jdk.naming.dns/share/classes/com/sun/jndi/url/dns/dnsURLContextFactory.java
+/home/dylan/Documents/CProjects/jdk21u/src/jdk.naming.dns/share/classes/module-info.java
