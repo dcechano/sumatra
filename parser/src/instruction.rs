@@ -259,7 +259,10 @@ pub enum Instruction {
     New(u16),
     NewArray(ArrayType),
     Nop,
+    /// Pops one value from the operand stack. This instruction is never
+    /// used if the value at the top of the stack is a Java long or double.
     Pop,
+    /// Pops one or two values from the operand stack.
     Pop2,
     PutField(u16),
     /// Assign value on top of operand stack to the
