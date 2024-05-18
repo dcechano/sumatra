@@ -312,8 +312,8 @@ impl VM {
                 Instruction::New(_) => todo!(),
                 Instruction::NewArray(_) => todo!(),
                 Instruction::Nop => todo!(),
-                Instruction::Pop => todo!(),
-                Instruction::Pop2 => todo!(),
+                Instruction::Pop => self.pop(),
+                Instruction::Pop2 => self.pop2(),
                 Instruction::PutField(_) => todo!(),
                 Instruction::PutStatic(field_index) => self.put_static(*field_index as usize)?,
                 Instruction::Ret(_) => todo!(),
@@ -600,9 +600,24 @@ impl VM {
         {
             let (name_index, _, alloc) = self.unpack(class_index, name_and_type_index)?;
             let field_val = alloc.get_field(self.frame().cp.get_utf8(name_index)?)?;
+            if let Value::Long(_) | Value::Double(_) = field_val {
+                self.frame_mut().stack.push(field_val.clone());
+            }
             self.frame_mut().stack.push(field_val.clone());
         }
         Ok(())
+    }
+
+    /// Executes the `Instruction::Pop` instruction. Nothing is returned.
+    fn pop(&mut self) { self.frame_mut().pop(); }
+
+    /// Executes the `Instruction::Pop2` instruction. Nothing is returned.
+    fn pop2(&mut self) {
+        let frame = self.frame_mut();
+        let value = frame.pop();
+        if let Value::Double(_) | Value::Long(_) = value {
+            frame.pop();
+        }
     }
 
     /// Executes the `Instruction::PutStatic` instruction.
