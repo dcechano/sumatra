@@ -671,6 +671,51 @@ impl VM {
 // Utility functions are seperated into a different impl block for ease of
 // navigation.
 impl VM {
+    /// Construct the local variables array and return it. Assumes there is a
+    /// call frame on the stack. If constructing the locals for `main` use
+    /// `construct_main_locals`
+    fn construct_locals(&self, max_locals: usize, num_params: usize) -> Result<Vec<Value>> {
+        if num_params > max_locals {
+            bail!("number of method parameters was larger than the max locals.");
+        }
+        let stack_size = self.frame().stack.len();
+
+        Ok(match (num_params, max_locals) {
+            (0, 0) => vec![],
+            (0, _) => Value::default_vec(max_locals),
+            _ => {
+                let mut locals =
+                    Vec::from(&self.frame().stack[stack_size - num_params..stack_size]);
+                Value::populate_locals(max_locals, &mut locals);
+                locals
+            }
+        })
+    }
+
+    fn construct_main(&self, c_data: StaticData) -> Result<CallFrame> {
+        let main = c_data.class;
+        let m_method = find_main(main)?;
+        let cp = &main.cp;
+        let locals = self.construct_main_locals(&m_method);
+        let num_locals = locals.len();
+        //TODO implement arguments to pass into main function
+        Ok(CallFrame::new(m_method, cp, num_locals, locals))
+    }
+
+    fn construct_main_locals(&self, m_method: &Method) -> Vec<Value> {
+        Value::default_vec(m_method.code.max_locals as usize)
+    }
+
+    /// Construct a method name from the index to the name, and the index to the
+    /// descriptor.
+    #[inline]
+    fn construct_m_name(&self, name_index: usize, descr_index: usize) -> Result<String> {
+        let cp = self.frame().cp;
+        let name = cp.get_utf8(name_index)?;
+        let descr = cp.get_utf8(descr_index)?;
+        Ok(format!("{name}{descr}"))
+    }
+    
     /// Return a mutable reference to the top most call frame.
     #[inline(always)]
     fn frame_mut(&mut self) -> &mut CallFrame { self.frames.last_mut().unwrap() }
