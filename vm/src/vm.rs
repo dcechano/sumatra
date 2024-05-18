@@ -464,8 +464,8 @@ impl VM {
         jmp
     }
 
-    /// Invoke a static method. `method_index` is the index to the
-    /// `Constant::MethodRef` in the runtime constant pool.
+    /// Executed the `Instruction::InvokeStatic` instruction. `method_index` is
+    /// the index to the `Constant::MethodRef` in the runtime constant pool.
     fn invoke_static(&mut self, method_index: &usize) -> Result<Option<Value>> {
         let frame = self.frame();
         if let Constant::MethodRef {
@@ -474,17 +474,20 @@ impl VM {
         } = frame.cp.get(*method_index).unwrap()
         {
             let (name_index, desc_index, alloc) = self.unpack(class_index, name_and_type_index)?;
-            let class = alloc.class;
-            let met_name = self.construct_m_name(name_index, desc_index)?;
-            let method = class.methods.get(&met_name).unwrap();
+            let (class, method) = self.to_method_class(name_index, desc_index, &alloc)?;
 
+            assert!(method.is_static());
             // TODO implement native method calls.
             if method.is_native() {
-                println!("Method was a native method. Ignoring.");
+                println!("Method '{}' was a native method. Ignoring.", method.name);
                 Ok(None)
             } else {
-                let num_params = method.parsed_descriptor.num_params();
-                let max_locals = method.code.max_locals as usize;
+                self.invoke(class, method)
+            }
+        } else {
+            bail!("Expected Constant::MethodRef in invoke_static.");
+        }
+    }
 
                 let frame = CallFrame::new(
                     method,
@@ -655,6 +658,32 @@ impl VM {
     /// Return a shared reference to the top most call frame.
     #[inline(always)]
     fn frame(&self) -> &CallFrame { self.frames.last().unwrap() }
+    
+    /// Take a static reference to a class and push its '<clinit>'
+    /// method as a stack frame to `vm.frames`.
+    fn init_class(&mut self, class: &'static Class) -> Result<Option<Value>> {
+        println!("Loading <clinit> for {}", class.get_name());
+        let clinit = class.methods.get(CLINIT).unwrap();
+        // clinit always takes 0 arguments
+        let frame = CallFrame::new(clinit, &class.cp, 0, vec![]);
+        self.frames.push(frame);
+        self.execute_frame()
+    }
+
+    /// Helper function to construct a `CallFrame` and invoke a method.
+    fn invoke(&mut self, class: &'static Class, method: &'static Method) -> Result<Option<Value>> {
+        let num_params = method.parsed_descriptor.num_params();
+        let max_locals = method.code.max_locals as usize;
+
+        let frame = CallFrame::new(
+            method,
+            &class.cp,
+            num_params,
+            self.construct_locals(max_locals, num_params)?,
+        );
+        self.frames.push(frame);
+        self.execute_frame()
+    }
 
     /// Load the class definition specified by `name`. If
     /// the class is found in the `MethodArea`, a `StaticData` object
@@ -671,15 +700,20 @@ impl VM {
         }
     }
 
-    /// Take a static reference to a class and push its '<clinit>'
-    /// method as a stack frame to `vm.frames`.
-    fn init_class(&mut self, class: &'static Class) -> Result<Option<Value>> {
-        println!("Initializing class: {:?}", class.get_name());
-        let clinit = class.methods.get(CLINIT).unwrap();
-        // clinit always takes 0 arguments
-        let frame = CallFrame::new(clinit, &class.cp, 0, vec![Value::default()]);
-        self.frames.push(frame);
-        self.execute_frame()
+    /// Retrieve a static reference to a method and it's class. `name_index` is
+    /// the name of the method, `desc_index` is the descriptor of the
+    /// method. `static_data` is a reference to a `StaticData` object
+    /// holding the class data.
+    fn to_method_class(
+        &self,
+        name_index: usize,
+        desc_index: usize,
+        static_data: &StaticData,
+    ) -> Result<(&'static Class, &'static Method)> {
+        let class = static_data.class;
+        let met_name = self.construct_m_name(name_index, desc_index)?;
+        let method = class.methods.get(&met_name).unwrap();
+        Ok((class, method))
     }
 
     /// Takes in constant pool indices for the `Constant::Class(class_name)` and
