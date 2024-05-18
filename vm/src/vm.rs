@@ -692,6 +692,7 @@ impl VM {
         })
     }
 
+    /// construct the CallFrame for the main method.
     fn construct_main(&self, c_data: StaticData) -> Result<CallFrame> {
         let main = c_data.class;
         let m_method = find_main(main)?;
@@ -702,6 +703,7 @@ impl VM {
         Ok(CallFrame::new(m_method, cp, num_locals, locals))
     }
 
+    /// construct local variables for main method's `CallFrame`.
     fn construct_main_locals(&self, m_method: &Method) -> Vec<Value> {
         Value::default_vec(m_method.code.max_locals as usize)
     }
@@ -849,6 +851,7 @@ impl VM {
     }
 }
 
+/// Find the main method of a java class if it exists.
 fn find_main(class: &Class) -> Result<&Method> {
     match class.methods.get(MAIN) {
         None => {
