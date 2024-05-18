@@ -252,10 +252,20 @@ impl VM {
                 Instruction::InvokeSpecial(_) => todo!(),
                 Instruction::InvokeStatic(method_index) => {
                     if let Some(value) = self.invoke_static(&(*method_index as usize))? {
+                        if let Value::Double(_) | Value::Long(_) = value {
+                            self.frame_mut().stack.push(value.clone());
+                        }
                         self.frame_mut().stack.push(value);
                     }
                 }
-                Instruction::InvokeVirtual(index) => println!("\t    InvokeVirtual: {index}"),
+                Instruction::InvokeVirtual(method_index) => {
+                    if let Some(value) = self.invoke_virtual(&(*method_index))? {
+                        if let Value::Double(_) | Value::Long(_) = value {
+                            self.frame_mut().stack.push(value.clone());
+                        }
+                        self.frame_mut().stack.push(value);
+                    }
+                }
                 Instruction::IOr => todo!(),
                 Instruction::IRem => self.irem()?,
                 Instruction::IReturn => return Ok(Some(self.return_val())),
@@ -489,14 +499,24 @@ impl VM {
         }
     }
 
-                let frame = CallFrame::new(
-                    method,
-                    &class.cp,
-                    num_params,
-                    self.construct_locals(max_locals, num_params)?,
-                );
-                self.frames.push(frame);
-                self.execute_frame()
+    /// Executed the `Instruction::InvokeVirtual` instruction. `method_index` is
+    /// the index to the `Constant::MethodRef` in the runtime constant pool.
+    fn invoke_virtual(&mut self, method_index: &usize) -> Result<Option<Value>> {
+        let frame = self.frame();
+        if let Constant::MethodRef {
+            class_index,
+            name_and_type_index,
+        } = frame.cp.get(*method_index).unwrap()
+        {
+            let (name_index, desc_index, alloc) = self.unpack(class_index, name_and_type_index)?;
+            let (class, method) = self.to_method_class(name_index, desc_index, &alloc)?;
+            assert!(!method.is_static());
+            // TODO implement native method calls.
+            if method.is_native() {
+                println!("Method '{}' was a native method. Ignoring.", method.name);
+                Ok(None)
+            } else {
+                self.invoke(class, method)
             }
         } else {
             bail!("Expected Constant::MethodRef in invoke_static.");
