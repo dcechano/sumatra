@@ -1438,10 +1438,16 @@ impl DerefMut for ClassReader {
 }
 
 fn log_unrec_attr(name: &str, context: &str) -> Result<()> {
-    let mut file = OpenOptions::new()
+    //FIXME: Properly handle file not found error. Currently is found or not found
+    // depending on if the program is run using cargo test or cargo run.
+    let mut file = match OpenOptions::new()
         .write(true)
         .append(true)
-        .open("./unrec_attrs.txt")?;
+        .open("parser/unrec_attrs.txt")
+    {
+        Ok(file) => file,
+        Err(_) => return Ok(()),
+    };
 
     let message = format!(
         "{:?}: Unrecognized attribute name {name} while parsing {context} attributes.\n",
