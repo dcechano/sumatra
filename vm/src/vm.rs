@@ -418,7 +418,7 @@ impl VM {
         Ok(*frame.locals.get_mut(local_index).unwrap() = double)
     }
 
-    /// Executes the `Instruction::Dup` instruction. 
+    /// Executes the `Instruction::Dup` instruction.
     fn dup(&mut self) -> Result<()> {
         let frame = self.frame_mut();
         let value = frame.clone_top();
