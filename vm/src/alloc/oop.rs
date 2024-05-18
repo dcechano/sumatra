@@ -22,14 +22,14 @@ use crate::{
 
 pub(crate) struct HeapAlloc<T: AllocType> {
     pub header: Header,
-    pub data: *mut u8,
-    _phantom: PhantomData<[u8]>,
+    pub data: *mut Value,
+    _phantom: PhantomData<Value>,
     _static: PhantomData<T>,
 }
 
 impl<T: AllocType> HeapAlloc<T> {
     #[inline]
-    fn new_inner(class: &Class, index: usize) -> (Header, *mut u8) {
+    fn new_inner(class: &Class, index: usize) -> (Header, *mut Value) {
         let fields = match T::is_static() {
             true => class
                 .fields
@@ -46,12 +46,14 @@ impl<T: AllocType> HeapAlloc<T> {
         // ptr now allocated
         let data = match !fields.is_empty() {
             // SAFETY: since fields len is non 0, alloc is safe.
-            true => unsafe { alloc::alloc(Layout::array::<Value>(fields.len()).unwrap()) },
+            true => unsafe { alloc::alloc(Layout::array::<Value>(fields.len()).unwrap()) as *mut Value },
             false => ptr::null_mut(),
         };
         // finish header by populating the offset table
         if !data.is_null() {
-            header.populate_table(data, fields);
+            // SAFETY: data is aligned by using Layout::array above where the length
+            // of the array is determined by the length of the fields.
+            unsafe { header.populate_table(data, fields); }
         }
         (header, data)
     }
@@ -77,7 +79,7 @@ impl<T: AllocType> HeapAlloc<T> {
     }
 
     #[inline]
-    fn get_field_inner(&self, name: &str) -> Result<*mut u8> {
+    fn get_field_inner(&self, name: &str) -> Result<*mut Value> {
         let offset = match self.header.fields.get(name) {
             None => {
                 bail!("No field with name: {name}");
@@ -127,7 +129,7 @@ impl<T: AllocType> HeapAlloc<T> {
             let size = (*heap).header.fields.len();
             debug_assert!(size != 0);
             let layout = Layout::array::<Value>(size).unwrap();
-            alloc::dealloc(data, layout);
+            alloc::dealloc(data as *mut u8, layout);
         }
     }
 }

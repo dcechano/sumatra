@@ -31,38 +31,19 @@ impl Header {
         }
     }
 
-    pub(crate) fn populate_table(&mut self, ptr: *mut u8, fields: Vec<&Field>) {
-        let mut next_ptr = ptr;
-        // SAFETY: it is valid to index past ptr by VALUE_SIZE because this function
-        // does not get called for 0 fields, and nonzero fields means this
-        // region of memory is allocated and valid.
-        // ptr is aligned at the end of the loop before use.
-        let mut end_ptr = unsafe { ptr.add(VALUE_SIZE) };
+    pub(crate) unsafe fn populate_table(&mut self, ptr: *mut Value, fields: Vec<&Field>) {
         let mut i = 0;
         while i < fields.len() {
             let name = fields[i].name.to_string();
-            // SAFETY: The invariant that `next_ptr` is always aligned and valid
-            // is upheld when initialized above or mutated below.
+            // SAFETY: The invariant that `ptr` is always aligned and valid
+            // is upheld by the calling method. Additionally, the length of the dynamic array
+            // being long enough for this add is also guaranteed by the calling method.
             unsafe {
                 // write the default value to avoid uninitialized memory
-                ptr::write(next_ptr as *mut Value, Value::Null);
+                ptr::write(ptr.add(i), Value::Null);
             }
-            self.fields.insert(name, next_ptr as usize - ptr as usize);
+            self.fields.insert(name, i);
             i += 1;
-
-            // avoid UB
-            if i != fields.len() {
-                let offset = end_ptr.align_offset(VALUE_ALIGN);
-                // SAFETY: it is valid to index past ptr by VALUE_SIZE because this function
-                // does not get called for 0 fields, and nonzero fields means this
-                // region of memory is allocated and valid. Also, we checked for being
-                // at the end of the region of mem by checking if we have iterated over all
-                // fields.
-                unsafe {
-                    next_ptr = end_ptr.add(offset);
-                    end_ptr = next_ptr.add(VALUE_SIZE);
-                }
-            }
         }
     }
 }
