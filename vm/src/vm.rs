@@ -116,7 +116,7 @@ impl VM {
                 Instruction::DStore2 => self.dstore_n(2)?,
                 Instruction::DStore3 => self.dstore_n(3)?,
                 Instruction::DSub => todo!(),
-                Instruction::Dup => todo!(),
+                Instruction::Dup => self.dup()?,
                 Instruction::DupX1 => todo!(),
                 Instruction::DupX2 => todo!(),
                 Instruction::Dup2 => todo!(),
@@ -416,6 +416,13 @@ impl VM {
 
         *frame.locals.get_mut(local_index + 1).unwrap() = double.clone();
         Ok(*frame.locals.get_mut(local_index).unwrap() = double)
+    }
+
+    /// Executes the `Instruction::Dup` instruction. 
+    fn dup(&mut self) -> Result<()> {
+        let frame = self.frame_mut();
+        let value = frame.clone_top();
+        Ok(frame.push(value))
     }
 
     /// Executes the `Instruction::IConst` instruction. `int` is the integer
