@@ -123,6 +123,7 @@ impl Drop for MethodArea {
 #[cfg(test)]
 mod tests {
     use std::{fs::File, io::Read, path::Path};
+    use std::os::unix::fs::MetadataExt;
 
     use anyhow::bail;
     use zip::ZipArchive;
@@ -138,22 +139,13 @@ mod tests {
 
     use crate::{class::Class, method_area::MethodArea};
 
-    const OBJECT_FILE: &'static str = "java/lang/Object";
-    const JAR_PATH: &'static str = "./jar/rt.jar";
+    const OBJECT_FILE: &'static str = "java/lang/Object.class";
+    const JAR_PATH: &'static str = "../jdk/compiled/java.base/";
 
-    #[inline]
-    fn unzip_jar(name: &str) -> ClassFile {
-        let fname = Path::new(JAR_PATH);
-        let zipfile = File::open(fname).unwrap();
-
-        let mut archive = ZipArchive::new(zipfile).unwrap();
-
-        let mut file = archive
-            .by_name(&format!("{name}.class"))
-            .or_else(|_| bail!("file: {name} not found in jar."))
-            .unwrap();
-
-        let mut contents = Vec::with_capacity(file.size() as usize);
+    fn get_file() -> ClassFile {
+        let mut file = File::open(format!("{JAR_PATH}{OBJECT_FILE}")).unwrap();
+        
+        let mut contents = Vec::with_capacity(file.metadata().unwrap().size() as usize);
         file.read_to_end(&mut contents).unwrap();
         ClassFile::parse_from_buffer(&contents).unwrap()
     }
@@ -161,7 +153,7 @@ mod tests {
     #[test]
     #[cfg(not(miri))]
     fn get_retrieve() {
-        let object_file = unzip_jar(OBJECT_FILE);
+        let object_file = get_file();
         let object_class = Class::from(object_file);
 
         let mut met_area = MethodArea::new().unwrap();
