@@ -1,8 +1,10 @@
+use anyhow::Result;
+
 use crate::{
     alloc::{alloc_type::Static, oop::HeapAlloc},
     class::Class,
 };
-use std::ops::{Deref, DerefMut};
+use crate::value::Value;
 
 #[derive(Debug)]
 #[repr(transparent)]
@@ -15,14 +17,16 @@ impl StaticFields {
         let alloc = HeapAlloc::<Static>::new(&class, index);
         Self { alloc }
     }
-}
 
-impl Deref for StaticFields {
-    type Target = HeapAlloc<Static>;
-
-    fn deref(&self) -> &Self::Target { &self.alloc }
-}
-
-impl DerefMut for StaticFields {
-    fn deref_mut(&mut self) -> &mut Self::Target { &mut self.alloc }
+    pub(crate) fn get_field(&self, name: &str) -> Result<&'static Value> {
+        self.alloc.get_field(name)
+    }
+    
+    pub(crate) fn get_field_mut(&mut self, name: &str) -> Result<&'static mut Value> {
+        self.alloc.get_field_mut(name)
+    }
+    
+    pub(crate) fn set_field(&mut self, name: &str, data: Value) -> Result<()> {
+        self.alloc.set_field(name, data)
+    }
 }
