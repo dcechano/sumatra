@@ -1,0 +1,15 @@
+/home/dylan/Documents/CProjects/jdk21u/src/java.scripting/share/classes/com/sun/tools/script/shell/Main.java
+/home/dylan/Documents/CProjects/jdk21u/src/java.scripting/share/classes/javax/script/AbstractScriptEngine.java
+/home/dylan/Documents/CProjects/jdk21u/src/java.scripting/share/classes/javax/script/Bindings.java
+/home/dylan/Documents/CProjects/jdk21u/src/java.scripting/share/classes/javax/script/Compilable.java
+/home/dylan/Documents/CProjects/jdk21u/src/java.scripting/share/classes/javax/script/CompiledScript.java
+/home/dylan/Documents/CProjects/jdk21u/src/java.scripting/share/classes/javax/script/Invocable.java
+/home/dylan/Documents/CProjects/jdk21u/src/java.scripting/share/classes/javax/script/ScriptContext.java
+/home/dylan/Documents/CProjects/jdk21u/src/java.scripting/share/classes/javax/script/ScriptEngine.java
+/home/dylan/Documents/CProjects/jdk21u/src/java.scripting/share/classes/javax/script/ScriptEngineFactory.java
+/home/dylan/Documents/CProjects/jdk21u/src/java.scripting/share/classes/javax/script/ScriptEngineManager.java
+/home/dylan/Documents/CProjects/jdk21u/src/java.scripting/share/classes/javax/script/ScriptException.java
+/home/dylan/Documents/CProjects/jdk21u/src/java.scripting/share/classes/javax/script/SimpleBindings.java
+/home/dylan/Documents/CProjects/jdk21u/src/java.scripting/share/classes/javax/script/SimpleScriptContext.java
+/home/dylan/Documents/CProjects/jdk21u/src/java.scripting/share/classes/javax/script/package-info.java
+/home/dylan/Documents/CProjects/jdk21u/src/java.scripting/share/classes/module-info.java

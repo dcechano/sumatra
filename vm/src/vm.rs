@@ -63,9 +63,9 @@ impl VM {
         let op_code = &code.op_code;
         println!("\nExecuting method: {}", self.frame().method.name);
         while let Some(code) = op_code.get(self.frame().pc) {
-            if self.frame().method.name != "<clinit>" {
-                println!("\t{code:?}");
-            }
+            // if self.frame().method.name != "<clinit>" {
+            println!("\t{code:?}");
+            // }
             match code {
                 Instruction::AaLoad => todo!(),
                 Instruction::AaStore => todo!(),
@@ -717,7 +717,7 @@ impl VM {
         let descr = cp.get_utf8(descr_index)?;
         Ok(format!("{name}{descr}"))
     }
-    
+
     /// Return a mutable reference to the top most call frame.
     #[inline(always)]
     fn frame_mut(&mut self) -> &mut CallFrame { self.frames.last_mut().unwrap() }
@@ -725,7 +725,7 @@ impl VM {
     /// Return a shared reference to the top most call frame.
     #[inline(always)]
     fn frame(&self) -> &CallFrame { self.frames.last().unwrap() }
-    
+
     /// Take a static reference to a class and push its '<clinit>'
     /// method as a stack frame to `vm.frames`.
     fn init_class(&mut self, class: &'static Class) -> Result<Option<Value>> {

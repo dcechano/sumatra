@@ -1,0 +1,16 @@
+/home/dylan/Documents/CProjects/jdk21u/src/jdk.naming.dns/share/classes/com/sun/jndi/dns/DnsNameParser.java=225CB76693804E1D818EFF27803AF2E1
+/home/dylan/Documents/CProjects/jdk21u/src/jdk.naming.dns/share/classes/com/sun/jndi/dns/DnsUrl.java=67204316CC48A06D37ABE0B390292C79
+/home/dylan/Documents/CProjects/jdk21u/src/jdk.naming.dns/share/classes/com/sun/jndi/url/dns/dnsURLContextFactory.java=8EDC518C6289F0428970E2A8568DF511
+/home/dylan/Documents/CProjects/jdk21u/src/jdk.naming.dns/share/classes/com/sun/jndi/dns/ResourceRecords.java=47C1BF69B847AA4D1F66CA18FCF760CA
+/home/dylan/Documents/CProjects/jdk21u/src/jdk.naming.dns/share/classes/com/sun/jndi/dns/ZoneNode.java=7872B0C52232C10738EA6147A63B71C5
+/home/dylan/Documents/CProjects/jdk21u/src/jdk.naming.dns/share/classes/com/sun/jndi/dns/DnsContext.java=E3E0BDAB0B1EA81D3652BD561B15A254
+/home/dylan/Documents/CProjects/jdk21u/src/jdk.naming.dns/share/classes/com/sun/jndi/dns/DnsName.java=D8447282B8969FA0D33E0EEB8C68C78D
+/home/dylan/Documents/CProjects/jdk21u/src/jdk.naming.dns/share/classes/module-info.java=C7697EA03EEFA3D33B0D2D07C2F520E7
+/home/dylan/Documents/CProjects/jdk21u/src/jdk.naming.dns/share/classes/com/sun/jndi/dns/DnsClient.java=84A211FA668ACB1571347B4F044FCEA6
+/home/dylan/Documents/CProjects/jdk21u/src/jdk.naming.dns/share/classes/com/sun/jndi/dns/DNSDatagramChannelFactory.java=38FF49827AE916E0D1E947E76D21E6A3
+/home/dylan/Documents/CProjects/jdk21u/src/jdk.naming.dns/share/classes/com/sun/jndi/dns/Resolver.java=4D52F141665E2E0CEB4A893214A31DD6
+/home/dylan/Documents/CProjects/jdk21u/src/jdk.naming.dns/share/classes/com/sun/jndi/dns/Header.java=09932FF9CE45B1B8EDFF7C6EF33872CD
+/home/dylan/Documents/CProjects/jdk21u/src/jdk.naming.dns/share/classes/com/sun/jndi/dns/DnsContextFactory.java=1F4706397D5D4513E8A40FC545B29A79
+/home/dylan/Documents/CProjects/jdk21u/src/jdk.naming.dns/share/classes/com/sun/jndi/url/dns/dnsURLContext.java=128F7F1B2116FE19800CFB058453A931
+/home/dylan/Documents/CProjects/jdk21u/src/jdk.naming.dns/share/classes/com/sun/jndi/dns/NameNode.java=AC89D26A1F0FCA7B3DA5D165FFE4AFFC
+/home/dylan/Documents/CProjects/jdk21u/src/jdk.naming.dns/share/classes/com/sun/jndi/dns/ResourceRecord.java=CAE3CA272D2489F2692E4B7B4E4C4F25
