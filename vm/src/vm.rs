@@ -745,8 +745,11 @@ impl VM {
     /// Take a static reference to a class and push its '<clinit>'
     /// method as a stack frame to `vm.frames`.
     fn init_class(&mut self, class: &'static Class) -> Result<Option<Value>> {
-        println!("Loading <clinit> for {}", class.get_name());
-        let clinit = class.methods.get(CLINIT).unwrap();
+        // A `<clinit>` is not required by the spec.
+        let clinit = match class.methods.get(CLINIT) {
+            None => return Ok(None),
+            Some(clint) => clint 
+        };
         // clinit always takes 0 arguments
         let frame = CallFrame::new(clinit, &class.cp, 0, vec![]);
         self.frames.push(frame);
