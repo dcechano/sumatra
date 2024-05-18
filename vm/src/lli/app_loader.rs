@@ -21,7 +21,6 @@ impl AppLoader {
     fn find<S: AsRef<OsStr>>(&self, name: S) -> Option<PathBuf> {
         let entries = fs::read_dir(&self.c_path).unwrap();
         for entry in entries.flatten() {
-            // println!("DirEntry: {entry:?}");
             match entry.file_type().unwrap().is_dir() {
                 true => {
                     if let Some(path_to_class) = self.find(entry.path().as_os_str()) {
