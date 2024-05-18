@@ -755,7 +755,7 @@ impl VM {
         // A `<clinit>` is not required by the spec.
         let clinit = match class.methods.get(CLINIT) {
             None => return Ok(None),
-            Some(clint) => clint
+            Some(clint) => clint,
         };
         // clinit always takes 0 arguments
         let frame = CallFrame::new(clinit, &class.cp, 0, vec![]);
