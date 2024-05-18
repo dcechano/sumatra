@@ -29,7 +29,7 @@ pub(crate) struct HeapAlloc<T: AllocType> {
 
 impl<T: AllocType> HeapAlloc<T> {
     #[inline]
-    fn new_inner(class: &Class, index: usize) -> (Header, *mut Value) {
+    fn new_inner(class: &Class, class_id: usize) -> (Header, *mut Value) {
         let fields = match T::is_static() {
             true => class
                 .fields
@@ -42,7 +42,7 @@ impl<T: AllocType> HeapAlloc<T> {
                 .filter(|v| !v.access_flags.contains(FieldAccessFlags::STATIC))
                 .collect::<Vec<&Field>>(),
         };
-        let mut header = Header::new(class, index);
+        let mut header = Header::new(class, class_id);
         // ptr now allocated
         let data = match !fields.is_empty() {
             // SAFETY: since fields len is non 0, alloc is safe.
@@ -88,7 +88,7 @@ impl<T: AllocType> HeapAlloc<T> {
         };
         // SAFETY: offset is valid due to the offset being calculated from the
         // memory region itself, so the offset always points into valid memory.
-        unsafe { Ok(self.data.add(*offset)) }
+        unsafe { Ok(self.fields.add(*offset)) }
     }
 
     #[inline]
@@ -136,8 +136,8 @@ impl<T: AllocType> HeapAlloc<T> {
 
 impl HeapAlloc<Static> {
     #[inline]
-    pub(crate) fn new(class: &Class, index: usize) -> HeapAlloc<Static> {
-        let (header, data) = Self::new_inner(class, index);
+    pub(crate) fn new(class: &Class, class_id: usize) -> HeapAlloc<Static> {
+        let (header, data) = Self::new_inner(class, class_id);
         HeapAlloc {
             header,
             data,
@@ -150,7 +150,7 @@ impl HeapAlloc<Static> {
 impl HeapAlloc<NonStatic> {
     #[allow(clippy::new_ret_no_self)]
     #[inline]
-    pub(crate) fn new(class: &Class, index: usize) -> *mut u8 {
+    pub(crate) fn new(class: &Class, class_id: usize) -> *mut HeapAlloc<NonStatic> {
         // SAFETY: `Layout::new::<HeapAlloc>())` is valid so alloc is safe.
         let ptr = unsafe { alloc::alloc(Layout::new::<HeapAlloc<NonStatic>>()) };
         if ptr.is_null() {
@@ -209,7 +209,7 @@ impl<T: AllocType> Display for HeapAlloc<T> {
             // SAFETY: It is ok deref ptr here because the only way for it to
             // be null is for the class to have 0 fields.
             unsafe {
-                let ptr = self.data.add(*offset) as *const Value;
+                let ptr = self.fields.add(*offset) as *const Value;
                 writeln!(f, "{name} {:?}", *ptr)?;
             }
         }

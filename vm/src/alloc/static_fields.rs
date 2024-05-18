@@ -3,8 +3,8 @@ use anyhow::Result;
 use crate::{
     alloc::{alloc_type::Static, oop::HeapAlloc},
     class::Class,
+    value::Value,
 };
-use crate::value::Value;
 
 #[derive(Debug)]
 #[repr(transparent)]
@@ -13,19 +13,19 @@ pub(crate) struct StaticFields {
 }
 
 impl StaticFields {
-    pub(crate) fn new(class: &Class, index: usize) -> Self {
-        let alloc = HeapAlloc::<Static>::new(&class, index);
+    pub(crate) fn new(class: &Class, class_id: usize) -> Self {
+        let alloc = HeapAlloc::<Static>::new(&class, class_id);
         Self { alloc }
     }
 
     pub(crate) fn get_field(&self, name: &str) -> Result<&'static Value> {
         self.alloc.get_field(name)
     }
-    
+
     pub(crate) fn get_field_mut(&mut self, name: &str) -> Result<&'static mut Value> {
         self.alloc.get_field_mut(name)
     }
-    
+
     pub(crate) fn set_field(&mut self, name: &str, data: Value) -> Result<()> {
         self.alloc.set_field(name, data)
     }

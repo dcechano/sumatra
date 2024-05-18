@@ -60,6 +60,7 @@ impl MethodArea {
         }
     }
 
+    /// Pushes a class to the method area and returns its `class_id`.
     pub(crate) fn push(&mut self, class: Class) -> Result<usize> {
         if self.len == (self.size / CLASS_SIZE as usize) {
             bail!("Method area is out of memory.");
@@ -76,22 +77,22 @@ impl MethodArea {
         }
     }
 
-    pub(crate) fn get_mut_fields(&mut self, index: usize) -> Result<&'static mut StaticFields> {
-        unsafe { Ok(&mut *(self.fields.add(index))) }
+    pub(crate) fn get_mut_fields(&mut self, class_id: usize) -> Result<&'static mut StaticFields> {
+        unsafe { Ok(&mut *(self.fields.add(class_id))) }
     }
 
     pub(crate) fn get_fields(&self, index: usize) -> Result<&'static StaticFields> {
         unsafe { Ok(&*(self.fields.add(index) as *const StaticFields)) }
     }
 
-    pub(crate) fn get_class(&self, index: usize) -> Result<&'static Class> {
-        unsafe { Ok(&*(self.classes.add(index))) }
+    pub(crate) fn get_class(&self, class_id: usize) -> Result<&'static Class> {
+        unsafe { Ok(&*(self.classes.add(class_id))) }
     }
 
-    pub(crate) fn class_data(&mut self, index: usize) -> Result<StaticData> {
-        let class = self.get_class(index)?;
-        let fields = self.get_mut_fields(index)?;
-        Ok(StaticData::new(class, fields))
+    pub(crate) fn class_data(&mut self, class_id: usize) -> Result<StaticData> {
+        let class = self.get_class(class_id)?;
+        let fields = self.get_mut_fields(class_id)?;
+        Ok(StaticData::new(class_id, class, fields))
     }
 
     unsafe fn deallocate_objs(&mut self) {
@@ -122,8 +123,7 @@ impl Drop for MethodArea {
 
 #[cfg(test)]
 mod tests {
-    use std::{fs::File, io::Read, path::Path};
-    use std::os::unix::fs::MetadataExt;
+    use std::{fs::File, io::Read, os::unix::fs::MetadataExt, path::Path};
 
     use anyhow::bail;
     use zip::ZipArchive;
@@ -144,7 +144,7 @@ mod tests {
 
     fn get_file() -> ClassFile {
         let mut file = File::open(format!("{JAR_PATH}{OBJECT_FILE}")).unwrap();
-        
+
         let mut contents = Vec::with_capacity(file.metadata().unwrap().size() as usize);
         file.read_to_end(&mut contents).unwrap();
         ClassFile::parse_from_buffer(&contents).unwrap()

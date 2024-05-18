@@ -4,13 +4,22 @@ use anyhow::Result;
 
 #[derive(Debug)]
 pub(crate) struct StaticData {
+    pub class_id: usize,
     pub class: &'static Class,
     fields: &'static mut StaticFields,
 }
 
 impl StaticData {
-    pub(crate) fn new(class: &'static Class, fields: &'static mut StaticFields) -> Self {
-        Self { class, fields }
+    pub(crate) fn new(
+        class_id: usize,
+        class: &'static Class,
+        fields: &'static mut StaticFields,
+    ) -> Self {
+        Self {
+            class_id,
+            class,
+            fields,
+        }
     }
 
     pub(crate) fn get_field(&self, name: &str) -> Result<&'static Value> {

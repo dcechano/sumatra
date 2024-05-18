@@ -13,16 +13,16 @@ use crate::{
 
 #[derive(Debug)]
 pub(crate) struct Header {
-    pub class_index: usize,
+    pub class_id: usize,
     pub name: String,
     pub fields: FieldsTable,
 }
 
 impl Header {
     #[inline]
-    pub(crate) fn new(class: &Class, class_index: usize) -> Self {
+    pub(crate) fn new(class: &Class, class_id: usize) -> Self {
         Self {
-            class_index,
+            class_id,
             name: class.get_name(),
             // offsets for the fields cannot be calculated until
             // we put them in. Thus, awkwardly, the Header has to be created
@@ -36,8 +36,9 @@ impl Header {
         while i < fields.len() {
             let name = fields[i].name.to_string();
             // SAFETY: The invariant that `ptr` is always aligned and valid
-            // is upheld by the calling method. Additionally, the length of the dynamic array
-            // being long enough for this add is also guaranteed by the calling method.
+            // is upheld by the calling method. Additionally, the length of the dynamic
+            // array being long enough for this add is also guaranteed by the
+            // calling method.
             unsafe {
                 // write the default value to avoid uninitialized memory
                 ptr::write(ptr.add(i), Value::Null);
