@@ -84,6 +84,7 @@ pub enum Instruction {
     /// Store double into local variable 3 and 4.
     DStore3,
     DSub,
+    /// Duplicate the value at the top of the operand stack.
     Dup,
     DupX1,
     DupX2,
