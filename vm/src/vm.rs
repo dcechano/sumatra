@@ -485,24 +485,24 @@ impl VM {
     /// the index to the `Constant::MethodRef` in the runtime constant pool.
     fn invoke_static(&mut self, method_index: usize) -> Result<Option<Value>> {
         let frame = self.frame();
-        if let Constant::MethodRef {
+        let Constant::MethodRef {
             class_index,
             name_and_type_index,
         } = frame.cp.get(method_index).unwrap()
-        {
-            let (name_index, desc_index, alloc) = self.unpack(class_index, name_and_type_index)?;
-            let (class, method) = self.to_method_class(name_index, desc_index, &alloc)?;
-
-            assert!(method.is_static());
-            // TODO implement native method calls.
-            if method.is_native() {
-                println!("Method '{}' was a native method. Ignoring.", method.name);
-                Ok(None)
-            } else {
-                self.invoke(class, method)
-            }
-        } else {
+        else {
             bail!("Expected Constant::MethodRef in invoke_static.");
+        };
+
+        let (name_index, desc_index, alloc) = self.unpack(class_index, name_and_type_index)?;
+        let (class, method) = self.to_method_class(name_index, desc_index, &alloc)?;
+
+        assert!(method.is_static());
+        // TODO implement native method calls.
+        if method.is_native() {
+            println!("Method '{}' was a native method. Ignoring.", method.name);
+            Ok(None)
+        } else {
+            self.invoke(class, method)
         }
     }
 
@@ -510,23 +510,23 @@ impl VM {
     /// the index to the `Constant::MethodRef` in the runtime constant pool.
     fn invoke_virtual(&mut self, method_index: &usize) -> Result<Option<Value>> {
         let frame = self.frame();
-        if let Constant::MethodRef {
+        let Constant::MethodRef {
             class_index,
             name_and_type_index,
         } = frame.cp.get(*method_index).unwrap()
-        {
-            let (name_index, desc_index, alloc) = self.unpack(class_index, name_and_type_index)?;
-            let (class, method) = self.to_method_class(name_index, desc_index, &alloc)?;
-            assert!(!method.is_static());
-            // TODO implement native method calls.
-            if method.is_native() {
-                println!("Method '{}' was a native method. Ignoring.", method.name);
-                Ok(None)
-            } else {
-                self.invoke(class, method)
-            }
-        } else {
+        else {
             bail!("Expected Constant::MethodRef in invoke_static.");
+        };
+
+        let (name_index, desc_index, alloc) = self.unpack(class_index, name_and_type_index)?;
+        let (class, method) = self.to_method_class(name_index, desc_index, &alloc)?;
+        assert!(!method.is_static());
+        // TODO implement native method calls.
+        if method.is_native() {
+            println!("Method '{}' was a native method. Ignoring.", method.name);
+            Ok(None)
+        } else {
+            self.invoke(class, method)
         }
     }
 
@@ -624,33 +624,35 @@ impl VM {
     /// a class or interface. New Java object is pushed on to the operand stack.
     fn new_obj(&mut self, class_index: usize) -> Result<()> {
         let frame = self.frame();
-        if let Some(Constant::Class(name_index)) = frame.cp.get(class_index) {
-            let class_name = frame.cp.get_utf8(*name_index)?;
-            let StaticData {
-                class, class_id, ..
-            } = self.load_class(class_name)?;
-            Ok(self.frame_mut().push(Value::new_object(class, class_id)))
-        } else {
+        let Some(Constant::Class(name_index)) = frame.cp.get(class_index) else {
             bail!("Expected a symbolic class reference at index: {class_index}")
-        }
+        };
+
+        let class_name = frame.cp.get_utf8(*name_index)?;
+        let StaticData {
+            class, class_id, ..
+        } = self.load_class(class_name)?;
+        Ok(self.frame_mut().push(Value::new_object(class, class_id)))
     }
 
     /// Executes the `Instruction::GetStatic` instruction.
     /// `index` is the index of the `Constant::FieldRef` in the
     /// runtime constant pool.
     fn get_static(&mut self, index: usize) -> Result<()> {
-        if let Constant::FieldRef {
+        let Constant::FieldRef {
             class_index,
             name_and_type_index,
         } = self.frame().cp.get(index).unwrap()
-        {
-            let (name_index, _, alloc) = self.unpack(class_index, name_and_type_index)?;
-            let field_val = alloc.get_field(self.frame().cp.get_utf8(name_index)?)?;
-            if let Value::Long(_) | Value::Double(_) = field_val {
-                self.frame_mut().stack.push(field_val.clone());
-            }
+        else {
+            bail!("Expected symbolic reference to a field at index: {index}");
+        };
+
+        let (name_index, _, alloc) = self.unpack(class_index, name_and_type_index)?;
+        let field_val = alloc.get_field(self.frame().cp.get_utf8(name_index)?)?;
+        if let Value::Long(_) | Value::Double(_) = field_val {
             self.frame_mut().stack.push(field_val.clone());
         }
+        self.frame_mut().stack.push(field_val.clone());
         Ok(())
     }
 
@@ -670,16 +672,15 @@ impl VM {
     /// `field_index` is the index of the `Constant::FieldRef` in the
     /// runtime constant pool.
     fn put_static(&mut self, field_index: usize) -> Result<()> {
-        if let Constant::FieldRef {
+        let Constant::FieldRef {
             class_index,
             name_and_type_index,
         } = self.frame().cp.get(field_index).unwrap()
-        {
-            let (f_name, mut data) = self.unpack_f_name(class_index, name_and_type_index)?;
-            data.set_field(&f_name, self.frame_mut().stack.pop().unwrap())?;
-        } else {
+        else {
             bail!("Expected Constant::FieldRef for a put_static instruction.");
         };
+        let (f_name, mut data) = self.unpack_f_name(class_index, name_and_type_index)?;
+        data.set_field(&f_name, self.frame_mut().stack.pop().unwrap())?;
         Ok(())
     }
 
@@ -820,28 +821,26 @@ impl VM {
         name_and_type: &usize,
     ) -> Result<(usize, usize, StaticData)> {
         let frame = self.frame();
-        if let Constant::Class(class_name) = frame.cp.get(*class_index).unwrap() {
-            let name = frame.cp.get_utf8(*class_name)?;
-            let static_data = self.load_class(name)?;
-
-            if let Constant::NameAndType {
-                name_index,
-                descriptor_index,
-            } = self.frame().cp.get(*name_and_type).unwrap()
-            {
-                Ok((*name_index, *descriptor_index, static_data))
-            } else {
-                bail!(
-                    "Provided name_and_type_index did not point to a \
-                NameAndType constant."
-                );
-            }
-        } else {
+        let Constant::Class(class_name) = frame.cp.get(*class_index).unwrap() else {
             bail!(
                 "Class index while executing `get_static` \
                     didn't point to a Class in the constant pool."
             );
-        }
+        };
+        let name = frame.cp.get_utf8(*class_name)?;
+        let static_data = self.load_class(name)?;
+
+        let Constant::NameAndType {
+            name_index,
+            descriptor_index,
+        } = self.frame().cp.get(*name_and_type).unwrap()
+        else {
+            bail!(
+                "Provided name_and_type_index did not point to a \
+                NameAndType constant."
+            );
+        };
+        Ok((*name_index, *descriptor_index, static_data))
     }
 
     /// Takes in constant pool indices for the `Constant::Class(class_name)` and
