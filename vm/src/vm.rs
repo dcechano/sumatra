@@ -493,7 +493,7 @@ impl VM {
             bail!("Expected Constant::MethodRef in invoke_static.");
         };
 
-        let (name_index, desc_index, alloc) = self.unpack(class_index, name_and_type_index)?;
+        let (name_index, desc_index, alloc) = self.unpack(*class_index, *name_and_type_index)?;
         let (class, method) = self.to_method_class(name_index, desc_index, &alloc)?;
 
         assert!(method.is_static());
@@ -518,7 +518,7 @@ impl VM {
             bail!("Expected Constant::MethodRef in invoke_static.");
         };
 
-        let (name_index, desc_index, alloc) = self.unpack(class_index, name_and_type_index)?;
+        let (name_index, desc_index, alloc) = self.unpack(*class_index, *name_and_type_index)?;
         let (class, method) = self.to_method_class(name_index, desc_index, &alloc)?;
         assert!(!method.is_static());
         // TODO implement native method calls.
@@ -647,7 +647,7 @@ impl VM {
             bail!("Expected symbolic reference to a field at index: {index}");
         };
 
-        let (name_index, _, alloc) = self.unpack(class_index, name_and_type_index)?;
+        let (name_index, _, alloc) = self.unpack(*class_index, *name_and_type_index)?;
         let field_val = alloc.get_field(self.frame().cp.get_utf8(name_index)?)?;
         if let Value::Long(_) | Value::Double(_) = field_val {
             self.frame_mut().stack.push(field_val.clone());
@@ -817,11 +817,11 @@ impl VM {
     /// initialize Class.
     fn unpack(
         &mut self,
-        class_index: &usize,
-        name_and_type: &usize,
+        class_index: usize,
+        name_and_type: usize,
     ) -> Result<(usize, usize, StaticData)> {
         let frame = self.frame();
-        let Constant::Class(class_name) = frame.cp.get(*class_index).unwrap() else {
+        let Constant::Class(class_name) = frame.cp.get(class_index).unwrap() else {
             bail!(
                 "Class index while executing `get_static` \
                     didn't point to a Class in the constant pool."
@@ -833,7 +833,7 @@ impl VM {
         let Constant::NameAndType {
             name_index,
             descriptor_index,
-        } = self.frame().cp.get(*name_and_type).unwrap()
+        } = self.frame().cp.get(name_and_type).unwrap()
         else {
             bail!(
                 "Provided name_and_type_index did not point to a \
@@ -854,7 +854,7 @@ impl VM {
         class_index: &usize,
         name_and_type: &usize,
     ) -> Result<(String, StaticData)> {
-        let (name_index, _, data) = self.unpack(class_index, name_and_type)?;
+        let (name_index, _, data) = self.unpack(*class_index, *name_and_type)?;
         let f_name = self.frame().cp.get_utf8(name_index)?.into();
         Ok((f_name, data))
     }
@@ -867,8 +867,8 @@ impl VM {
     /// initialized.
     fn unpack_m_name(
         &mut self,
-        class_index: &usize,
-        name_and_type: &usize,
+        class_index: usize,
+        name_and_type: usize,
     ) -> Result<(String, StaticData)> {
         let (name_index, descr_index, data) = self.unpack(class_index, name_and_type)?;
         let name = self.construct_m_name(name_index, descr_index)?;
