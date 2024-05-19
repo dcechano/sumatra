@@ -9,13 +9,14 @@ as possible, it is not recommended to use in a production setting.
 
 The following are currently on the todo list:
 
-- Implement arrays
-- Implement garbage collection
-- Implement a JNI
-- Implement support for native functions (No JNI)
-- Implement [Class file verification](https://docs.oracle.com/javase/specs/jvms/se21/html/jvms-4.html#jvms-4.10)
-- Implement multithreading support
-- Implement I/O
-- Implement JIT
-- Implement Java Exceptions
-- Implement MORE TESTS!
+- [ ] Implement arrays
+- [ ] Implement garbage collection
+- [ ] Implement a JNI
+- [ ] Implement support for native functions (No JNI)
+- [ ] Implement [Class file verification](https://docs.oracle.com/javase/specs/jvms/se21/html/jvms-4.html#jvms-4.10)
+- [ ] Implement multithreading support
+- [ ] Implement I/O
+- [ ] Implement JIT
+- [ ] Implement Java Exceptions
+- [ ] Implement MORE TESTS!
+- [ ] Determine "[maximally specific method](https://docs.oracle.com/javase/specs/jls/se8/html/jls-15.html#jls-15.12.2.5)" during method resolution.
