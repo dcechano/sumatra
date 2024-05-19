@@ -251,7 +251,7 @@ impl VM {
                 Instruction::InvokeInterface(_, _, _) => todo!(),
                 Instruction::InvokeSpecial(_) => todo!(),
                 Instruction::InvokeStatic(method_index) => {
-                    if let Some(value) = self.invoke_static(&(*method_index as usize))? {
+                    if let Some(value) = self.invoke_static(*method_index as usize)? {
                         if let Value::Double(_) | Value::Long(_) = value {
                             self.frame_mut().stack.push(value.clone());
                         }
@@ -259,7 +259,7 @@ impl VM {
                     }
                 }
                 Instruction::InvokeVirtual(method_index) => {
-                    if let Some(value) = self.invoke_virtual(&(*method_index))? {
+                    if let Some(value) = self.invoke_virtual(method_index)? {
                         if let Value::Double(_) | Value::Long(_) = value {
                             self.frame_mut().stack.push(value.clone());
                         }
@@ -483,12 +483,12 @@ impl VM {
 
     /// Executed the `Instruction::InvokeStatic` instruction. `method_index` is
     /// the index to the `Constant::MethodRef` in the runtime constant pool.
-    fn invoke_static(&mut self, method_index: &usize) -> Result<Option<Value>> {
+    fn invoke_static(&mut self, method_index: usize) -> Result<Option<Value>> {
         let frame = self.frame();
         if let Constant::MethodRef {
             class_index,
             name_and_type_index,
-        } = frame.cp.get(*method_index).unwrap()
+        } = frame.cp.get(method_index).unwrap()
         {
             let (name_index, desc_index, alloc) = self.unpack(class_index, name_and_type_index)?;
             let (class, method) = self.to_method_class(name_index, desc_index, &alloc)?;
