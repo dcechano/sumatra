@@ -1,13 +1,14 @@
 use anyhow::{bail, Result};
 use sumatra_parser::{constant_pool::ConstantPool, method::Method};
+use crate::class::Class;
 
 use crate::value::Value;
 
 #[derive(Debug)]
 pub(crate) struct CallFrame {
+    pub(crate) class: &'static Class,
     pub(crate) method: &'static Method,
     pub(crate) pc: usize,
-    pub(crate) num_locals: usize,
     pub(crate) stack: Vec<Value>,
     pub(crate) locals: Vec<Value>,
     pub(crate) cp: &'static ConstantPool,
@@ -15,15 +16,15 @@ pub(crate) struct CallFrame {
 
 impl CallFrame {
     pub(crate) fn new(
+        class: &'static Class,
         method: &'static Method,
         cp: &'static ConstantPool,
-        num_locals: usize,
         locals: Vec<Value>,
     ) -> Self {
         Self {
+            class,
             method,
             pc: 0,
-            num_locals,
             locals,
             stack: vec![],
             cp,

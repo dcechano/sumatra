@@ -724,7 +724,7 @@ impl VM {
         let locals = self.construct_main_locals(&m_method);
         let num_locals = locals.len();
         //TODO implement arguments to pass into main function
-        Ok(CallFrame::new(m_method, cp, num_locals, locals))
+        Ok(CallFrame::new(main, m_method, cp, locals))
     }
 
     /// construct local variables for main method's `CallFrame`.
@@ -759,7 +759,7 @@ impl VM {
             Some(clint) => clint,
         };
         // clinit always takes 0 arguments
-        let frame = CallFrame::new(clinit, &class.cp, 0, vec![]);
+        let frame = CallFrame::new(class, clinit, &class.cp, vec![]);
         self.frames.push(frame);
         self.execute_frame()
     }
@@ -770,9 +770,9 @@ impl VM {
         let max_locals = method.code.max_locals as usize;
 
         let frame = CallFrame::new(
+            class,
             method,
             &class.cp,
-            num_params,
             self.construct_locals(max_locals, num_params)?,
         );
         self.frames.push(frame);
