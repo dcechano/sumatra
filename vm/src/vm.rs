@@ -812,7 +812,7 @@ impl VM {
 
     /// Takes in constant pool indices for the `Constant::Class(class_name)` and
     /// the `Constant::NameAndType` and returns the `name_index`,
-    /// `descriptor_index`,  and a `&mut StaticAlloc` of the class pointed
+    /// `descriptor_index`,  and a `StaticData` of the class pointed
     /// to by `class_name`. The returned StaticData will have a fully
     /// initialize Class.
     fn unpack(
