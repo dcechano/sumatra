@@ -78,7 +78,7 @@ impl Class {
 
 impl From<&ClassFile> for Class {
     fn from(class_file: &ClassFile) -> Self {
-        Class {
+        Self {
             minor_version: class_file.minor_version,
             major_version: class_file.major_version,
             cp: class_file.cp.clone(),
