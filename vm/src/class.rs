@@ -21,12 +21,58 @@ pub struct Class {
 
 impl Class {
     pub fn get_name(&self) -> String {
-        if let Constant::Class(index) = self.cp.get(self.this_class).unwrap() {
-            self.cp.get_utf8(*index).unwrap().to_string()
-        } else {
+        let Constant::Class(index) = self.cp.get(self.this_class).unwrap() else {
             // Should not be possible if the class file is valid.
             panic!("Invalid class file format. this_class index did not point to a Class constant in the constant pool.");
-        }
+        };
+        
+        self.cp.get_utf8(*index).unwrap().to_string()
+    }
+    
+    /// Return true if the class is declared abstract.
+    pub fn is_abstract(&self) -> bool {
+        self.access_flags.contains(ClassAccessFlags::FINAL)
+    }
+
+    /// Returns true if the class is an annotation interface
+    pub fn is_annotation(&self) -> bool {
+        self.access_flags.contains(ClassAccessFlags::ANNOTATION)
+    }
+
+    /// Returns true if the class is an enum class.
+    pub fn is_enum(&self) -> bool {
+        self.access_flags.contains(ClassAccessFlags::ENUM)
+    }
+    
+    /// Returns true if the class is declared final.
+    pub fn is_final(&self) -> bool {
+        self.access_flags.contains(ClassAccessFlags::FINAL)
+    }
+
+    /// Returns true if the class is an interface, not a class.
+    pub fn is_interface(&self) -> bool {
+        self.access_flags.contains(ClassAccessFlags::INTERFACE)
+    }
+
+    /// Returns true if the class is a module, not a class.
+    pub fn is_module(&self) -> bool {
+        self.access_flags.contains(ClassAccessFlags::MODULE)
+    }
+    
+    /// Returns true if the class is declared public.
+    pub fn is_public(&self) -> bool {
+        self.access_flags.contains(ClassAccessFlags::PUBLIC)
+    }
+    
+    /// Returns true if the `ACC_SUPER` flag is set. The `ACC_SUPER` flag is a 
+    /// flag to "treat superclass methods specially when invoked by the invokespecial instruction."
+    pub fn is_super(&self) -> bool {
+        self.access_flags.contains(ClassAccessFlags::SUPER)
+    }
+
+    /// Returns true if the class is synthetic (not declared in the source code).
+    pub fn is_synthetic(&self) -> bool {
+        self.access_flags.contains(ClassAccessFlags::SYNTHETIC)
     }
 }
 
