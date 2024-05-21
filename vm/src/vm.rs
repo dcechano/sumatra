@@ -844,11 +844,13 @@ impl VM {
     }
 
     /// Takes in constant pool indices for the `Constant::Class(class_name)` and
-    /// the `Constant::NameAndType` and returns a `String` and a `&'static mut
-    /// StaticAlloc`. The `String` represents a field name.
-    /// The returned `&'static mut StaticAlloc` is the allocation of the class
-    /// pointed to by `class_name`, with the class already fully
-    /// initialized.
+    /// the `Constant::NameAndType` and returns a `String` and a `StaticData`. 
+    /// The `String` represents the field name. The returned `StaticData` is a wrapper
+    /// around the class (fully initialized) pointed to by `class_name`, and a `&'static mut StaticFields`
+    /// that can be used to mutate the static fields of the class. Although the mutable ref to
+    /// `StaticFields` is `'static`, the ref should never be kept around longer than the lifetime
+    /// of the (Rust) stack frame that received it. This is to avoid running afoul of the Rust
+    /// aliasing rules.
     fn unpack_f_name(
         &mut self,
         class_index: &usize,
@@ -860,11 +862,13 @@ impl VM {
     }
 
     /// Takes in constant pool indices for the `Constant::Class(class_name)` and
-    /// the `Constant::NameAndType` and returns a `String` and a `&'static mut
-    /// StaticAlloc`. The `String` represents a method name.
-    /// The returned `&'static mut StaticAlloc` is the allocation of the class
-    /// pointed to by `class_name`, with the class already fully
-    /// initialized.
+    /// the `Constant::NameAndType` and returns a `String` and a `StaticData`. 
+    /// The `String` represents the method name. The returned `StaticData` is a wrapper
+    /// around the class (fully initialized) pointed to by `class_name`, and a `&'static mut StaticFields`
+    /// that can be used to mutate the static fields of the class. Although the mutable ref to
+    /// `StaticFields` is `'static`, the ref should never be kept around longer than the lifetime
+    /// of the (Rust) stack frame that received it. This is to avoid running afoul of the Rust
+    /// aliasing rules.
     fn unpack_m_name(
         &mut self,
         class_index: usize,
