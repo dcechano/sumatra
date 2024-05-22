@@ -481,6 +481,34 @@ impl VM {
         jmp
     }
 
+    /// Executed the `Instruction::InvokeSpecial` instruction. `method_index` is
+    /// the index to the `Constant::MethodRef` or `Constant::InterfaceMethodRef`
+    /// in the runtime constant pool.
+    fn invoke_special(&mut self, method_index: usize) -> Result<Option<Value>> {
+        match self.frame().cp.get(method_index).unwrap() {
+            
+            
+            Constant::MethodRef {
+                class_index,
+                name_and_type_index,
+            } => {
+                let is_super = self.superclass_method(*class_index, *name_and_type_index)?;
+                
+                self.invokespec_metref(*class_index, *name_and_type_index, )
+            },
+            Constant::InterfaceMethodRef {
+                class_index,
+                name_and_type_index,
+            } => {
+                let is_super = self.superclass_method(*class_index, *name_and_type_index)?;
+                self.invokespec_intrfcref(*class_index, *name_and_type_index) 
+            },
+            _ => bail!(
+                "Expected symbolic reference to a method or interface method in invoke_special"
+            ),
+        }
+    }
+
     /// Executed the `Instruction::InvokeStatic` instruction. `method_index` is
     /// the index to the `Constant::MethodRef` in the runtime constant pool.
     fn invoke_static(&mut self, method_index: usize) -> Result<Option<Value>> {
@@ -779,6 +807,45 @@ impl VM {
         self.execute_frame()
     }
 
+    /// Helper function to determine if the target of a `Instruction::InvokeSpecial` instruction
+    /// is defined in the superclass of the current class.
+    fn superclass_method(&mut self, class_index: usize, name_and_type_index: usize) -> Result<bool> {
+        //TODO add error handling laid out here: https://docs.oracle.com/javase/specs/jvms/se21/html/jvms-6.html#jvms-6.5.invokespecial
+        // There are RuntimeExceptions to be returned if the class method is static, ect.
+        let frame = self.frame();
+        let super_index = frame.class.super_class;
+        
+        // check if the class named by the method symbolically referenced is the superclass of the
+        // current class.
+        if !class_index == super_index {
+            return Ok(false); 
+        }
+        
+        // from this point on the class named by the method is the superclass of the current class.
+        // There are other factors to check before returning true.
+        if !frame.class.is_super() {
+            return Ok(false);
+        }
+        
+        let (name_index, desc_index, static_data) = self.unpack(class_index, name_and_type_index)?;
+        let (class, method) = self.to_method_class(name_index, desc_index, &static_data)?;
+        if class.is_interface() {
+            return Ok(false);
+        }
+        
+        if method.is_static() {
+            //TODO replace with proper handling as indicated above.
+            panic!("invokespecial target method was static!");
+        }
+        
+        if method.name == "<init>".to_string() {
+            return Ok(false);
+        }
+        
+        
+        Ok(true)
+    }
+    
     /// Load the class definition specified by `name`. If
     /// the class is found in the `MethodArea`, a `StaticData` object
     /// is returned. This function handles initialization if necessary.
