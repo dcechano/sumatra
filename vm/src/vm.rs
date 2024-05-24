@@ -370,7 +370,7 @@ impl VM {
         let object = frame.load(local_index)?;
         if !matches!(
             object,
-            (Value::Ref(_) | Value::ReturnAddress(_) | Value::StringConst(_))
+            (Value::Ref(_) | Value::StringConst(_) | Value::Null)
         ) {
             bail!("Expected ref type for a_load instruction.");
         }
