@@ -1,6 +1,6 @@
+use crate::class::Class;
 use anyhow::{bail, Result};
 use sumatra_parser::{constant_pool::ConstantPool, method::Method};
-use crate::class::Class;
 
 use crate::value::Value;
 
