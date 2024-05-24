@@ -249,7 +249,14 @@ impl VM {
                 Instruction::InstanceOf(_) => todo!(),
                 Instruction::InvokeDynamic(index, _, _) => println!("\t    InvokeDynamic: {index}"),
                 Instruction::InvokeInterface(_, _, _) => todo!(),
-                Instruction::InvokeSpecial(_) => todo!(),
+                Instruction::InvokeSpecial(method_index) => {
+                    if let Some(value) = self.invoke_special(*method_index as usize)? {
+                        if let Value::Double(_) | Value::Long(_) = value {
+                            self.frame_mut().stack.push(value.clone());
+                        }
+                        self.frame_mut().stack.push(value);
+                    }
+                }
                 Instruction::InvokeStatic(method_index) => {
                     if let Some(value) = self.invoke_static(*method_index as usize)? {
                         if let Value::Double(_) | Value::Long(_) = value {
@@ -367,6 +374,7 @@ impl VM {
     /// executing frame's local variable array.
     fn a_load(&mut self, local_index: usize) -> Result<()> {
         let frame = self.frame_mut();
+        println!("Stack: {:?}", frame.locals);
         let object = frame.load(local_index)?;
         if !matches!(
             object,
@@ -485,24 +493,68 @@ impl VM {
     /// the index to the `Constant::MethodRef` or `Constant::InterfaceMethodRef`
     /// in the runtime constant pool.
     fn invoke_special(&mut self, method_index: usize) -> Result<Option<Value>> {
+        // This method is very involved and convoluted. The algorithm
+        // for determining the target method of an `Instruction::InvokeSpecial` is
+        // defined here: https://docs.oracle.com/javase/specs/jvms/se21/html/jvms-6.html#jvms-6.5.invokespecial
         match self.frame().cp.get(method_index).unwrap() {
-            
-            
             Constant::MethodRef {
                 class_index,
                 name_and_type_index,
             } => {
                 let is_super = self.superclass_method(*class_index, *name_and_type_index)?;
-                
-                self.invokespec_metref(*class_index, *name_and_type_index, )
-            },
+                let mut class = if is_super {
+                    let Constant::Class(class_name_index) =
+                        self.frame().cp.get(*class_index).unwrap()
+                    else {
+                        bail!("Expected class while executing invokespecial.");
+                    };
+                    let class_name = self.frame().cp.get_utf8(*class_name_index)?;
+                    self.load_class(class_name)?.class
+                } else {
+                    self.frame().class
+                };
+
+                let Constant::NameAndType {
+                    name_index,
+                    descriptor_index,
+                } = self.frame().cp.get(*name_and_type_index).unwrap()
+                else {
+                    bail!("Expected NameAndType while executing invokespecial.");
+                };
+                let method_name = self.construct_m_name(*name_index, *descriptor_index)?;
+                loop {
+                    println!("Looking for {} in class {}", method_name, class.get_name());
+                    match class.methods.get(&method_name) {
+                        None => {
+                            let super_index = class.super_class;
+                            if super_index == 0 {
+                                bail!("Index of superclass should not be 0 in invoke_special");
+                            }
+                            let Constant::Class(super_class) = class.cp.get(super_index).unwrap()
+                            else {
+                                bail!("Expected class while executing invokespecial.");
+                            };
+                            let super_name = class.cp.get_utf8(*super_class).unwrap();
+                            class = self.load_class(super_name).unwrap().class;
+                        }
+                        Some(method) => {
+                            println!("method found in {}", class.get_name());
+                            if method.is_static() {
+                                // TODO check for method in superclass of this class.
+                                continue;
+                            }
+                            return self.invoke(class, method);
+                        }
+                    }
+                }
+            }
             Constant::InterfaceMethodRef {
                 class_index,
                 name_and_type_index,
             } => {
                 let is_super = self.superclass_method(*class_index, *name_and_type_index)?;
-                self.invokespec_intrfcref(*class_index, *name_and_type_index) 
-            },
+                self.invokespec_intrfcref(*class_index, *name_and_type_index)
+            }
             _ => bail!(
                 "Expected symbolic reference to a method or interface method in invoke_special"
             ),
@@ -832,46 +884,53 @@ impl VM {
     ) -> Result<&'static Class> {
         todo!()
     }
-    
-    /// Helper function to determine if the target of a `Instruction::InvokeSpecial` instruction
-    /// is defined in the superclass of the current class.
-    fn superclass_method(&mut self, class_index: usize, name_and_type_index: usize) -> Result<bool> {
+
+    /// Helper function to determine if the target of a
+    /// `Instruction::InvokeSpecial` instruction is defined in the
+    /// superclass of the current class.
+    fn superclass_method(
+        &mut self,
+        class_index: usize,
+        name_and_type_index: usize,
+    ) -> Result<bool> {
         //TODO add error handling laid out here: https://docs.oracle.com/javase/specs/jvms/se21/html/jvms-6.html#jvms-6.5.invokespecial
-        // There are RuntimeExceptions to be returned if the class method is static, ect.
+        // There are RuntimeExceptions to be returned if the class method is static,
+        // ect.
         let frame = self.frame();
         let super_index = frame.class.super_class;
-        
-        // check if the class named by the method symbolically referenced is the superclass of the
-        // current class.
+
+        // check if the class named by the method symbolically referenced is the
+        // superclass of the current class.
         if !class_index == super_index {
-            return Ok(false); 
+            return Ok(false);
         }
-        
-        // from this point on the class named by the method is the superclass of the current class.
-        // There are other factors to check before returning true.
+
+        // from this point on the class named by the method is the superclass of the
+        // current class. There are other factors to check before returning
+        // true.
         if !frame.class.is_super() {
             return Ok(false);
         }
-        
-        let (name_index, desc_index, static_data) = self.unpack(class_index, name_and_type_index)?;
+
+        let (name_index, desc_index, static_data) =
+            self.unpack(class_index, name_and_type_index)?;
         let (class, method) = self.to_method_class(name_index, desc_index, &static_data)?;
         if class.is_interface() {
             return Ok(false);
         }
-        
+
         if method.is_static() {
             //TODO replace with proper handling as indicated above.
             panic!("invokespecial target method was static!");
         }
-        
+
         if method.name == "<init>".to_string() {
             return Ok(false);
         }
-        
-        
+
         Ok(true)
     }
-    
+
     /// Load the class definition specified by `name`. If
     /// the class is found in the `MethodArea`, a `StaticData` object
     /// is returned. This function handles initialization if necessary.
@@ -937,13 +996,14 @@ impl VM {
     }
 
     /// Takes in constant pool indices for the `Constant::Class(class_name)` and
-    /// the `Constant::NameAndType` and returns a `String` and a `StaticData`. 
-    /// The `String` represents the field name. The returned `StaticData` is a wrapper
-    /// around the class (fully initialized) pointed to by `class_name`, and a `&'static mut StaticFields`
-    /// that can be used to mutate the static fields of the class. Although the mutable ref to
-    /// `StaticFields` is `'static`, the ref should never be kept around longer than the lifetime
-    /// of the (Rust) stack frame that received it. This is to avoid running afoul of the Rust
-    /// aliasing rules.
+    /// the `Constant::NameAndType` and returns a `String` and a `StaticData`.
+    /// The `String` represents the field name. The returned `StaticData` is a
+    /// wrapper around the class (fully initialized) pointed to by
+    /// `class_name`, and a `&'static mut StaticFields` that can be used to
+    /// mutate the static fields of the class. Although the mutable ref to
+    /// `StaticFields` is `'static`, the ref should never be kept around longer
+    /// than the lifetime of the (Rust) stack frame that received it. This
+    /// is to avoid running afoul of the Rust aliasing rules.
     fn unpack_f_name(
         &mut self,
         class_index: &usize,
@@ -955,13 +1015,14 @@ impl VM {
     }
 
     /// Takes in constant pool indices for the `Constant::Class(class_name)` and
-    /// the `Constant::NameAndType` and returns a `String` and a `StaticData`. 
-    /// The `String` represents the method name. The returned `StaticData` is a wrapper
-    /// around the class (fully initialized) pointed to by `class_name`, and a `&'static mut StaticFields`
-    /// that can be used to mutate the static fields of the class. Although the mutable ref to
-    /// `StaticFields` is `'static`, the ref should never be kept around longer than the lifetime
-    /// of the (Rust) stack frame that received it. This is to avoid running afoul of the Rust
-    /// aliasing rules.
+    /// the `Constant::NameAndType` and returns a `String` and a `StaticData`.
+    /// The `String` represents the method name. The returned `StaticData` is a
+    /// wrapper around the class (fully initialized) pointed to by
+    /// `class_name`, and a `&'static mut StaticFields` that can be used to
+    /// mutate the static fields of the class. Although the mutable ref to
+    /// `StaticFields` is `'static`, the ref should never be kept around longer
+    /// than the lifetime of the (Rust) stack frame that received it. This
+    /// is to avoid running afoul of the Rust aliasing rules.
     fn unpack_m_name(
         &mut self,
         class_index: usize,
