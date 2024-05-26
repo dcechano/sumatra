@@ -50,15 +50,19 @@ impl Value {
     fn is_same_variant(&self, other: &Value) -> bool {
         match self {
             Value::Null => matches!(other, Value::Null),
-            Value::Double(_) => matches!(other, Value::Double(_)),
-            Value::Int(_) => matches!(other, Value::Int(_)),
-            Value::Short(_) => matches!(other, Value::Short(_)),
             Value::Byte(_) => matches!(other, Value::Byte(_)),
-            Value::Long(_) => matches!(other, Value::Long(_)),
+            Value::Class(_) => matches!(other, Value::Class(_)),
+            Value::Double(_) => matches!(other, Value::Double(_)),
+            Value::Dynamic { .. } => matches!(other, Value::Dynamic { .. }),
             Value::Float(_) => matches!(other, Value::Float(_)),
-            Value::StringConst(_) => matches!(other, Value::StringConst(_)),
-            Value::ReturnAddress(_) => matches!(other, Value::ReturnAddress(_)),
+            Value::Int(_) => matches!(other, Value::Int(_)),
+            Value::Long(_) => matches!(other, Value::Long(_)),
             Value::Ref(_) => matches!(other, Value::Ref(_)),
+            Value::ReturnAddress(_) => matches!(other, Value::ReturnAddress(_)),
+            Value::Short(_) => matches!(other, Value::Short(_)),
+            Value::StringConst(_) => matches!(other, Value::StringConst(_)),
+            Value::MethodHandle { .. } => matches!(other, Value::MethodHandle { .. }),
+            Value::MethodType(_) => matches!(other, Value::MethodType(_)),
         }
     }
 }
@@ -135,6 +139,9 @@ impl PartialEq for Value {
                 } else {
                     unreachable!()
                 }
+            }
+            _ => {
+                panic!("Incomparable values: {:?} and {:?}", self, other);
             }
         }
     }
@@ -216,6 +223,9 @@ impl PartialOrd<Self> for Value {
                 } else {
                     unreachable!()
                 }
+            }
+            _ => {
+                panic!("Incomparable values: {:?} and {:?}", self, other);
             }
         }
     }

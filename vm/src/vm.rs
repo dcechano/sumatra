@@ -672,21 +672,22 @@ impl VM {
             // https://docs.oracle.com/javase/specs/jvms/se21/html/jvms-6.html#jvms-6.5.ldc
             Constant::Integer(int) => Value::Int(*int),
             Constant::Float(f) => Value::Float(*f),
-            Constant::Class(_) => {
-                todo!()
-            }
+            Constant::Class(class_index) => Value::Class(*class_index),
             Constant::String(string_index) => {
                 Value::StringConst(cp.get_utf8(*string_index)?.into())
             }
-            Constant::MethodHandle { .. } => {
-                todo!()
-            }
-            Constant::MethodType(_) => {
-                todo!()
-            }
-            Constant::Dynamic { .. } => {
-                todo!()
-            }
+            Constant::MethodHandle {
+                reference_kind,
+                reference_index,
+            } => Value::MethodHandle {
+                reference_kind: *reference_kind,
+                reference_index: *reference_index,
+            },
+            Constant::MethodType(type_index) => Value::MethodType(*type_index),
+            Constant::Dynamic { bootstrap_method_attr_index, name_and_type_index } => Value::Dynamic {
+                bootstrap_method_attr_index: *bootstrap_method_attr_index,
+                name_and_type_index: *name_and_type_index,
+            },
             _ => panic!("Non loadable constant pointed to by instruction ldc."),
         };
         frame.stack.push(value);
