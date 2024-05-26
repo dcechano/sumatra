@@ -503,15 +503,23 @@ impl VM {
             } => {
                 let is_super = self.superclass_method(*class_index, *name_and_type_index)?;
                 let mut class = if is_super {
+                    // if is_super use check for method in the superclass
+                    let super_class_index = self.frame().class.super_class;
                     let Constant::Class(class_name_index) =
-                        self.frame().cp.get(*class_index).unwrap()
+                        self.frame().cp.get(super_class_index).unwrap()
                     else {
                         bail!("Expected class while executing invokespecial.");
                     };
+                    
                     let class_name = self.frame().cp.get_utf8(*class_name_index)?;
                     self.load_class(class_name)?.class
                 } else {
-                    self.frame().class
+                    // if not is_super use class named in the symbolic reference
+                    let Constant::Class(class_name_index) = self.frame().cp.get(*class_index).unwrap() else {
+                        bail!("Expected class while executing invokespecial.")
+                    };
+                    let class_name = self.frame().cp.get_utf8(*class_name_index)?;
+                    self.load_class(class_name)?.class
                 };
 
                 let Constant::NameAndType {
@@ -901,7 +909,7 @@ impl VM {
 
         // check if the class named by the method symbolically referenced is the
         // superclass of the current class.
-        if !class_index == super_index {
+        if !(class_index == super_index) {
             return Ok(false);
         }
 
