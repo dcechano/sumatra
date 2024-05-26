@@ -174,8 +174,16 @@ impl VM {
                 Instruction::IConst4 => self.iconst_n(4),
                 Instruction::IConst5 => self.iconst_n(5),
                 Instruction::IDiv => todo!(),
-                Instruction::IfAcmpeq(_) => todo!(),
-                Instruction::IfAcmpne(_) => todo!(),
+                Instruction::IfAcmpeq(index) => {
+                    if self.ifcmp(*index, Compare::Equal) {
+                        continue;
+                    }
+                }
+                Instruction::IfAcmpne(index) => {
+                    if self.ifcmp(*index, Compare::NotEqual) {
+                        continue;
+                    }
+                }
                 Instruction::IfIcmpeq(index) => {
                     if self.ifcmp(*index, Compare::Equal) {
                         continue;
