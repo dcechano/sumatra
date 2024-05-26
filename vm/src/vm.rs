@@ -704,7 +704,7 @@ impl VM {
     /// a class or interface. New Java object is pushed on to the operand stack.
     fn new_obj(&mut self, class_index: usize) -> Result<()> {
         let frame = self.frame();
-        let Some(Constant::Class(name_index)) = frame.cp.get(class_index) else {
+        let Constant::Class(name_index) = frame.cp.get(class_index).unwrap() else {
             bail!("Expected a symbolic class reference at index: {class_index}")
         };
 
