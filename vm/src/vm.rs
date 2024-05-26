@@ -510,12 +510,14 @@ impl VM {
                     else {
                         bail!("Expected class while executing invokespecial.");
                     };
-                    
+
                     let class_name = self.frame().cp.get_utf8(*class_name_index)?;
                     self.load_class(class_name)?.class
                 } else {
                     // if not is_super use class named in the symbolic reference
-                    let Constant::Class(class_name_index) = self.frame().cp.get(*class_index).unwrap() else {
+                    let Constant::Class(class_name_index) =
+                        self.frame().cp.get(*class_index).unwrap()
+                    else {
                         bail!("Expected class while executing invokespecial.")
                     };
                     let class_name = self.frame().cp.get_utf8(*class_name_index)?;
