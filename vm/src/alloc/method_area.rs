@@ -123,10 +123,7 @@ impl Drop for MethodArea {
 
 #[cfg(test)]
 mod tests {
-    use std::{fs::File, io::Read, os::unix::fs::MetadataExt, path::Path};
-
-    use anyhow::bail;
-    use zip::ZipArchive;
+    use std::{fs::File, io::Read, os::unix::fs::MetadataExt};
 
     use sumatra_parser::{
         class_file::ClassFile,
@@ -137,7 +134,7 @@ mod tests {
         method::Method,
     };
 
-    use crate::{class::Class, method_area::MethodArea};
+    use crate::{alloc::method_area::MethodArea, class::Class};
 
     const OBJECT_FILE: &'static str = "java/lang/Object.class";
     const JAR_PATH: &'static str = "../jdk/compiled/java.base/";
