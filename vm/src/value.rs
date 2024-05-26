@@ -8,15 +8,25 @@ use std::cmp::Ordering;
 pub enum Value {
     #[default]
     Null,
-    Double(f64),
-    Int(i32),
-    Short(i16),
     Byte(i8),
-    Long(i64),
+    Class(usize),
+    Double(f64),
+    Dynamic {
+        bootstrap_method_attr_index: usize,
+        name_and_type_index: usize,
+    },
     Float(f32),
-    StringConst(String),
+    Int(i32),
+    Long(i64),
+    MethodHandle {
+        reference_kind: u8,
+        reference_index: usize,
+    },
+    MethodType(usize),
     ReturnAddress(usize),
     Ref(*mut HeapAlloc<NonStatic>),
+    Short(i16),
+    StringConst(String),
 }
 
 impl Value {
