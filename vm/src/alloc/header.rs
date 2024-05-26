@@ -3,19 +3,18 @@ use std::{
     ptr,
 };
 
-use sumatra_parser::field::Field;
+use sumatra_parser::{field::Field, instruction::ArrayType};
 
-use crate::{
-    alloc::{fields_table::FieldsTable, VALUE_ALIGN, VALUE_SIZE},
-    class::Class,
-    value::Value,
-};
+use crate::{alloc::fields_table::FieldsTable, class::Class, value::Value};
+
+const ARRAY_CLASS_NAME: &str = "java/lang/Object";
 
 #[derive(Debug)]
 pub(crate) struct Header {
     pub class_id: usize,
     pub name: String,
     pub fields: FieldsTable,
+    pub array_data: Option<(usize, ArrayType)>,
 }
 
 impl Header {
@@ -28,6 +27,16 @@ impl Header {
             // we put them in. Thus, awkwardly, the Header has to be created
             // and put into memory before we can assemble the fields table.
             fields: FieldsTable::with_capacity(class.fields.len()),
+            array_data: None,
+        }
+    }
+
+    pub(crate) fn new_array(length: usize, array_type: ArrayType) -> Self {
+        Self {
+            class_id: 0,
+            name: ARRAY_CLASS_NAME.to_string(),
+            fields: FieldsTable::with_capacity(0),
+            array_data: Some((length, array_type)),
         }
     }
 

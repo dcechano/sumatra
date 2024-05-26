@@ -1007,6 +1007,8 @@ pub enum ArrayType {
     Int,
     Long,
     Dummy,
+    // not in spec but used for array construction in oop.rs
+    Ref,
 }
 
 impl TryFrom<u8> for ArrayType {

@@ -9,7 +9,7 @@ use std::{
 
 use anyhow::{bail, Result};
 
-use sumatra_parser::{field::Field, flags::FieldAccessFlags};
+use sumatra_parser::{field::Field, flags::FieldAccessFlags, instruction::ArrayType};
 
 use crate::{
     alloc::{
@@ -23,6 +23,7 @@ use crate::{
 pub(crate) struct HeapAlloc<T: AllocType> {
     pub header: Header,
     pub fields: *mut Value,
+    pub elements: *mut Value,
     _phantom: PhantomData<Value>,
     _static: PhantomData<T>,
 }
@@ -117,6 +118,12 @@ impl<T: AllocType> HeapAlloc<T> {
             return;
         }
 
+        if !(*heap).elements.is_null() {
+            let (length, _) = (*heap).header.array_data.as_ref().unwrap();
+            let layout = Layout::array::<Value>(*length).unwrap();
+            alloc::dealloc((*heap).elements as *mut u8, layout);
+        }
+
         Self::dealloc_data(heap);
 
         ptr::drop_in_place(&mut (*heap).header as *mut Header);
@@ -139,12 +146,17 @@ impl<T: AllocType> HeapAlloc<T> {
 }
 
 impl HeapAlloc<Static> {
+    // Even though we are returning an owned HeapAlloc here, there is no risk of
+    // deallocation because the only caller is the MethodArea (via
+    // StaticFields::new()). The MethodArea immediately stores the HeapAlloc in
+    // static memory and deallocation happens when the VM is dropped.
     #[inline]
-    pub(crate) fn new(class: &Class, class_id: usize) -> HeapAlloc<Static> {
+    pub(super) fn new(class: &Class, class_id: usize) -> HeapAlloc<Static> {
         let (header, data) = Self::new_inner(class, class_id);
         HeapAlloc {
             header,
             fields: data,
+            elements: ptr::null_mut(),
             _phantom: Default::default(),
             _static: Default::default(),
         }
@@ -171,11 +183,79 @@ impl HeapAlloc<NonStatic> {
                 HeapAlloc {
                     header,
                     fields,
+                    elements: ptr::null_mut(),
                     _phantom: Default::default(),
                     _static: Default::default(),
                 },
             );
             ptr
+        }
+    }
+
+    #[allow(clippy::new_ret_no_self)]
+    pub(crate) fn new_array(length: usize, array_type: ArrayType) -> *mut HeapAlloc<NonStatic> {
+        if length > isize::MAX as usize {
+            panic!("Attempted to initialize array with illegal length: {length}");
+        }
+        let ptr = unsafe {
+            alloc::alloc(Layout::new::<HeapAlloc<NonStatic>>()) as *mut HeapAlloc<NonStatic>
+        };
+        if ptr.is_null() {
+            handle_alloc_error(Layout::new::<HeapAlloc<NonStatic>>())
+        }
+
+        let elements = match length == 0 {
+            true => ptr::null_mut(),
+            // SAFETY: length has been verified to be greater than 0 and less than isize::MAX.
+            false => unsafe {
+                let elements = alloc::alloc(Layout::array::<Value>(length).unwrap()) as *mut Value;
+                if elements.is_null() {
+                    handle_alloc_error(Layout::new::<HeapAlloc<NonStatic>>())
+                }
+                Self::default_values(length, elements, &array_type);
+                elements
+            },
+        };
+
+        let header = Header::new_array(length, array_type);
+
+        unsafe {
+            ptr::write(
+                ptr,
+                HeapAlloc {
+                    header,
+                    fields: ptr::null_mut(),
+                    elements,
+                    _phantom: Default::default(),
+                    _static: Default::default(),
+                },
+            );
+            ptr
+        }
+    }
+
+    fn default_values(length: usize, elements: *mut Value, array_type: &ArrayType) {
+        let default = match array_type {
+            ArrayType::Boolean
+            | ArrayType::Char
+            | ArrayType::Short
+            | ArrayType::Byte
+            | ArrayType::Int => Value::Int(0),
+            ArrayType::Float => Value::Float(0.0),
+            ArrayType::Double => Value::Double(0.0),
+            ArrayType::Long => Value::Long(0),
+            ArrayType::Ref => Value::Null,
+            ArrayType::Dummy => {
+                panic!("Invalid ArrayType while constructing array with default values.")
+            }
+        };
+
+        for i in 0..length {
+            // SAFETY: The responsibility for length being a valid index is left to the
+            // caller.
+            unsafe {
+                ptr::write(elements.add(0), default.clone())
+            }
         }
     }
 }
@@ -226,8 +306,9 @@ impl<T: AllocType> Display for HeapAlloc<T> {
 #[cfg(test)]
 mod test {
     use std::fmt::Debug;
+    use std::{mem, ptr};
 
-    use sumatra_parser::{class_file::ClassFile, flags::FieldAccessFlags};
+    use sumatra_parser::{class_file::ClassFile, flags::FieldAccessFlags, instruction::ArrayType};
 
     use crate::{
         alloc::oop::{HeapAlloc, NonStatic},
@@ -250,15 +331,24 @@ mod test {
             let class_file = ClassFile::parse_class(class).unwrap();
             let ptr = HeapAlloc::<NonStatic>::new(&Class::from(&class_file), 0);
             unsafe {
-                let heap = &mut *(ptr as *mut HeapAlloc<NonStatic>);
+                let heap = &mut *(ptr);
                 for field in class_file.fields {
                     if !field.access_flags.contains(FieldAccessFlags::STATIC) {
                         heap.set_field(&field.name, Value::Long(69420)).unwrap();
                     }
                 }
 
-                HeapAlloc::deallocate(ptr as *mut HeapAlloc<NonStatic>);
+                HeapAlloc::deallocate(ptr);
             }
+        }
+    }
+
+    #[test]
+    #[cfg(miri)]
+    fn no_leak_array() {
+        unsafe {
+            let ptr = HeapAlloc::new_array(10, ArrayType::Int);
+            HeapAlloc::deallocate(ptr)
         }
     }
 

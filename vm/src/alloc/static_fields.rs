@@ -13,7 +13,7 @@ pub(crate) struct StaticFields {
 }
 
 impl StaticFields {
-    pub(crate) fn new(class: &Class, class_id: usize) -> Self {
+    pub(super) fn new(class: &Class, class_id: usize) -> Self {
         let alloc = HeapAlloc::<Static>::new(&class, class_id);
         Self { alloc }
     }
