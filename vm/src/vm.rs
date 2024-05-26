@@ -5,11 +5,11 @@ use anyhow::{bail, Result};
 use sumatra_parser::{constant::Constant, instruction::Instruction, method::Method};
 
 use crate::{
+    alloc::method_area::MethodArea,
     call_frame::CallFrame,
     class::Class,
     compare::Compare,
     lli::{class_manager::ClassManager, response::Response},
-    method_area::MethodArea,
     static_data::StaticData,
     value::Value,
 };

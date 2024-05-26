@@ -7,12 +7,12 @@ use std::{
 use anyhow::{bail, Result};
 
 use crate::{
+    alloc::method_area::MethodArea,
     class::Class,
     lli::{
         app_loader::AppLoader, class_loader::BootstrapLoader, loader::ClassLoader,
         response::Response,
     },
-    method_area::MethodArea,
 };
 
 //FIXME I don't like the Response API. Response::NotFound functions as an Err,
