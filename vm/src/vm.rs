@@ -692,7 +692,10 @@ impl VM {
                 reference_index: *reference_index,
             },
             Constant::MethodType(type_index) => Value::MethodType(*type_index),
-            Constant::Dynamic { bootstrap_method_attr_index, name_and_type_index } => Value::Dynamic {
+            Constant::Dynamic {
+                bootstrap_method_attr_index,
+                name_and_type_index,
+            } => Value::Dynamic {
                 bootstrap_method_attr_index: *bootstrap_method_attr_index,
                 name_and_type_index: *name_and_type_index,
             },
