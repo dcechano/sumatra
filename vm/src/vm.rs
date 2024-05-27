@@ -370,7 +370,10 @@ impl VM {
         let frame = self.frame_mut();
         let operand = frame.stack.pop().unwrap();
         match operand {
-            value @ (Value::ReturnAddress(_) | Value::Ref(_) | Value::StringConst(_)) => {
+            value @ (Value::ReturnAddress(_)
+            | Value::Ref(_)
+            | Value::StringConst(_)
+            | Value::Null) => {
                 *frame.locals.get_mut(local_index).unwrap() = value;
             }
             _ => panic!(
@@ -386,7 +389,7 @@ impl VM {
     /// executing frame's local variable array.
     fn a_load(&mut self, local_index: usize) -> Result<()> {
         let frame = self.frame_mut();
-        println!("Stack: {:?}", frame.locals);
+        println!("Locals: {:?}", frame.locals);
         let object = frame.load(local_index)?;
         if !matches!(
             object,
