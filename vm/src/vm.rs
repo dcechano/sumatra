@@ -612,7 +612,6 @@ impl VM {
                 };
                 let method_name = self.construct_m_name(*name_index, *descriptor_index)?;
                 loop {
-                    println!("Looking for {} in class {}", method_name, class.get_name());
                     match class.methods.get(&method_name) {
                         None => {
                             let super_index = class.super_class;
@@ -627,7 +626,6 @@ impl VM {
                             class = self.load_class(super_name).unwrap().class;
                         }
                         Some(method) => {
-                            println!("method found in {}", class.get_name());
                             if method.is_static() {
                                 // TODO check for method in superclass of this class.
                                 continue;
