@@ -77,6 +77,14 @@ impl ArrayRef {
         }
     }
 
+    /// Returns the `ArrayType` of `ArrayRef` instance.
+    pub(crate) fn get_type(&self) -> ArrayType {
+        unsafe {
+            let (_, array_type) = (*self.0).header.array_data.as_ref().unwrap();
+            *array_type
+        }
+    }
+
     /// Validate the `ArrayType` is consistent with the provided `Value`.
     fn validate_type(value: &Value, array_type: &ArrayType) -> bool {
         // `Value::from` cannot be used to convert the `ArrayType` to a `Value`

@@ -133,6 +133,7 @@ pub enum Instruction {
     IAdd,
     IaLoad,
     IAnd,
+    /// Store into int array.
     IaStore,
     /// Push int constant -1.
     IConstM1,
@@ -258,6 +259,7 @@ pub enum Instruction {
     MonitorExit,
     MultiaNewArray(u16, u8),
     New(u16),
+    /// Construct a new array for the provided type.
     NewArray(ArrayType),
     Nop,
     /// Pops one value from the operand stack. This instruction is never

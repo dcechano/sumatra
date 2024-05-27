@@ -2,7 +2,11 @@ use std::path::PathBuf;
 
 use anyhow::{bail, Result};
 
-use sumatra_parser::{constant::Constant, instruction::Instruction, method::Method};
+use sumatra_parser::{
+    constant::Constant,
+    instruction::{ArrayType, Instruction},
+    method::Method,
+};
 
 use crate::{
     alloc::method_area::MethodArea,
@@ -11,7 +15,7 @@ use crate::{
     compare::Compare,
     lli::{class_manager::ClassManager, response::Response},
     static_data::StaticData,
-    value::Value,
+    value::{RefType, Value},
 };
 
 const MAIN: &str = "main([Ljava/lang/String;)V";
@@ -165,7 +169,7 @@ impl VM {
                 Instruction::IAdd => todo!(),
                 Instruction::IaLoad => todo!(),
                 Instruction::IAnd => todo!(),
-                Instruction::IaStore => todo!(),
+                Instruction::IaStore => self.iastore()?,
                 Instruction::IConstM1 => self.iconst_n(-1),
                 Instruction::IConst0 => self.iconst_n(0),
                 Instruction::IConst1 => self.iconst_n(1),
@@ -335,7 +339,7 @@ impl VM {
                 Instruction::MonitorExit => todo!(),
                 Instruction::MultiaNewArray(_, _) => todo!(),
                 Instruction::New(class_index) => self.new_obj(*class_index as usize)?,
-                Instruction::NewArray(_) => todo!(),
+                Instruction::NewArray(array_type) => self.new_array(array_type.clone())?,
                 Instruction::Nop => todo!(),
                 Instruction::Pop => self.pop(),
                 Instruction::Pop2 => self.pop2(),
@@ -439,6 +443,25 @@ impl VM {
         let frame = self.frame_mut();
         let value = frame.clone_top();
         Ok(frame.push(value))
+    }
+
+    /// Executes the `Instruction::IaStore` instruction.
+    fn iastore(&mut self) -> Result<()> {
+        let frame = self.frame_mut();
+        let value = frame.pop();
+        let Value::Int(index) = frame.pop() else {
+            bail!("Expected Value::Int for index on operand stack while executing iastore.");
+        };
+        match frame.pop() {
+            Value::Ref(RefType::Array(mut array)) => {
+                if array.get_type() != ArrayType::Int {
+                    bail!("Expected ArrayType::Int for iastore instruction.");
+                }
+                Ok(array.insert(index as usize, value))
+            }
+            Value::Null => todo!("Throw NullPointerException."),
+            value => bail!("Expected a Value::Ref(RefType::Array)) for iastore, got: {value:?}."),
+        }
     }
 
     /// Executes the `Instruction::IConst` instruction. `int` is the integer
@@ -719,6 +742,17 @@ impl VM {
         };
         frame.stack.push(value.clone());
         Ok(frame.stack.push(value))
+    }
+
+    /// Executes the `Instruction::NewArray` instruction. Length
+    /// is assumed to be immediately on the operand stack.
+    fn new_array(&mut self, array_type: ArrayType) -> Result<()> {
+        let frame = self.frame_mut();
+        let Value::Int(array_len) = frame.pop() else {
+            bail!("Expected Value::Int when accessing array length for newarray instruction.");
+        };
+        let array_len = array_len as usize;
+        Ok(frame.push(Value::new_array(array_len, array_type)))
     }
 
     /// Executes the `Instruction::New` instruction. `class_index` is an index
