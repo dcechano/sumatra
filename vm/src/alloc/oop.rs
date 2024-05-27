@@ -239,7 +239,7 @@ impl HeapAlloc<NonStatic> {
         for i in 0..length {
             // SAFETY: The responsibility for length being a valid index is left to the
             // caller.
-            unsafe { ptr::write(elements.add(0), default.clone()) }
+            unsafe { ptr::write(elements.add(i), default.clone()) }
         }
     }
 }
