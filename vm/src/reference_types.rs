@@ -3,11 +3,13 @@ use std::{
     ptr,
 };
 
+use anyhow::Result;
+
 use sumatra_parser::instruction::ArrayType;
 
 use crate::{
     alloc::{alloc_type::NonStatic, oop::HeapAlloc},
-    class::Class,
+    instance_data::InstanceData,
     value::{RefType, Value},
 };
 
@@ -15,8 +17,22 @@ use crate::{
 pub(crate) struct ObjRef(*mut HeapAlloc<NonStatic>);
 
 impl ObjRef {
-    pub(crate) fn new(class: &Class, class_id: usize) -> Self {
-        Self(HeapAlloc::<NonStatic>::new(class, class_id))
+    pub(crate) fn new(
+        InstanceData {
+            primary,
+            class_id,
+            super_classes,
+        }: InstanceData,
+    ) -> Self {
+        Self(HeapAlloc::<NonStatic>::new(
+            primary,
+            class_id,
+            super_classes,
+        ))
+    }
+
+    pub(crate) fn set_field(&mut self, name: &str, value: Value) -> Result<()> {
+        unsafe { (*self.0).set_field(name, value) }
     }
 }
 
@@ -127,9 +143,6 @@ impl Debug for ArrayRef {
 
 #[cfg(test)]
 mod tests {
-    use crate::{alloc::oop::HeapAlloc, reference_types::ArrayRef, value::Value};
-    use sumatra_parser::instruction::ArrayType;
-
     #[test]
     #[cfg(miri)]
     fn test_debug_no_ub() {

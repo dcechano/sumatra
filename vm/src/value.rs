@@ -3,7 +3,7 @@ use std::cmp::Ordering;
 use sumatra_parser::instruction::ArrayType;
 
 use crate::{
-    class::Class,
+    instance_data::InstanceData,
     reference_types::{ArrayRef, ObjRef},
 };
 
@@ -36,8 +36,8 @@ impl Value {
     pub fn default_vec(cap: usize) -> Vec<Value> { vec![Value::Null; cap] }
 
     /// Allocates a new Java Obj and returns Value::Ref for the new object.
-    pub(crate) fn new_object(class: &Class, class_id: usize) -> Value {
-        Value::Ref(RefType::Object(ObjRef::new(class, class_id)))
+    pub(crate) fn new_object(instance_data: InstanceData) -> Value {
+        Value::Ref(RefType::Object(ObjRef::new(instance_data)))
     }
 
     /// Allocates a new Java array and returns Value::Ref for the new array.

@@ -13,6 +13,7 @@ use crate::{
     call_frame::CallFrame,
     class::Class,
     compare::Compare,
+    instance_data::InstanceData,
     lli::{class_manager::ClassManager, response::Response},
     static_data::StaticData,
     value::{RefType, Value},
@@ -21,6 +22,7 @@ use crate::{
 const MAIN: &str = "main([Ljava/lang/String;)V";
 const CLINIT: &str = "<clinit>()V";
 const INIT: &str = "<init>()V";
+const OBJECT: &str = "java/lang/Object";
 
 const DEFAULT_VEC_SIZE: usize = 128;
 
@@ -39,11 +41,17 @@ impl VM {
             Err(_) => panic!("Memory Allocation Error while starting Sumatra VM"),
         };
 
-        Self {
+        let mut vm = Self {
             frames: Vec::with_capacity(DEFAULT_VEC_SIZE),
             method_area,
             class_manager: ClassManager::new(jdk, c_path),
-        }
+        };
+        // Load java/lang/Object so that its class_id is always 0.
+        // This makes it easy to make sure all arrays have Object as its class
+        // on the Heap.
+        let data = vm.load_class(OBJECT).unwrap();
+        debug_assert!(data.class_id == 0);
+        vm
     }
 
     /// Entry point of the JVM. `c_entry` is the initial class loaded
@@ -351,7 +359,7 @@ impl VM {
                 Instruction::Nop => todo!(),
                 Instruction::Pop => self.pop(),
                 Instruction::Pop2 => self.pop2(),
-                Instruction::PutField(_) => todo!(),
+                Instruction::PutField(field_index) => self.put_field(*field_index as usize)?,
                 Instruction::PutStatic(field_index) => self.put_static(*field_index as usize)?,
                 Instruction::Ret(_) => todo!(),
                 Instruction::Return => break,
@@ -362,8 +370,8 @@ impl VM {
                 Instruction::TableSwitch { .. } => todo!(),
                 Instruction::Wide(winstr) => todo!(),
             }
-            println!("\t\tStack: {:?}", self.frame().stack);
-            println!("\t\tLocals: {:?}", self.frame().locals);
+            // println!("\t\tStack: {:?}", self.frame().stack);
+            // println!("\t\tLocals: {:?}", self.frame().locals);
             self.frame_mut().pc += 1;
         }
         println!("Exiting method: {}", self.frame().method.name);
@@ -824,10 +832,8 @@ impl VM {
         };
 
         let class_name = frame.cp.get_utf8(*name_index)?;
-        let StaticData {
-            class, class_id, ..
-        } = self.load_class(class_name)?;
-        Ok(self.frame_mut().push(Value::new_object(class, class_id)))
+        let instance_data = self.load_hierarchy(class_name)?;
+        Ok(self.frame_mut().push(Value::new_object(instance_data)))
     }
 
     /// Executes the `Instruction::GetStatic` instruction.
@@ -861,6 +867,27 @@ impl VM {
         if let Value::Double(_) | Value::Long(_) = value {
             frame.pop();
         }
+    }
+
+    /// Executes the `Instruction::PutField` instruction.
+    /// `field_index` is the index of the `Constant::FieldRef` in the
+    /// runtime constant pool.
+    fn put_field(&mut self, field_index: usize) -> Result<()> {
+        let Constant::FieldRef {
+            class_index,
+            name_and_type_index,
+        } = self.frame().cp.get(field_index).unwrap()
+        else {
+            bail!("Expected Constant::FieldRef for a put_field instruction.");
+        };
+        let value = self.frame_mut().pop();
+        let Value::Ref(RefType::Object(mut obj)) = self.frame_mut().pop() else {
+            bail!("Expected a ref of RefType::Object for put_field instruction.")
+        };
+
+        let (f_name, _) = self.unpack_f_name(class_index, name_and_type_index)?;
+        obj.set_field(&f_name, value)?;
+        Ok(())
     }
 
     /// Executes the `Instruction::PutStatic` instruction.
@@ -1074,6 +1101,43 @@ impl VM {
             Err(e) => bail!(e),
             _ => panic!("Manager returned a not found!"),
         }
+    }
+
+    /// Load the class definition specified by `name` and its superclasses. This
+    /// method is primarily to facilitate Java Object initialization. An
+    /// instance needs access to its fields, and the (accessible) fields of
+    /// its ancestor classes. The class in the first position of the
+    /// returned tuple is the immediately requested class, with the
+    /// superclasses being returned as a `Vec<&'static Class>` in the second
+    /// position.
+    fn load_hierarchy(&mut self, name: &str) -> Result<InstanceData> {
+        let StaticData {
+            class_id,
+            class: primary,
+            ..
+        } = self.load_class(name)?;
+        let mut class = primary;
+        // Most classes have at least a handful of classes above them so 8 feels like
+        // a prudent capacity that avoids reallocations but avoids a reallocations.
+        let mut super_classes = Vec::with_capacity(8);
+        loop {
+            let super_index = class.super_class;
+            // super_index == 0 indicates that the immediate superclass is java.lang.Object.
+            if super_index == 0 {
+                break;
+            }
+
+            let Constant::Class(name_index) = class.cp.get(super_index).unwrap() else {
+                bail!("Expected Constant::Class while loading class hierarchy.");
+            };
+            let super_name = class.cp.get_utf8(*name_index).unwrap();
+
+            let static_data = self.load_class(super_name)?;
+            super_classes.push(static_data.class);
+
+            class = static_data.class;
+        }
+        Ok(InstanceData::new(primary, class_id, super_classes))
     }
 
     /// Retrieve a static reference to a method and it's class. `name_index` is

@@ -30,18 +30,32 @@ pub(crate) struct HeapAlloc<T: AllocType> {
 
 impl<T: AllocType> HeapAlloc<T> {
     #[inline]
-    fn new_inner(class: &Class, class_id: usize) -> (Header, *mut Value) {
+    fn new_inner(
+        class: &Class,
+        class_id: usize,
+        super_classes: Vec<&'static Class>,
+    ) -> (Header, *mut Value) {
         let fields = match T::is_static() {
             true => class
                 .fields
                 .values()
                 .filter(|v| v.access_flags.contains(FieldAccessFlags::STATIC))
                 .collect::<Vec<&Field>>(),
-            false => class
-                .fields
-                .values()
-                .filter(|v| !v.access_flags.contains(FieldAccessFlags::STATIC))
-                .collect::<Vec<&Field>>(),
+            false => {
+                let mut primary_fields = class
+                    .fields
+                    .values()
+                    .filter(|v| !v.access_flags.contains(FieldAccessFlags::STATIC))
+                    .collect::<Vec<&Field>>();
+                let ancestor_fields = super_classes.into_iter().flat_map(|class| {
+                    class
+                        .fields
+                        .values()
+                        .filter(|v| !v.access_flags.contains(FieldAccessFlags::STATIC))
+                });
+                primary_fields.extend(ancestor_fields);
+                primary_fields
+            }
         };
         let mut header = Header::new(class, class_id);
         // ptr now allocated
@@ -156,7 +170,9 @@ impl HeapAlloc<Static> {
     // static memory and deallocation happens when the VM is dropped.
     #[inline]
     pub(super) fn new(class: &Class, class_id: usize) -> HeapAlloc<Static> {
-        let (header, data) = Self::new_inner(class, class_id);
+        // A HeapAlloc<Static> does not need access to the instance fields of its
+        // superclasses, hence the empty vec.
+        let (header, data) = Self::new_inner(class, class_id, vec![]);
         HeapAlloc {
             header,
             fields: data,
@@ -170,7 +186,11 @@ impl HeapAlloc<Static> {
 impl HeapAlloc<NonStatic> {
     #[allow(clippy::new_ret_no_self)]
     #[inline]
-    pub(crate) fn new(class: &Class, class_id: usize) -> *mut HeapAlloc<NonStatic> {
+    pub(crate) fn new(
+        class: &Class,
+        class_id: usize,
+        super_class: Vec<&'static Class>,
+    ) -> *mut HeapAlloc<NonStatic> {
         // SAFETY: `Layout::new::<HeapAlloc>())` is valid so alloc is safe.
         let ptr = unsafe {
             alloc::alloc(Layout::new::<HeapAlloc<NonStatic>>()) as *mut HeapAlloc<NonStatic>
@@ -179,7 +199,7 @@ impl HeapAlloc<NonStatic> {
             handle_alloc_error(Layout::new::<HeapAlloc<NonStatic>>())
         }
 
-        let (header, fields) = Self::new_inner(class, class_id);
+        let (header, fields) = Self::new_inner(class, class_id, super_class);
         // SAFETY: ptr is valid for writes since we asserted nonnull above.
         unsafe {
             ptr::write(
@@ -318,7 +338,7 @@ mod test {
     fn alloc() {
         for class in CLASSES {
             let class_file = ClassFile::parse_class(class).unwrap();
-            let ptr = HeapAlloc::<NonStatic>::new(&Class::from(&class_file), 0);
+            let ptr = HeapAlloc::<NonStatic>::new(&Class::from(&class_file), 0, vec![]);
             unsafe {
                 let heap = &mut *(ptr);
                 for field in class_file.fields {

@@ -271,6 +271,7 @@ pub enum Instruction {
     Pop,
     /// Pops one or two values from the operand stack.
     Pop2,
+    /// Set field in object
     PutField(u16),
     /// Assign value on top of operand stack to the
     /// class field found in the runtime constant pool
