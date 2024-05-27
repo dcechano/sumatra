@@ -429,7 +429,7 @@ impl VM {
             object,
             (Value::Ref(_) | Value::StringConst(_) | Value::Null)
         ) {
-            bail!("Expected ref type for a_load instruction.");
+            bail!("Expected ref type for a_load instruction. Received: {object:?}");
         }
 
         Ok(frame.push(object))
@@ -641,8 +641,7 @@ impl VM {
                 class_index,
                 name_and_type_index,
             } => {
-                let is_super = self.superclass_method(*class_index, *name_and_type_index)?;
-                self.invokespec_intrfcref(*class_index, *name_and_type_index)
+                todo!()
             }
             _ => bail!(
                 "Expected symbolic reference to a method or interface method in invoke_special"
