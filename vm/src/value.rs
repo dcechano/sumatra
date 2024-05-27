@@ -1,8 +1,11 @@
-use crate::{
-    alloc::{alloc_type::NonStatic, oop::HeapAlloc},
-    class::Class,
-};
 use std::cmp::Ordering;
+
+use sumatra_parser::instruction::ArrayType;
+
+use crate::{
+    class::Class,
+    reference_types::{ArrayRef, ObjRef},
+};
 
 #[derive(Default, Debug, Clone)]
 pub enum Value {
@@ -24,7 +27,7 @@ pub enum Value {
     },
     MethodType(usize),
     ReturnAddress(usize),
-    Ref(*mut HeapAlloc<NonStatic>),
+    Ref(RefType),
     Short(i16),
     StringConst(String),
 }
@@ -34,8 +37,12 @@ impl Value {
 
     /// Allocates a new Java Obj and returns Value::Ref for the new object.
     pub(crate) fn new_object(class: &Class, class_id: usize) -> Value {
-        let obj = HeapAlloc::<NonStatic>::new(class, class_id);
-        Value::Ref(obj)
+        Value::Ref(RefType::Object(ObjRef::new(class, class_id)))
+    }
+    
+    /// Allocates a new Java array and returns Value::Ref for the new array.
+    pub(crate) fn new_array(length: usize, array_type: ArrayType) -> Value {
+        Value::Ref(RefType::Array(ArrayRef::new(length, array_type)))
     }
 
     pub fn populate_locals(num_locals: usize, params: &mut Vec<Value>) {
@@ -47,7 +54,7 @@ impl Value {
         params.extend(vec![Value::Null; num_dummies]);
     }
 
-    fn is_same_variant(&self, other: &Value) -> bool {
+    pub(crate) fn is_same_variant(&self, other: &Value) -> bool {
         match self {
             Value::Null => matches!(other, Value::Null),
             Value::Byte(_) => matches!(other, Value::Byte(_)),
@@ -231,11 +238,10 @@ impl PartialOrd<Self> for Value {
     }
 }
 
-
 #[derive(Debug, Clone, Eq, PartialEq, Ord, PartialOrd)]
 pub enum RefType {
     Object(ObjRef),
-    Array(ArrayRef)
+    Array(ArrayRef),
 }
 
 impl From<ArrayType> for Value {
