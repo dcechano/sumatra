@@ -230,3 +230,29 @@ impl PartialOrd<Self> for Value {
         }
     }
 }
+
+
+#[derive(Debug, Clone, Eq, PartialEq, Ord, PartialOrd)]
+pub enum RefType {
+    Object(ObjRef),
+    Array(ArrayRef)
+}
+
+impl From<ArrayType> for Value {
+    fn from(array_type: ArrayType) -> Self {
+        match array_type {
+            ArrayType::Boolean
+            | ArrayType::Char
+            | ArrayType::Short
+            | ArrayType::Byte
+            | ArrayType::Int => Value::Int(0),
+            ArrayType::Float => Value::Float(0.0),
+            ArrayType::Double => Value::Double(0.0),
+            ArrayType::Long => Value::Long(0),
+            ArrayType::Ref => Value::Null,
+            ArrayType::Dummy => {
+                panic!("Invalid ArrayType while constructing array with default values.")
+            }
+        }
+    }
+}

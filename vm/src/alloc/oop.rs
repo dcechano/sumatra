@@ -235,27 +235,11 @@ impl HeapAlloc<NonStatic> {
     }
 
     fn default_values(length: usize, elements: *mut Value, array_type: &ArrayType) {
-        let default = match array_type {
-            ArrayType::Boolean
-            | ArrayType::Char
-            | ArrayType::Short
-            | ArrayType::Byte
-            | ArrayType::Int => Value::Int(0),
-            ArrayType::Float => Value::Float(0.0),
-            ArrayType::Double => Value::Double(0.0),
-            ArrayType::Long => Value::Long(0),
-            ArrayType::Ref => Value::Null,
-            ArrayType::Dummy => {
-                panic!("Invalid ArrayType while constructing array with default values.")
-            }
-        };
-
+        let default = Value::from(array_type.clone());
         for i in 0..length {
             // SAFETY: The responsibility for length being a valid index is left to the
             // caller.
-            unsafe {
-                ptr::write(elements.add(0), default.clone())
-            }
+            unsafe { ptr::write(elements.add(0), default.clone()) }
         }
     }
 }
@@ -306,9 +290,8 @@ impl<T: AllocType> Display for HeapAlloc<T> {
 #[cfg(test)]
 mod test {
     use std::fmt::Debug;
-    use std::{mem, ptr};
 
-    use sumatra_parser::{class_file::ClassFile, flags::FieldAccessFlags, instruction::ArrayType};
+    use sumatra_parser::{class_file::ClassFile, flags::FieldAccessFlags};
 
     use crate::{
         alloc::oop::{HeapAlloc, NonStatic},
