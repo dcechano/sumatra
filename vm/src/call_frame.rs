@@ -20,6 +20,15 @@ impl CallFrame {
         cp: &'static ConstantPool,
         locals: Vec<Value>,
     ) -> Self {
+        debug_assert!(
+            locals.len() <= method.code.max_locals as usize,
+            "Locals array to long in method: {}. Expected max_locals: {},\
+            Received: {}",
+            method.name,
+            method.code.max_locals,
+            locals.len()
+        );
+
         Self {
             class,
             method,
