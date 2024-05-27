@@ -143,8 +143,13 @@ impl Debug for ArrayRef {
 
 #[cfg(test)]
 mod tests {
+    use sumatra_parser::instruction::ArrayType;
+    use crate::alloc::oop::HeapAlloc;
+    use crate::reference_types::ArrayRef;
+    use crate::value::Value;
+
     #[test]
-    #[cfg(miri)]
+    // #[cfg(miri)]
     fn test_debug_no_ub() {
         const LENGTH: usize = 3;
         const ARRAY_TYPE: ArrayType = ArrayType::Int;
