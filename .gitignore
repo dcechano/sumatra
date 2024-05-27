@@ -3,3 +3,4 @@
 /java/
 /.idea/
 /miri.sh
+/.fleet/run.json
