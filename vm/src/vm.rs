@@ -349,7 +349,7 @@ impl VM {
                 Instruction::Return => break,
                 Instruction::SaLoad => todo!(),
                 Instruction::SaStore => todo!(),
-                Instruction::SiPush(_) => todo!(),
+                Instruction::SiPush(byte) => self.sipush(*byte)?,
                 Instruction::Swap => todo!(),
                 Instruction::TableSwitch { .. } => todo!(),
                 Instruction::Wide(winstr) => todo!(),
@@ -825,6 +825,12 @@ impl VM {
         let value = self.frame_mut().pop();
         self.frames.pop();
         value
+    }
+
+    /// Executes the `Instruction::SiPush` instruction.
+    fn sipush(&mut self, short: i16) -> Result<()> {
+        // per the spec, the short is sign-extended to a Java int.
+        Ok(self.frame_mut().push(Value::Int(short as i32)))
     }
 }
 
