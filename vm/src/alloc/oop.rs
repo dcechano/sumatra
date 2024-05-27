@@ -357,33 +357,4 @@ mod test {
             HeapAlloc::deallocate(ptr);
         }
     }
-
-    //FIXME: Since the `printWriter` field is static it does not get added to the
-    // fields which was not true when test was written. Ignore for now until a fix
-    // is made. Perhaps test should be moved for the method area where the
-    // static fields will exist.
-    #[test]
-    #[ignore]
-    fn alloc2() {
-        // let taco = CLASSES[4];
-        //
-        // let class_file = ClassFile::parse_class(taco).unwrap();
-        // let field = ClassFile::parse_class(taco).unwrap();
-        //
-        // let containing_class =
-        // HeapAlloc::<NonStatic>::new(&Class::from(&class_file), 0);
-        // let field_ref = HeapAlloc::<NonStatic>::new(&Class::from(&field), 0);
-        //
-        // unsafe {
-        //     let heap = &mut *(containing_class as *mut HeapAlloc<NonStatic>);
-        //     heap.set_field(
-        //         "printWriter",
-        //         Value::Ref(ptr::read(field_ref as *const
-        // HeapAlloc<NonStatic>)),     )
-        //     .unwrap();
-        //
-        //     HeapAlloc::deallocate(field_ref as *mut HeapAlloc<NonStatic>);
-        //     HeapAlloc::deallocate(containing_class as *mut
-        // HeapAlloc<NonStatic>); }
-    }
 }
