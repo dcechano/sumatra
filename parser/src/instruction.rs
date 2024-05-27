@@ -15,7 +15,8 @@ use crate::{
 pub enum Instruction {
     AaLoad,
     AaStore,
-    AaConstNull,
+    /// Push null
+    AConstNull,
     /// Load reference from local variable
     ALoad(u8),
     /// Load reference from local variable
@@ -328,7 +329,7 @@ impl Instruction {
             let instruction = match cursor.read_u8()? {
                 50 => AaLoad,
                 83 => AaStore,
-                1 => AaConstNull,
+                1 => AConstNull,
                 25 => ALoad(cursor.read_u8()?),
                 42 => ALoad0,
                 43 => ALoad1,
@@ -763,7 +764,7 @@ impl TryFrom<u8> for Instruction {
         let instruction = match value {
             50 => AaLoad,
             83 => AaStore,
-            1 => AaConstNull,
+            1 => AConstNull,
             25 => ALoad(0),
             42 => ALoad0,
             43 => ALoad1,

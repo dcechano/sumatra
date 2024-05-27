@@ -73,7 +73,7 @@ impl VM {
             match code {
                 Instruction::AaLoad => todo!(),
                 Instruction::AaStore => todo!(),
-                Instruction::AaConstNull => self.frame_mut().stack.push(Value::Null),
+                Instruction::AConstNull => self.frame_mut().stack.push(Value::Null),
                 Instruction::ALoad(index) => self.a_load(*index as usize)?,
                 Instruction::ALoad0 => self.a_load(0)?,
                 Instruction::ALoad1 => self.a_load(1)?,
@@ -354,7 +354,8 @@ impl VM {
                 Instruction::TableSwitch { .. } => todo!(),
                 Instruction::Wide(winstr) => todo!(),
             }
-            // println!("\tSTACK: {:?}", self.frame().stack);
+            println!("\t\tSTACK: {:?}", self.frame().stack);
+            println!("\t\tLocals: {:?}", self.frame().locals);
             self.frame_mut().pc += 1;
         }
         println!("Exiting method: {}", self.frame().method.name);
@@ -399,7 +400,6 @@ impl VM {
     /// executing frame's local variable array.
     fn a_load(&mut self, local_index: usize) -> Result<()> {
         let frame = self.frame_mut();
-        println!("Locals: {:?}", frame.locals);
         let object = frame.load(local_index)?;
         if !matches!(
             object,
