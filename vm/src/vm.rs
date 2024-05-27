@@ -25,9 +25,9 @@ const INIT: &str = "<init>()V";
 const DEFAULT_VEC_SIZE: usize = 128;
 
 pub struct VM {
-    pub(crate) frames: Vec<CallFrame>,
-    pub(crate) method_area: MethodArea,
-    pub(crate) class_manager: ClassManager,
+    frames: Vec<CallFrame>,
+    method_area: MethodArea,
+    class_manager: ClassManager,
 }
 
 impl VM {
@@ -65,7 +65,7 @@ impl VM {
     fn execute_frame(&mut self) -> Result<Option<Value>> {
         let code = &self.frame().method.code;
         let op_code = &code.op_code;
-        println!("\nExecuting method: {}", self.frame().method.name);
+        println!("\nExecuting method: {} in class: {}", self.frame().method.name, self.frame().class.get_name());
         while let Some(code) = op_code.get(self.frame().pc) {
             // if self.frame().method.name != "<clinit>" {
             println!("\t{code:?}");
