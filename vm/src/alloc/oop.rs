@@ -299,6 +299,8 @@ mod test {
         value::Value,
     };
 
+    //TODO fine for now but eventually this will have to removed and made to use
+    // relative paths so that tests pass in any environment.
     const CLASSES: [&str; 6] = [
         "/home/dylan/Documents/RustProjects/jheap/java/target/production/java/Main.class",
         "/home/dylan/Documents/RustProjects/jheap/java/target/production/java/Interface.class",
