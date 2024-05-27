@@ -165,6 +165,7 @@ impl PartialOrd<Self> for Value {
         }
 
         match self {
+            // This is fine because `other` is verified to be also Value::Null above.
             Value::Null => Some(Ordering::Equal),
             Value::Double(double) => {
                 if let Value::Double(other) = other {
