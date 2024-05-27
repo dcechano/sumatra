@@ -131,6 +131,10 @@ impl<T: AllocType> HeapAlloc<T> {
         alloc::dealloc(heap as *mut u8, Layout::new::<HeapAlloc<NonStatic>>());
     }
 
+    // So HeapAllocs can be created for testing and deallocated properly.
+    #[cfg(test)]
+    pub(crate) unsafe fn dealloc_test_obj(heap: *mut HeapAlloc<T>) { Self::deallocate(heap); }
+
     #[inline]
     unsafe fn dealloc_data(heap: *mut HeapAlloc<T>) {
         let data = (*heap).fields;

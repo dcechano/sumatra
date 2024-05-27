@@ -1,4 +1,7 @@
-use std::ptr;
+use std::{
+    fmt::{Debug, Formatter},
+    ptr,
+};
 
 use sumatra_parser::instruction::ArrayType;
 
@@ -17,7 +20,7 @@ impl ObjRef {
     }
 }
 
-#[derive(Debug, Copy, Clone, Eq, PartialEq, Ord, PartialOrd)]
+#[derive(Copy, Clone, Eq, PartialEq, Ord, PartialOrd)]
 pub(crate) struct ArrayRef(*mut HeapAlloc<NonStatic>);
 
 impl ArrayRef {
@@ -104,6 +107,44 @@ impl ArrayRef {
             ArrayType::Dummy => {
                 panic!("Invalid ArrayType while validating against a Value.")
             }
+        }
+    }
+}
+
+impl Debug for ArrayRef {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        unsafe {
+            let mut debug_tuple = f.debug_tuple("ArrayRef");
+            let (len, _) = (*self.0).header.array_data.as_ref().unwrap();
+            for i in 0..*len {
+                let element = (*self.0).elements.add(i).as_ref().unwrap();
+                debug_tuple.field(element);
+            }
+            debug_tuple.finish()
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::{alloc::oop::HeapAlloc, reference_types::ArrayRef, value::Value};
+    use sumatra_parser::instruction::ArrayType;
+
+    #[test]
+    #[cfg(miri)]
+    fn test_debug_no_ub() {
+        const LENGTH: usize = 3;
+        const ARRAY_TYPE: ArrayType = ArrayType::Int;
+
+        let mut array = ArrayRef::new(LENGTH, ARRAY_TYPE);
+        array.insert(0, Value::Int(0));
+        array.insert(1, Value::Int(1));
+        array.insert(2, Value::Int(2));
+
+        let debug_string = "ArrayRef(Int(0), Int(1), Int(2))".to_string();
+        assert_eq!(format!("{array:?}"), debug_string);
+        unsafe {
+            HeapAlloc::dealloc_test_obj(array.0);
         }
     }
 }
