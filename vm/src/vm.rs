@@ -81,7 +81,7 @@ impl VM {
                 Instruction::ALoad3 => self.a_load(3)?,
                 Instruction::ANewArray(_) => todo!(),
                 Instruction::AReturn => todo!(),
-                Instruction::ArrayLength => todo!(),
+                Instruction::ArrayLength => self.array_length()?,
                 Instruction::AStore(_) => todo!(),
                 Instruction::AStore0 => self.a_store_n(0)?,
                 Instruction::AStore1 => self.a_store_n(1)?,
@@ -360,6 +360,16 @@ impl VM {
         println!("Exiting method: {}", self.frame().method.name);
         self.frames.pop();
         Ok(None)
+    }
+
+    /// Executes the `Instruction::ArrayLength` instruction.
+    fn array_length(&mut self) -> Result<()> {
+        let frame = self.frame_mut();
+        match frame.pop() {
+            Value::Ref(RefType::Array(array)) => Ok(frame.push(Value::Int(array.len() as i32))),
+            Value::Null => todo!("Throw NullPointerException"),
+            value => panic!("Expected a Value::Ref(RefType::Array)) but got {value:?}"),
+        }
     }
 
     /// Executes the `Instruction::AStore` instruction.`local_index`  
