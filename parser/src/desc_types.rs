@@ -1,5 +1,6 @@
-use anyhow::{bail, Result};
 use std::{ops::Deref, str::FromStr};
+
+use anyhow::{bail, Result};
 
 //TODO refactor APIs to implement FromStr or parse or something, where
 // possible.

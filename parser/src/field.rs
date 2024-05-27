@@ -1,7 +1,5 @@
 use crate::{
-    attribute::RuntimeAnnotation,
-    constant::Constant,
-    desc_types::{FieldDescriptor, MethodDescriptor},
+    attribute::RuntimeAnnotation, constant::Constant, desc_types::FieldDescriptor,
     flags::FieldAccessFlags,
 };
 

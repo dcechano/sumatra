@@ -1,10 +1,12 @@
+use std::ptr;
+
+use sumatra_parser::instruction::ArrayType;
+
 use crate::{
     alloc::{alloc_type::NonStatic, oop::HeapAlloc},
     class::Class,
     value::{RefType, Value},
 };
-use std::ptr;
-use sumatra_parser::instruction::ArrayType;
 
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Ord, PartialOrd)]
 pub(crate) struct ObjRef(*mut HeapAlloc<NonStatic>);

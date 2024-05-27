@@ -39,7 +39,7 @@ impl Value {
     pub(crate) fn new_object(class: &Class, class_id: usize) -> Value {
         Value::Ref(RefType::Object(ObjRef::new(class, class_id)))
     }
-    
+
     /// Allocates a new Java array and returns Value::Ref for the new array.
     pub(crate) fn new_array(length: usize, array_type: ArrayType) -> Value {
         Value::Ref(RefType::Array(ArrayRef::new(length, array_type)))
