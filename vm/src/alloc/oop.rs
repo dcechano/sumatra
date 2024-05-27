@@ -289,9 +289,9 @@ impl<T: AllocType> Display for HeapAlloc<T> {
 
 #[cfg(test)]
 mod test {
-    use std::fmt::Debug;
+    use std::{fmt::Debug, ptr};
 
-    use sumatra_parser::{class_file::ClassFile, flags::FieldAccessFlags};
+    use sumatra_parser::{class_file::ClassFile, flags::FieldAccessFlags, instruction::ArrayType};
 
     use crate::{
         alloc::oop::{HeapAlloc, NonStatic},
@@ -332,6 +332,29 @@ mod test {
         unsafe {
             let ptr = HeapAlloc::new_array(10, ArrayType::Int);
             HeapAlloc::deallocate(ptr)
+        }
+    }
+
+    #[test]
+    fn create_array() {
+        const LENGTH: usize = 10;
+        const CHANGE_INDEX: usize = 5;
+        const NEW_ENTRY: Value = Value::Int(42);
+
+        unsafe {
+            let ptr = HeapAlloc::new_array(LENGTH, ArrayType::Int);
+            let (length, array_type) = (*ptr).header.array_data.as_ref().unwrap();
+            assert_eq!(*length, LENGTH);
+            assert_eq!(*array_type, ArrayType::Int);
+            for i in 0..LENGTH {
+                assert_eq!((*ptr).elements.add(i).as_ref().unwrap(), &Value::Int(0));
+            }
+            ptr::write((*ptr).elements.add(CHANGE_INDEX), NEW_ENTRY.clone());
+            assert_eq!(
+                (*ptr).elements.add(CHANGE_INDEX).as_ref().unwrap(),
+                &NEW_ENTRY
+            );
+            HeapAlloc::deallocate(ptr);
         }
     }
 
