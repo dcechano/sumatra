@@ -1,10 +1,10 @@
 use crate::{
     alloc::{alloc_type::NonStatic, oop::HeapAlloc},
+    class::Class,
     value::{RefType, Value},
 };
 use std::ptr;
 use sumatra_parser::instruction::ArrayType;
-use crate::class::Class;
 
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Ord, PartialOrd)]
 pub(crate) struct ObjRef(*mut HeapAlloc<NonStatic>);
@@ -19,12 +19,11 @@ impl ObjRef {
 pub(crate) struct ArrayRef(*mut HeapAlloc<NonStatic>);
 
 impl ArrayRef {
-    
     /// Create a new array from the given `ArrayType` and `length`.
     pub(crate) fn new(length: usize, array_type: ArrayType) -> Self {
         Self(HeapAlloc::new_array(length, array_type))
     }
-    
+
     /// insert the `value` into the array at the given `index`.
     pub(crate) fn insert(&mut self, index: usize, value: Value) {
         // SAFETY: It is safe to dereference the ptr because it is impossible to
@@ -47,8 +46,8 @@ impl ArrayRef {
     }
 
     /// Retrieve the `Value` from the array at the given `index`.
-    /// The `ArrayRef` instance still owns the `Value` requested so the returned `Value`
-    /// is a clone. 
+    /// The `ArrayRef` instance still owns the `Value` requested so the returned
+    /// `Value` is a clone.
     pub(crate) fn get(&mut self, index: usize) -> Value {
         // SAFETY: It is safe to dereference the ptr because it is impossible to
         // get an invalid ptr to a HeapAlloc without bypassing the APIs in oop.rs
