@@ -63,7 +63,13 @@ impl CallFrame {
         }
     }
 
-    pub(crate) fn push(&mut self, value: Value) { self.stack.push(value) }
+    pub(crate) fn push(&mut self, value: Value) {
+        self.stack.push(value);
+        let max_stack = self.method.code.max_stack as usize;
+        if self.stack.len() > max_stack {
+            panic!("Stack overflowed the max_stack value: {max_stack}");
+        }
+    }
 
     pub(crate) fn pop(&mut self) -> Value { self.stack.pop().unwrap() }
 }
