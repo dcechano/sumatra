@@ -27,7 +27,9 @@ pub enum Instruction {
     ALoad2,
     /// Load reference from local variable
     ALoad3,
+    /// Create new array of reference
     ANewArray(u16),
+    /// Return reference on top of stack.
     AReturn,
     ArrayLength,
     /// Store reference into local variable
@@ -171,6 +173,7 @@ pub enum Instruction {
     Ifgt(usize),
     /// Branch to offset if int on operand stack <= 0
     Ifle(usize),
+    /// Branch to offset if reference is not null.
     IfNonNull(usize),
     IfNull(usize),
     Iinc(u8, i8), // TODO double check the spec on this one. It was confusing.

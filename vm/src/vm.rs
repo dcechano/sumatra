@@ -65,7 +65,11 @@ impl VM {
     fn execute_frame(&mut self) -> Result<Option<Value>> {
         let code = &self.frame().method.code;
         let op_code = &code.op_code;
-        println!("\nExecuting method: {} in class: {}", self.frame().method.name, self.frame().class.get_name());
+        println!(
+            "\nExecuting method: {} in class: {}",
+            self.frame().method.name,
+            self.frame().class.get_name()
+        );
         while let Some(code) = op_code.get(self.frame().pc) {
             // if self.frame().method.name != "<clinit>" {
             println!("\t{code:?}");
@@ -79,7 +83,7 @@ impl VM {
                 Instruction::ALoad1 => self.a_load(1)?,
                 Instruction::ALoad2 => self.a_load(2)?,
                 Instruction::ALoad3 => self.a_load(3)?,
-                Instruction::ANewArray(_) => todo!(),
+                Instruction::ANewArray(class_index) => self.anew_array(*class_index as usize)?,
                 Instruction::AReturn => return Ok(Some(self.return_val())),
                 Instruction::ArrayLength => self.array_length()?,
                 Instruction::AStore(_) => todo!(),
@@ -248,7 +252,11 @@ impl VM {
                         continue;
                     }
                 }
-                Instruction::IfNonNull(_) => todo!(),
+                Instruction::IfNonNull(index) => {
+                    if self.if_nonnull(*index) {
+                        continue;
+                    }
+                }
                 Instruction::IfNull(_) => todo!(),
                 Instruction::Iinc(index, inc) => self.iinc(*index as usize, *inc as i32),
                 Instruction::ILoad(local_index) => self.iload_n(*local_index as usize)?,
@@ -335,8 +343,8 @@ impl VM {
                 Instruction::LSub => todo!(),
                 Instruction::LuShR => todo!(),
                 Instruction::LxOr => todo!(),
-                Instruction::MonitorEnter => todo!(),
-                Instruction::MonitorExit => todo!(),
+                Instruction::MonitorEnter => self.monitor_enter()?,
+                Instruction::MonitorExit => self.monitor_exit()?,
                 Instruction::MultiaNewArray(_, _) => todo!(),
                 Instruction::New(class_index) => self.new_obj(*class_index as usize)?,
                 Instruction::NewArray(array_type) => self.new_array(array_type.clone())?,
@@ -361,6 +369,22 @@ impl VM {
         println!("Exiting method: {}", self.frame().method.name);
         self.frames.pop();
         Ok(None)
+    }
+
+    /// Executes the `Instruction::AaNewArray` instruction.
+    fn anew_array(&mut self, class_index: usize) -> Result<()> {
+        let frame = self.frame();
+        let Constant::Class(name_index) = frame.cp.get(class_index).unwrap() else {
+            bail!("Expected Constant::Class while executing anewarray.");
+        };
+        let class_name = frame.cp.get_utf8(*name_index)?;
+        let _ = self.load_class(class_name)?;
+        let Value::Int(length) = self.frame_mut().pop() else {
+            bail!("Expected Value::Int for array length while executing anewarray.");
+        };
+
+        let array = Value::new_array(length as usize, ArrayType::Ref);
+        Ok(self.frame_mut().push(array))
     }
 
     /// Executes the `Instruction::ArrayLength` instruction.
@@ -531,6 +555,17 @@ impl VM {
             frame.pc = offset;
         }
         jmp
+    }
+
+    /// Executes the `Instruction::IfNonNull` instruction. Returns a `bool`
+    /// indicating if a branch is required. Program counter is already updated.
+    fn if_nonnull(&mut self, index: usize) -> bool {
+        let frame = self.frame_mut();
+        if let Value::Null = frame.pop() {
+            frame.pc = index;
+            return true;
+        }
+        false
     }
 
     /// Executed the `Instruction::InvokeSpecial` instruction. `method_index` is
@@ -757,6 +792,20 @@ impl VM {
         Ok(frame.stack.push(value))
     }
 
+    /// Executes the `Instruction::MonitorEnter` instruction.
+    fn monitor_enter(&mut self) -> Result<()> {
+        let _ = self.frame_mut().pop();
+        println!("Ignoring MonitorEnter.");
+        Ok(())
+    }
+
+    /// Executes the `Instruction::MonitorExit` instruction.
+    fn monitor_exit(&mut self) -> Result<()> {
+        let _ = self.frame_mut().pop();
+        println!("Ignoring MonitorExit.");
+        Ok(())
+    }
+
     /// Executes the `Instruction::NewArray` instruction. Length
     /// is assumed to be immediately on the operand stack.
     fn new_array(&mut self, array_type: ArrayType) -> Result<()> {
@@ -829,7 +878,7 @@ impl VM {
             bail!("Expected Constant::FieldRef for a put_static instruction.");
         };
         let (f_name, mut data) = self.unpack_f_name(class_index, name_and_type_index)?;
-        data.set_field(&f_name, self.frame_mut().stack.pop().unwrap())?;
+        data.set_field(&f_name, self.frame_mut().pop())?;
         Ok(())
     }
 
@@ -922,7 +971,12 @@ impl VM {
 
     /// Helper function to construct a `CallFrame` and invoke a method.
     fn invoke(&mut self, class: &'static Class, method: &'static Method) -> Result<Option<Value>> {
-        let num_params = method.parsed_descriptor.num_params();
+        let num_params = if method.name == "<init>" {
+            method.parsed_descriptor.num_params() + 1
+        } else {
+            method.parsed_descriptor.num_params()
+        };
+
         let max_locals = method.code.max_locals as usize;
 
         let frame = CallFrame::new(
@@ -931,6 +985,9 @@ impl VM {
             &class.cp,
             self.construct_locals(max_locals, num_params)?,
         );
+        (0..num_params).for_each(|_| {
+            self.frame_mut().pop();
+        });
         self.frames.push(frame);
         self.execute_frame()
     }
