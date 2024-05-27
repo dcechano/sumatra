@@ -50,7 +50,7 @@ impl ArrayRef {
     /// Retrieve the `Value` from the array at the given `index`.
     /// The `ArrayRef` instance still owns the `Value` requested so the returned
     /// `Value` is a clone.
-    pub(crate) fn get(&mut self, index: usize) -> Value {
+    pub(crate) fn get(&self, index: usize) -> Value {
         // SAFETY: It is safe to dereference the ptr because it is impossible to
         // get an invalid ptr to a HeapAlloc without bypassing the APIs in oop.rs
         // which this binary does not do.
@@ -65,7 +65,7 @@ impl ArrayRef {
     }
 
     /// Returns the length of the `ArrayRef` instance.
-    pub(crate) fn len(&mut self) -> usize {
+    pub(crate) fn len(&self) -> usize {
         // SAFETY: It is safe to dereference the ptr because it is impossible to
         // get an invalid ptr to a HeapAlloc without bypassing the APIs in oop.rs
         // which this binary does not do.
