@@ -80,7 +80,7 @@ impl VM {
                 Instruction::ALoad2 => self.a_load(2)?,
                 Instruction::ALoad3 => self.a_load(3)?,
                 Instruction::ANewArray(_) => todo!(),
-                Instruction::AReturn => todo!(),
+                Instruction::AReturn => return Ok(Some(self.return_val())),
                 Instruction::ArrayLength => self.array_length()?,
                 Instruction::AStore(_) => todo!(),
                 Instruction::AStore0 => self.a_store_n(0)?,
@@ -354,7 +354,7 @@ impl VM {
                 Instruction::TableSwitch { .. } => todo!(),
                 Instruction::Wide(winstr) => todo!(),
             }
-            println!("\t\tSTACK: {:?}", self.frame().stack);
+            println!("\t\tStack: {:?}", self.frame().stack);
             println!("\t\tLocals: {:?}", self.frame().locals);
             self.frame_mut().pc += 1;
         }
@@ -630,7 +630,7 @@ impl VM {
         let (name_index, desc_index, alloc) = self.unpack(*class_index, *name_and_type_index)?;
         let (class, method) = self.to_method_class(name_index, desc_index, &alloc)?;
 
-        assert!(method.is_static());
+        debug_assert!(method.is_static());
         // TODO implement native method calls.
         if method.is_native() {
             println!("Method '{}' was a native method. Ignoring.", method.name);
@@ -654,7 +654,7 @@ impl VM {
 
         let (name_index, desc_index, alloc) = self.unpack(*class_index, *name_and_type_index)?;
         let (class, method) = self.to_method_class(name_index, desc_index, &alloc)?;
-        assert!(!method.is_static());
+        debug_assert!(!method.is_static());
         // TODO implement native method calls.
         if method.is_native() {
             println!("Method '{}' was a native method. Ignoring.", method.name);
@@ -836,6 +836,7 @@ impl VM {
     fn return_val(&mut self) -> Value {
         println!("Exiting {}", self.frame().method.name);
         let value = self.frame_mut().pop();
+        debug_assert!(self.frame().stack.is_empty());
         self.frames.pop();
         value
     }
