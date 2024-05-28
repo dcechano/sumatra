@@ -9,7 +9,7 @@ as possible, it is not recommended to use in a production setting.
 
 The following are currently on the todo list:
 
-- [ ] Implement arrays
+- [x] Implement arrays
 - [ ] Implement garbage collection
 - [ ] Implement a JNI
 - [ ] Implement support for native functions (No JNI)
