@@ -350,6 +350,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "sumatra_native"
+version = "0.1.0"
+dependencies = [
+ "sumatra_vm",
+]
+
+[[package]]
 name = "sumatra_parser"
 version = "0.1.0"
 dependencies = [
