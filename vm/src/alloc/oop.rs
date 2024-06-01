@@ -17,7 +17,7 @@ use crate::{
         header::Header,
     },
     class::Class,
-    value::Value,
+    data_types::value::Value,
 };
 
 pub struct HeapAlloc<T: AllocType> {
@@ -325,7 +325,7 @@ mod test {
     use crate::{
         alloc::oop::{HeapAlloc, NonStatic},
         class::Class,
-        value::Value,
+        data_types::value::Value,
     };
 
     //TODO fine for now but eventually this will have to removed and made to use

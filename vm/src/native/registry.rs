@@ -3,12 +3,11 @@ use std::collections::HashMap;
 use anyhow::{anyhow, Result};
 
 use crate::{
+    data_types::{reference_types::ObjRef, value::Value},
     native::{
         lib_java::{java_class, JAVA_LANG_CLASS},
         native_identifier::NativeIdentifier,
     },
-    reference_types::ObjRef,
-    value::Value,
     vm::VM,
 };
 

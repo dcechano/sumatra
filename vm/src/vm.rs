@@ -13,12 +13,14 @@ use crate::{
     call_frame::CallFrame,
     class::Class,
     compare::Compare,
-    instance_data::InstanceData,
+    data_types::{
+        instance_data::InstanceData,
+        reference_types::ObjRef,
+        static_data::StaticData,
+        value::{RefType, Value},
+    },
     lli::{class_manager::ClassManager, response::Response},
     native::registry::Registry,
-    reference_types::ObjRef,
-    static_data::StaticData,
-    value::{RefType, Value},
 };
 
 const MAIN: &str = "main([Ljava/lang/String;)V";

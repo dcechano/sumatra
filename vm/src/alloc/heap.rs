@@ -5,8 +5,10 @@ use sumatra_parser::instruction::ArrayType;
 use crate::{
     alloc::{alloc_type::NonStatic, oop::HeapAlloc},
     class::Class,
-    instance_data::InstanceData,
-    reference_types::{ArrayRef, ObjRef},
+    data_types::{
+        instance_data::InstanceData,
+        reference_types::{ArrayRef, ObjRef},
+    },
 };
 
 pub(crate) struct Heap {

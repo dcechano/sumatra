@@ -3,7 +3,7 @@ use anyhow::Result;
 use crate::{
     alloc::{alloc_type::Static, oop::HeapAlloc},
     class::Class,
-    value::Value,
+    data_types::value::Value,
 };
 
 #[derive(Debug)]

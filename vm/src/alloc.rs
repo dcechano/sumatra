@@ -1,6 +1,6 @@
 use std::mem;
 
-use crate::value::Value;
+use crate::data_types::value::Value;
 
 pub mod alloc_type;
 pub mod fields_table;

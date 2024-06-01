@@ -6,7 +6,9 @@ use std::{
 
 use anyhow::{bail, Result};
 
-use crate::{alloc::static_fields::StaticFields, class::Class, static_data::StaticData};
+use crate::{
+    alloc::static_fields::StaticFields, class::Class, data_types::static_data::StaticData,
+};
 
 const STATIC_ALLOC_SIZE: isize = mem::size_of::<StaticFields>() as isize;
 const STATIC_ALLOC_ALIGN: isize = mem::align_of::<StaticFields>() as isize;

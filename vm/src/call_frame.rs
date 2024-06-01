@@ -2,7 +2,7 @@ use anyhow::{bail, Result};
 
 use sumatra_parser::{constant_pool::ConstantPool, method::Method};
 
-use crate::{class::Class, value::Value};
+use crate::{class::Class, data_types::value::Value};
 
 #[derive(Debug)]
 pub(crate) struct CallFrame {

@@ -1,6 +1,6 @@
 use anyhow::Result;
 
-use crate::{alloc::static_fields::StaticFields, class::Class, value::Value};
+use crate::{alloc::static_fields::StaticFields, class::Class, data_types::value::Value};
 
 #[derive(Debug)]
 pub(crate) struct StaticData {

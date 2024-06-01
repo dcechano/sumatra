@@ -5,7 +5,7 @@ use std::{
 
 use sumatra_parser::{field::Field, instruction::ArrayType};
 
-use crate::{alloc::fields_table::FieldsTable, class::Class, value::Value};
+use crate::{alloc::fields_table::FieldsTable, class::Class, data_types::value::Value};
 
 const ARRAY_CLASS_NAME: &str = "java/lang/Object";
 

@@ -9,8 +9,10 @@ use sumatra_parser::instruction::ArrayType;
 
 use crate::{
     alloc::{alloc_type::NonStatic, oop::HeapAlloc},
-    instance_data::InstanceData,
-    value::{RefType, Value},
+    data_types::{
+        instance_data::InstanceData,
+        value::{RefType, Value},
+    },
 };
 
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Ord, PartialOrd)]

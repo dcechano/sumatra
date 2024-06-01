@@ -1,7 +1,9 @@
 use anyhow::Result;
 
 use crate::{
-    native::native_identifier::NativeIdentifier, reference_types::ObjRef, value::Value, vm::VM,
+    data_types::{reference_types::ObjRef, value::Value},
+    native::native_identifier::NativeIdentifier,
+    vm::VM,
 };
 
 const OBJ: &str = "()Ljava/lang/Object;";
