@@ -44,27 +44,55 @@ pub struct VM {
 impl VM {
     /// create the VM.
     pub fn init(jdk: PathBuf, c_path: PathBuf) -> Self {
-        //TODO find good allocation size for vectors
+        /*
+            Very similar to VM.load_class() except vm.load_class() will attempt to create
+            the Class.java instance if initialization is required. Since the java/lang/Class.class
+            hasn't been loaded yet, the program will crash. So here we do it in two steps
+            just this one time.
+        */
+        fn bootstrap_load(vm: &mut VM, name: &str) -> (&'static Class, usize) {
+            match vm.class_manager.request(name, &mut vm.method_area) {
+                Ok(Response::InitReq(class, class_id)) => {
+                    vm.init_class(class).unwrap();
+                    (class, class_id)
+                }
+                Ok(_) => panic!("Class already loaded! Improper use of bootstrap_load()."),
+                Err(e) => panic!("Error while initializing VM in bootstrap_load(): {:?}", e),
+            }
+        }
+
+        let mut vm = VM::new(jdk, c_path);
+
+        // Load java/lang/Object so that its class_id is always 0.
+        // This makes it easy to make sure all arrays have Object as its class
+        // on the Heap.
+        let (java_lang_obj, java_lang_obj_id) = bootstrap_load(&mut vm, OBJECT);
+        let (java_lang_class, java_lang_class_id) = bootstrap_load(&mut vm, CLASS);
+        debug_assert!(java_lang_obj_id == OBJECT_CLASS_ID);
+        debug_assert!(java_lang_class_id == CLASS_CLASS_ID);
+
+        // NOW create the Class.java objects, since it is now safe.
+        let _ = vm
+            .create_class_obj(java_lang_obj, java_lang_obj_id)
+            .unwrap();
+        let _ = vm
+            .create_class_obj(java_lang_class, java_lang_class_id)
+            .unwrap();
+        vm
+    }
+
+    fn new(jdk: PathBuf, c_path: PathBuf) -> Self {
         let method_area = match MethodArea::new() {
             Ok(method_area) => method_area,
             Err(_) => panic!("Memory Allocation Error while starting Sumatra VM"),
         };
-
-        let mut vm = Self {
+        Self {
             frames: Vec::with_capacity(DEFAULT_VEC_SIZE),
             method_area,
             heap: Heap::new(),
             class_manager: ClassManager::new(jdk, c_path),
             native_registry: Registry::new(),
-        };
-        // Load java/lang/Object so that its class_id is always 0.
-        // This makes it easy to make sure all arrays have Object as its class
-        // on the Heap.
-        let java_lang_obj = vm.load_class(OBJECT).unwrap();
-        let java_lang_class = vm.load_class(CLASS).unwrap();
-        debug_assert!(java_lang_obj.class_id == OBJECT_CLASS_ID);
-        debug_assert!(java_lang_class.class_id == CLASS_CLASS_ID);
-        vm
+        }
     }
 
     /// Entry point of the JVM. `c_entry` is the initial class loaded
@@ -978,7 +1006,11 @@ impl VM {
 impl VM {
     /// Create a java.lang.Class object for a `sumatra::Class` represented by
     /// its ID.
-    pub fn create_class_obj(&mut self, instance_class: &'static Class, instance_class_id: usize) -> Result<ObjRef> {
+    pub fn create_class_obj(
+        &mut self,
+        instance_class: &'static Class,
+        instance_class_id: usize,
+    ) -> Result<ObjRef> {
         let java_lang_class = self.method_area.get_class(CLASS_CLASS_ID)?;
         let java_lang_object = self.method_area.get_class(OBJECT_CLASS_ID)?;
         Ok(self.heap.new_class_object(
