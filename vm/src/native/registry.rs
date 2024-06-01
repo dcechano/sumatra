@@ -5,7 +5,7 @@ use anyhow::{anyhow, Result};
 use crate::{
     data_types::{reference_types::ObjRef, value::Value},
     native::{
-        lib_java::{java_class, JAVA_LANG_CLASS, JAVA_LANG_OBJECT, java_object},
+        lib_java::{java_class, java_object, JAVA_LANG_CLASS, JAVA_LANG_OBJECT},
         native_identifier::NativeIdentifier,
     },
     vm::VM,
