@@ -53,11 +53,12 @@ impl Heap {
         java_lang_class: &'static Class,
         java_lang_object: &'static Class,
     ) -> ObjRef {
-        let obj = ObjRef::new(InstanceData::new(
-            java_lang_class,
-            class_id,
-            vec![java_lang_object],
-        ));
+        let super_class = if class_id == 0 {
+            vec![]
+        } else {
+            vec![java_lang_object]
+        };
+        let obj = ObjRef::new(InstanceData::new(java_lang_class, class_id, super_class));
         self.classes
             .insert(instance_class.get_name(), obj.get_inner() as *mut _);
         obj
