@@ -1,4 +1,7 @@
-use sumatra_vm::{reference_types::ObjRef, vm::VM};
+use crate::{
+    native::native_identifier::NativeIdentifier, reference_types::ObjRef, value::Value, vm::VM,
+};
+use anyhow::Result;
 
 const OBJ: &str = "()Ljava/lang/Object;";
 const CLS: &str = "()Ljava/lang/Class;";
@@ -11,10 +14,19 @@ const PD: &str = "()Ljava/security/ProtectionDomain;";
 const BA: &str = "()[B";
 const RC: &str = "()Ljava/lang/reflect/RecordComponent;";
 
-fn jvm_register_natives() { todo!() }
+fn jvm_register_natives(vm: &mut VM, this: Option<ObjRef>, _: Vec<Value>) -> Result<Option<Value>> {
+    let native_identifier = NativeIdentifier::new(
+        "java/lang/Class".to_string(),
+        "()Ljava/lang/Class".to_string(),
+    );
+    vm.native_registry
+        .register(native_identifier, jvm_get_class);
+    Ok(None)
+}
 
-fn jvm_get_class(vm: &mut VM) -> ObjRef { 
-    todo!()
+fn jvm_get_class(vm: &mut VM, this: Option<ObjRef>, _: Vec<Value>) -> Result<Option<Value>> {
+    let class_obj = vm.get_class_obj(this.unwrap()).unwrap();
+    Ok(Some(Value::new_object(class_obj)))
 }
 
 fn jvm_is_instance(vm: &mut VM) { todo!() }

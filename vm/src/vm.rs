@@ -15,6 +15,8 @@ use crate::{
     compare::Compare,
     instance_data::InstanceData,
     lli::{class_manager::ClassManager, response::Response},
+    native::registry::Registry,
+    reference_types::ObjRef,
     static_data::StaticData,
     value::{RefType, Value},
 };
@@ -23,6 +25,9 @@ const MAIN: &str = "main([Ljava/lang/String;)V";
 const CLINIT: &str = "<clinit>()V";
 const INIT: &str = "<init>()V";
 const OBJECT: &str = "java/lang/Object";
+const CLASS: &str = "java/lang/Class";
+const OBJECT_CLASS_ID: usize = 0;
+const CLASS_CLASS_ID: usize = 1;
 
 const DEFAULT_VEC_SIZE: usize = 128;
 
@@ -31,6 +36,7 @@ pub struct VM {
     method_area: MethodArea,
     heap: Heap,
     class_manager: ClassManager,
+    pub(crate) native_registry: Registry,
 }
 
 impl VM {
@@ -47,12 +53,15 @@ impl VM {
             method_area,
             heap: Heap::new(),
             class_manager: ClassManager::new(jdk, c_path),
+            native_registry: Registry::new(),
         };
         // Load java/lang/Object so that its class_id is always 0.
         // This makes it easy to make sure all arrays have Object as its class
         // on the Heap.
-        let data = vm.load_class(OBJECT).unwrap();
-        debug_assert!(data.class_id == 0);
+        let java_lang_obj = vm.load_class(OBJECT).unwrap();
+        let java_lang_class = vm.load_class(CLASS).unwrap();
+        debug_assert!(java_lang_obj.class_id == OBJECT_CLASS_ID);
+        debug_assert!(java_lang_class.class_id == CLASS_CLASS_ID);
         vm
     }
 
@@ -376,11 +385,18 @@ impl VM {
                 Instruction::TableSwitch { .. } => todo!(),
                 Instruction::Wide(winstr) => todo!(),
             }
-            // println!("\t\tStack: {:?}", self.frame().stack);
-            // println!("\t\tLocals: {:?}", self.frame().locals);
+            println!("\t\tStack: {:?}", self.frame().stack);
+            println!("\t\tLocals: {:?}", self.frame().locals);
             self.frame_mut().pc += 1;
         }
-        println!("Exiting method: {}", self.frame().method.name);
+
+        if name != "<clinit>" && name != "<init>" {
+            println!(
+                "\nExiting method: {} in class: {}",
+                self.frame().method.name,
+                self.frame().class.get_name()
+            );
+        }
         self.frames.pop();
         Ok(None)
     }
@@ -958,6 +974,29 @@ impl VM {
 // Utility functions are seperated into a different impl block for ease of
 // navigation.
 impl VM {
+    /// Create a java.lang.Class object for a `sumatra::Class` represented by
+    /// its ID.
+    pub fn create_class_obj(&mut self, instance_class_id: usize) -> Result<ObjRef> {
+        let instance_class = self.method_area.get_class(instance_class_id)?;
+        let java_lang_class = self.method_area.get_class(CLASS_CLASS_ID)?;
+        let java_lang_object = self.method_area.get_class(OBJECT_CLASS_ID)?;
+        Ok(self.heap.new_class_object(
+            instance_class,
+            instance_class_id,
+            java_lang_class,
+            java_lang_object,
+        ))
+    }
+
+    /// Create a java.lang.Class object for the given `ObjRef`.
+    pub fn get_class_obj(&self, obj: ObjRef) -> Result<ObjRef> {
+        let instance_class_id = obj.get_class_id();
+        let instance_class = self.method_area.get_class(instance_class_id)?;
+        let java_lang_class = self.method_area.get_class(CLASS_CLASS_ID)?;
+        let java_lang_object = self.method_area.get_class(OBJECT_CLASS_ID)?;
+        Ok(self.heap.get_class_obj(&instance_class.get_name()))
+    }
+
     /// Construct the local variables array and return it. Assumes there is a
     /// call frame on the stack. If constructing the locals for `main` use
     /// `construct_main_locals`

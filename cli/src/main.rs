@@ -16,5 +16,5 @@ const CLASSES: [&str; 5] = [
 
 fn main() {
     let mut vm = VM::init(JDK.into(), CLASS_PATH.into());
-    vm.run("Simple.class").unwrap()
+    vm.run("GetClass.class").unwrap()
 }

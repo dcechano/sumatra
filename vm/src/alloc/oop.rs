@@ -77,6 +77,11 @@ impl<T: AllocType> HeapAlloc<T> {
         (header, data)
     }
 
+    /// Returns the class_id for the given `HeapAlloc`.
+    /// SAFETY: raw pointer to `HeapAlloc` must be valid by all
+    /// rules outlined here: https://doc.rust-lang.org/std/ptr/index.html#safety  
+    pub(crate) unsafe fn get_class_id(obj: *const HeapAlloc<T>) -> usize { (*obj).header.class_id }
+
     #[inline]
     pub(crate) fn get_field(&self, name: &str) -> Result<&'static Value> {
         // SAFETY: If the offset is valid the area of memory is valid

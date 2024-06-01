@@ -1,7 +1,0 @@
-[package]
-name = "sumatra_native"
-version = "0.1.0"
-edition = "2021"
-
-[dependencies]
-sumatra_vm = { path = "../vm" }
