@@ -1,7 +1,8 @@
+use anyhow::Result;
+
 use crate::{
     native::native_identifier::NativeIdentifier, reference_types::ObjRef, value::Value, vm::VM,
 };
-use anyhow::Result;
 
 const OBJ: &str = "()Ljava/lang/Object;";
 const CLS: &str = "()Ljava/lang/Class;";
@@ -14,7 +15,11 @@ const PD: &str = "()Ljava/security/ProtectionDomain;";
 const BA: &str = "()[B";
 const RC: &str = "()Ljava/lang/reflect/RecordComponent;";
 
-fn jvm_register_natives(vm: &mut VM, this: Option<ObjRef>, _: Vec<Value>) -> Result<Option<Value>> {
+pub fn jvm_register_natives(
+    vm: &mut VM,
+    this: Option<ObjRef>,
+    _: Vec<Value>,
+) -> Result<Option<Value>> {
     let native_identifier = NativeIdentifier::new(
         "java/lang/Class".to_string(),
         "()Ljava/lang/Class".to_string(),
