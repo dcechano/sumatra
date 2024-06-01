@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use anyhow::{anyhow, Result};
+use anyhow::{anyhow, bail, Result};
 
 use crate::{
     data_types::{reference_types::ObjRef, value::Value},
@@ -47,10 +47,14 @@ impl NativeRegistry {
             });
     }
 
-    pub fn get(&self, native_identifier: &NativeIdentifier) -> Result<&NativeMethod> {
-        self.registry.get(&native_identifier).ok_or(anyhow!(
-            "Unable to find native method: {native_identifier:?}. Native may be unregistered."
-        ))
+    /// Retrieve a `NativeMethod` from the `NativeRegistry`.
+    pub fn get(&self, native_id: &NativeIdentifier) -> Result<NativeMethod> {
+        match self.registry.get(&native_id) {
+            // Dereference so that we can still mutate the VM without the borrow checker considering
+            // it borrowed while the NativeMethod is alive.
+            Some(native) => Ok(*native),
+            None => bail!("Unable to find native method: {native_id:?}. Native may be unregistered.")
+        }
     }
 
     pub fn register(&mut self, native_identifier: NativeIdentifier, native_method: NativeMethod) {
