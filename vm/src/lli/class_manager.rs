@@ -44,7 +44,7 @@ impl ClassManager {
 
     pub(crate) fn request(&mut self, name: &str, met_area: &mut MethodArea) -> Result<Response> {
         let response = self.resolve_and_index(name, met_area)?;
-        if let Response::NonFound = response {
+        if let Response::NotFound = response {
             bail!("Class not found: {name}.");
         } else {
             Ok(response)
