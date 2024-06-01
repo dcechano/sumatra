@@ -1122,32 +1122,6 @@ impl VM {
         self.execute_frame()
     }
 
-    fn invokespec_metref(
-        &mut self,
-        class_index: usize,
-        name_and_type_index: usize,
-    ) -> Result<Option<Value>> {
-        let (name_index, desc_index, alloc) = self.unpack(class_index, name_and_type_index)?;
-        let (class, method) = self.to_method_class(name_index, desc_index, &alloc)?;
-        todo!()
-    }
-
-    fn invokespec_intrfcref(
-        &mut self,
-        class_index: usize,
-        name_and_type_index: usize,
-    ) -> Result<Option<Value>> {
-        todo!()
-    }
-
-    fn invokespec_resolve_class(
-        &mut self,
-        class_index: usize,
-        name_and_type_index: usize,
-    ) -> Result<&'static Class> {
-        todo!()
-    }
-
     /// Helper function to determine if the target of a
     /// `Instruction::InvokeSpecial` instruction is defined in the
     /// superclass of the current class.
