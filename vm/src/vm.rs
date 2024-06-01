@@ -1202,7 +1202,10 @@ impl VM {
             Ok(Response::InitReq(class, alloc_index)) => {
                 self.init_class(class)?;
                 let _ = self.create_class_obj(class, alloc_index)?;
-                self.method_area.class_data(alloc_index)
+                // `self.method_area.class_data()` loads the class, which is
+                // unnecessary here, so we construct a `StaticData` manually.
+                let fields = self.method_area.get_mut_fields(alloc_index)?;
+                Ok(StaticData::new(alloc_index, class, fields))
             }
             Ok(Response::Ready(alloc_index)) => self.method_area.class_data(alloc_index),
             Err(e) => bail!(e),
