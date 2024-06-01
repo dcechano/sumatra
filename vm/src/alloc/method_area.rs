@@ -22,9 +22,7 @@ pub(crate) struct MethodArea {
     classes: *mut Class,
     fields: *mut StaticFields,
     len: usize,
-    //TODO rename to cap or capacity to match Vec API
-    // since this struct is effectively a Vec. Seems more idiomatic, ig.
-    size: usize,
+    capacity: usize,
     s_marker: PhantomData<StaticFields>,
     c_marker: PhantomData<Class>,
 }
@@ -55,7 +53,7 @@ impl MethodArea {
                 classes: c_alloc,
                 fields: s_alloc,
                 len: 0,
-                size: size as usize,
+                capacity: size as usize,
                 s_marker: PhantomData,
                 c_marker: PhantomData,
             })
@@ -64,7 +62,7 @@ impl MethodArea {
 
     /// Pushes a class to the method area and returns its `class_id`.
     pub(crate) fn push(&mut self, class: Class) -> Result<usize> {
-        if self.len == (self.size / CLASS_SIZE as usize) {
+        if self.len == (self.capacity / CLASS_SIZE as usize) {
             bail!("Method area is out of memory.");
         }
 
@@ -80,14 +78,26 @@ impl MethodArea {
     }
 
     pub(crate) fn get_mut_fields(&mut self, class_id: usize) -> Result<&'static mut StaticFields> {
+        if class_id >= self.len {
+            bail!("Invalid class_id {class_id} when retrieving fields!");
+        }
+        // SAFETY: We confirmed above that this is a valid index into the dynamic array.
         unsafe { Ok(&mut *(self.fields.add(class_id))) }
     }
 
-    pub(crate) fn get_fields(&self, index: usize) -> Result<&'static StaticFields> {
-        unsafe { Ok(&*(self.fields.add(index) as *const StaticFields)) }
+    pub(crate) fn get_fields(&self, class_id: usize) -> Result<&'static StaticFields> {
+        if class_id >= self.len {
+            bail!("Invalid class_id {class_id} when retrieving fields!");
+        }
+        // SAFETY: We confirmed above that this is a valid index into the dynamic array.
+        unsafe { Ok(&*(self.fields.add(class_id) as *const StaticFields)) }
     }
 
     pub(crate) fn get_class(&self, class_id: usize) -> Result<&'static Class> {
+        if class_id >= self.len {
+            bail!("Invalid class_id {class_id} when retrieving class!");
+        }
+        // SAFETY: We confirmed above that this is a valid index into the dynamic array.
         unsafe { Ok(&*(self.classes.add(class_id))) }
     }
 
@@ -113,11 +123,11 @@ impl Drop for MethodArea {
             self.deallocate_objs();
             alloc::dealloc(
                 self.fields as *mut u8,
-                Layout::array::<StaticFields>(self.size / STATIC_ALLOC_SIZE as usize).unwrap(),
+                Layout::array::<StaticFields>(self.capacity / STATIC_ALLOC_SIZE as usize).unwrap(),
             );
             alloc::dealloc(
                 self.classes as *mut u8,
-                Layout::array::<Class>(self.size / CLASS_SIZE as usize).unwrap(),
+                Layout::array::<Class>(self.capacity / CLASS_SIZE as usize).unwrap(),
             );
         }
     }
