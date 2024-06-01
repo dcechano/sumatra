@@ -5,13 +5,16 @@ use anyhow::{bail, Result};
 use crate::{
     data_types::{reference_types::ObjRef, value::Value},
     native::{
-        lib_java::{java_class, java_object, JAVA_LANG_CLASS, JAVA_LANG_OBJECT},
+        lib_java::{
+            java_class, java_object, java_system, JAVA_LANG_CLASS, JAVA_LANG_OBJECT,
+            JAVA_LANG_SYSTEM, REGISTER_NATIVES_SIG,
+        },
         native_identifier::NativeIdentifier,
     },
     vm::VM,
 };
 
-const INITIAL_NATIVE_METHODS: [(&str, &str, NativeMethod); 2] = [
+const INITIAL_NATIVE_METHODS: [(&str, &str, NativeMethod); 3] = [
     (
         JAVA_LANG_OBJECT,
         java_object::GET_CLASS_SIG,
@@ -19,8 +22,13 @@ const INITIAL_NATIVE_METHODS: [(&str, &str, NativeMethod); 2] = [
     ),
     (
         JAVA_LANG_CLASS,
-        java_class::REGISTER_NATIVES_SIG,
+        REGISTER_NATIVES_SIG,
         java_class::jvm_register_natives,
+    ),
+    (
+        JAVA_LANG_SYSTEM,
+        REGISTER_NATIVES_SIG,
+        java_system::jvm_register_natives,
     ),
 ];
 
