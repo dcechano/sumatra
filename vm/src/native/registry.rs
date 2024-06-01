@@ -34,7 +34,8 @@ impl NativeRegistry {
     }
 
     /// Registers the "native registerNatives()" java method.
-    /// Calling the stored method will register the rest of the natives for that class.
+    /// Calling the stored method will register the rest of the natives for that
+    /// class.
     fn register_native_registering_methods(&mut self) {
         NATIVE_REGISTERING_METHODS
             .iter()
@@ -55,7 +56,9 @@ impl NativeRegistry {
             // Dereference so that we can still mutate the VM without the borrow checker considering
             // it borrowed while the NativeMethod is alive.
             Some(native) => Ok(*native),
-            None => bail!("Unable to find native method: {native_id:?}. Native may be unregistered.")
+            None => {
+                bail!("Unable to find native method: {native_id:?}. Native may be unregistered.")
+            }
         }
     }
 
