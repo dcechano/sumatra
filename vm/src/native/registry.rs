@@ -33,6 +33,8 @@ impl NativeRegistry {
         registery
     }
 
+    /// Registers the "native registerNatives()" java method.
+    /// Calling the stored method will register the rest of the natives for that class.
     fn register_native_registering_methods(&mut self) {
         NATIVE_REGISTERING_METHODS
             .iter()
@@ -57,6 +59,7 @@ impl NativeRegistry {
         }
     }
 
+    /// Register a `NativeMethod` to store it in the `NativeRegistry`.
     pub fn register(&mut self, native_identifier: NativeIdentifier, native_method: NativeMethod) {
         self.registry.insert(native_identifier, native_method);
     }
