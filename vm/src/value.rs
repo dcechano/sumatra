@@ -2,10 +2,7 @@ use std::cmp::Ordering;
 
 use sumatra_parser::instruction::ArrayType;
 
-use crate::{
-    instance_data::InstanceData,
-    reference_types::{ArrayRef, ObjRef},
-};
+use crate::reference_types::{ArrayRef, ObjRef};
 
 #[derive(Default, Debug, Clone)]
 pub enum Value {
