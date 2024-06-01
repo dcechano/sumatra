@@ -1,5 +1,4 @@
 use std::collections::HashMap;
-
 use sumatra_parser::instruction::ArrayType;
 
 use crate::{
@@ -16,6 +15,7 @@ pub(crate) struct Heap {
     gen2: Vec<*mut HeapAlloc<NonStatic>>,
     tenured: Vec<*mut HeapAlloc<NonStatic>>,
     classes: HashMap<String, *mut HeapAlloc<NonStatic>>,
+    strings: HashMap<String, *mut HeapAlloc<NonStatic>>,
 }
 
 impl Heap {
@@ -25,6 +25,7 @@ impl Heap {
             gen2: Vec::with_capacity(128),
             tenured: Vec::with_capacity(128),
             classes: HashMap::with_capacity(128),
+            strings: HashMap::with_capacity(128),
         }
     }
 
@@ -44,6 +45,22 @@ impl Heap {
         let obj = ObjRef::new(instance_data);
         self.tenured.push(obj.get_inner() as *mut _);
         obj
+    }
+
+    pub(crate) fn intern_string(&mut self, string: &str, instance_data: InstanceData) -> ObjRef {
+        match self.strings.get(string) {
+            Some(obj) => {
+                // SAFETY: Since we manage the pointer ourselves, we know it is valid
+                // as long as the pointer wasn't invalidated elsewhere.
+                unsafe { ObjRef::from_raw(*obj) }
+            }
+            None => {
+                let string_obj = self.new_object(instance_data);
+                self.strings
+                    .insert(string.to_string(), string_obj.get_inner() as *mut _);
+                string_obj
+            }
+        }
     }
 
     pub(crate) fn new_class_object(
@@ -67,7 +84,7 @@ impl Heap {
     /// Returns the java.lang.Class object for the class represented by
     /// `class_name`.
     pub(crate) fn get_class_obj(&self, class_name: &str) -> ObjRef {
-        // SAFETY: Since we manage the pointer ourselves, we know it is valid,
+        // SAFETY: Since we manage the pointer ourselves, we know it is valid
         // as long as the pointer wasn't invalidated elsewhere.
         unsafe { ObjRef::from_raw(*self.classes.get(class_name).unwrap()) }
     }

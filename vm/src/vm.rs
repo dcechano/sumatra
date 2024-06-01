@@ -31,8 +31,12 @@ const CLINIT: &str = "<clinit>()V";
 const INIT: &str = "<init>()V";
 const OBJECT: &str = "java/lang/Object";
 const CLASS: &str = "java/lang/Class";
+const SYSTEM: &str = "java/lang/System";
+const STRING: &str = "java/lang/String";
+
 const OBJECT_CLASS_ID: usize = 0;
-const CLASS_CLASS_ID: usize = 1;
+const SYSTEM_CLASS_ID: usize = 1;
+const CLASS_CLASS_ID: usize = 2;
 
 const DEFAULT_VEC_SIZE: usize = 128;
 
@@ -47,40 +51,8 @@ pub struct VM {
 impl VM {
     /// create the VM.
     pub fn init(jdk: PathBuf, c_path: PathBuf) -> Self {
-        /*
-            Very similar to VM.load_class() except vm.load_class() will attempt to create
-            the Class.java instance if initialization is required. Since the java/lang/Class.class
-            hasn't been loaded yet, the program will crash. So here we do it in two steps
-            just this one time.
-        */
-        fn bootstrap_load(vm: &mut VM, name: &str) -> (&'static Class, usize) {
-            match vm.class_manager.request(name, &mut vm.method_area) {
-                Ok(Response::InitReq(class, class_id)) => {
-                    vm.init_class(class).unwrap();
-                    (class, class_id)
-                }
-                Ok(_) => panic!("Class already loaded! Improper use of bootstrap_load()."),
-                Err(e) => panic!("Error while initializing VM in bootstrap_load(): {:?}", e),
-            }
-        }
-
         let mut vm = VM::new(jdk, c_path);
-
-        // Load java/lang/Object so that its class_id is always 0.
-        // This makes it easy to make sure all arrays have Object as its class
-        // on the Heap.
-        let (java_lang_obj, java_lang_obj_id) = bootstrap_load(&mut vm, OBJECT);
-        let (java_lang_class, java_lang_class_id) = bootstrap_load(&mut vm, CLASS);
-        debug_assert!(java_lang_obj_id == OBJECT_CLASS_ID);
-        debug_assert!(java_lang_class_id == CLASS_CLASS_ID);
-
-        // NOW create the Class.java objects, since it is now safe.
-        let _ = vm
-            .create_class_obj(java_lang_obj, java_lang_obj_id)
-            .unwrap();
-        let _ = vm
-            .create_class_obj(java_lang_class, java_lang_class_id)
-            .unwrap();
+        vm.bootstrap_classes();
         vm
     }
 
@@ -95,6 +67,51 @@ impl VM {
             heap: Heap::new(),
             class_manager: ClassManager::new(jdk, c_path),
             native_registry: NativeRegistry::new(),
+        }
+    }
+
+    fn bootstrap_classes(&mut self) {
+        // Load java/lang/Object so that its class_id is always 0.
+        // This makes it easy to make sure all arrays have Object as its class
+        // on the Heap.
+        let (java_lang_obj, java_lang_obj_id) = self.bootstrap_load(OBJECT);
+        let (java_lang_system, java_lang_system_id) = self.bootstrap_load(SYSTEM);
+        let (java_lang_class, java_lang_class_id) = self.bootstrap_load(CLASS);
+        let (java_lang_string, java_lang_string_id) = self.bootstrap_load(STRING);
+
+        debug_assert!(java_lang_obj_id == OBJECT_CLASS_ID);
+        debug_assert!(java_lang_system_id == SYSTEM_CLASS_ID);
+        debug_assert!(java_lang_class_id == CLASS_CLASS_ID);
+
+        // NOW create the Class.java objects, since it is now safe.
+        let _ = self
+            .create_class_obj(java_lang_obj, java_lang_obj_id)
+            .unwrap();
+        let _ = self
+            .create_class_obj(java_lang_system, java_lang_system_id)
+            .unwrap();
+        let _ = self
+            .create_class_obj(java_lang_class, java_lang_class_id)
+            .unwrap();
+        let _ = self
+            .create_class_obj(java_lang_string, java_lang_string_id)
+            .unwrap();
+    }
+
+    /*
+        Very similar to VM.load_class() except vm.load_class() will attempt to create
+        the Class.java instance if initialization is required. Since the java/lang/Class.class
+        hasn't been loaded yet, the program will crash. So here we do it in two steps
+        just this one time.
+    */
+    fn bootstrap_load(&mut self, name: &str) -> (&'static Class, usize) {
+        match self.class_manager.request(name, &mut self.method_area) {
+            Ok(Response::InitReq(class, class_id)) => {
+                self.init_class(class).unwrap();
+                (class, class_id)
+            }
+            Ok(_) => panic!("Class already loaded! Improper use of bootstrap_load()."),
+            Err(e) => panic!("Error while initializing VM in bootstrap_load(): {:?}", e),
         }
     }
 
@@ -852,7 +869,8 @@ impl VM {
             Constant::Float(f) => Value::Float(*f),
             Constant::Class(class_index) => Value::Class(*class_index),
             Constant::String(string_index) => {
-                Value::StringConst(cp.get_utf8(*string_index)?.into())
+                let string = cp.get_utf8(*string_index)?.into();
+                self.intern_string(string)
             }
             Constant::MethodHandle {
                 reference_kind,
@@ -871,7 +889,7 @@ impl VM {
             },
             _ => panic!("Non loadable constant pointed to by instruction ldc."),
         };
-        frame.stack.push(value);
+        self.frame_mut().stack.push(value);
         Ok(())
     }
 
@@ -1126,6 +1144,23 @@ impl VM {
         let frame = CallFrame::new(class, clinit, &class.cp, vec![]);
         self.frames.push(frame);
         self.execute_frame()
+    }
+
+    /// Helper function to intern the inner value of a Value::StringConst, and
+    /// turn it into an instance of java.lang.String.
+    fn intern_string(&mut self, name: &str) -> Value {
+        let method_area = &mut self.method_area;
+        let request = self.class_manager.request(STRING, method_area).unwrap();
+        let Response::Ready(string_id) = request else {
+            panic!("String class was already supposed to be loaded in inter_string! NotFound");
+        };
+        let string_class = self.method_area.get_class(string_id).unwrap();
+        let object_class = self.method_area.get_class(OBJECT_CLASS_ID).unwrap();
+        let string_obj = self.heap.intern_string(
+            name,
+            InstanceData::new(string_class, string_id, vec![object_class]),
+        );
+        Value::new_object(string_obj)
     }
 
     /// Helper function to construct a `CallFrame` and invoke a non-native
