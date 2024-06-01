@@ -20,11 +20,11 @@ const NATIVE_REGISTERING_METHODS: [(&str, NativeMethod); 2] = [
 
 pub type NativeMethod = fn(&mut VM, Option<ObjRef>, Vec<Value>) -> Result<Option<Value>>;
 
-pub struct Registry {
+pub struct NativeRegistry {
     registry: HashMap<NativeIdentifier, NativeMethod>,
 }
 
-impl Registry {
+impl NativeRegistry {
     pub fn new() -> Self {
         let mut registery = Self {
             registry: HashMap::with_capacity(NATIVE_REGISTERING_METHODS.len() * 32),

@@ -20,7 +20,7 @@ use crate::{
         value::{RefType, Value},
     },
     lli::{class_manager::ClassManager, response::Response},
-    native::registry::Registry,
+    native::registry::NativeRegistry,
 };
 
 const MAIN: &str = "main([Ljava/lang/String;)V";
@@ -38,7 +38,7 @@ pub struct VM {
     method_area: MethodArea,
     heap: Heap,
     class_manager: ClassManager,
-    pub(crate) native_registry: Registry,
+    pub(crate) native_registry: NativeRegistry,
 }
 
 impl VM {
@@ -91,7 +91,7 @@ impl VM {
             method_area,
             heap: Heap::new(),
             class_manager: ClassManager::new(jdk, c_path),
-            native_registry: Registry::new(),
+            native_registry: NativeRegistry::new(),
         }
     }
 
