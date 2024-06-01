@@ -14,10 +14,13 @@ use crate::{
 };
 
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Ord, PartialOrd)]
-pub(crate) struct ObjRef(*mut HeapAlloc<NonStatic>);
+pub struct ObjRef(*mut HeapAlloc<NonStatic>);
+
+#[derive(Copy, Clone, Eq, PartialEq, Ord, PartialOrd)]
+pub struct ArrayRef(*mut HeapAlloc<NonStatic>);
 
 impl ObjRef {
-    pub(crate) fn new(
+    pub fn new(
         InstanceData {
             primary,
             class_id,
@@ -31,22 +34,27 @@ impl ObjRef {
         ))
     }
 
-    pub(crate) fn set_field(&mut self, name: &str, value: Value) -> Result<()> {
+    pub fn set_field(&mut self, name: &str, value: Value) -> Result<()> {
         unsafe { (*self.0).set_field(name, value) }
     }
-}
 
-#[derive(Copy, Clone, Eq, PartialEq, Ord, PartialOrd)]
-pub(crate) struct ArrayRef(*mut HeapAlloc<NonStatic>);
+    pub fn get_field(&self, name: &str) -> Result<&'static Value> {
+        unsafe { (*self.0).get_field(name) }
+    }
+
+    /// Get the inner value. Returned as a *const to emphasize that
+    /// this return type should NOT be modified except by the GC.
+    pub fn get_inner(&self) -> *const HeapAlloc<NonStatic> { self.0 }
+}
 
 impl ArrayRef {
     /// Create a new array from the given `ArrayType` and `length`.
-    pub(crate) fn new(length: usize, array_type: ArrayType) -> Self {
+    pub fn new(length: usize, array_type: ArrayType) -> Self {
         Self(HeapAlloc::new_array(length, array_type))
     }
 
     /// insert the `value` into the array at the given `index`.
-    pub(crate) fn insert(&mut self, index: usize, value: Value) {
+    pub fn insert(&mut self, index: usize, value: Value) {
         // SAFETY: It is safe to dereference the ptr because it is impossible to
         // get an invalid ptr to a HeapAlloc without bypassing the APIs in oop.rs
         // which this binary does not do.
@@ -69,7 +77,7 @@ impl ArrayRef {
     /// Retrieve the `Value` from the array at the given `index`.
     /// The `ArrayRef` instance still owns the `Value` requested so the returned
     /// `Value` is a clone.
-    pub(crate) fn get(&self, index: usize) -> Value {
+    pub fn get(&self, index: usize) -> Value {
         // SAFETY: It is safe to dereference the ptr because it is impossible to
         // get an invalid ptr to a HeapAlloc without bypassing the APIs in oop.rs
         // which this binary does not do.
@@ -83,8 +91,12 @@ impl ArrayRef {
         unsafe { (*self.0).elements.add(index).as_ref().unwrap().clone() }
     }
 
+    /// Get the inner value. Returned as a *const to emphasize that
+    /// this return type should NOT be modified except by the GC.
+    pub fn get_inner(&self) -> *const HeapAlloc<NonStatic> { self.0 }
+
     /// Returns the length of the `ArrayRef` instance.
-    pub(crate) fn len(&self) -> usize {
+    pub fn len(&self) -> usize {
         // SAFETY: It is safe to dereference the ptr because it is impossible to
         // get an invalid ptr to a HeapAlloc without bypassing the APIs in oop.rs
         // which this binary does not do.
@@ -97,7 +109,7 @@ impl ArrayRef {
     }
 
     /// Returns the `ArrayType` of `ArrayRef` instance.
-    pub(crate) fn get_type(&self) -> ArrayType {
+    pub fn get_type(&self) -> ArrayType {
         unsafe {
             let (_, array_type) = (*self.0).header.array_data.as_ref().unwrap();
             *array_type
@@ -147,11 +159,9 @@ mod tests {
     #[test]
     #[cfg(miri)]
     fn test_debug_no_ub() {
+        use crate::{alloc::oop::HeapAlloc, reference_types::ArrayRef, value::Value};
         use sumatra_parser::instruction::ArrayType;
-        use crate::alloc::oop::HeapAlloc;
-        use crate::reference_types::ArrayRef;
-        use crate::value::Value;
-        
+
         const LENGTH: usize = 3;
         const ARRAY_TYPE: ArrayType = ArrayType::Int;
 

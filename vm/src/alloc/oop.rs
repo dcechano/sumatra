@@ -20,7 +20,7 @@ use crate::{
     value::Value,
 };
 
-pub(crate) struct HeapAlloc<T: AllocType> {
+pub struct HeapAlloc<T: AllocType> {
     pub header: Header,
     pub fields: *mut Value,
     pub elements: *mut Value,

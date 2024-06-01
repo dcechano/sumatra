@@ -9,7 +9,7 @@ use sumatra_parser::{
 };
 
 use crate::{
-    alloc::method_area::MethodArea,
+    alloc::{heap::Heap, method_area::MethodArea},
     call_frame::CallFrame,
     class::Class,
     compare::Compare,
@@ -29,6 +29,7 @@ const DEFAULT_VEC_SIZE: usize = 128;
 pub struct VM {
     frames: Vec<CallFrame>,
     method_area: MethodArea,
+    heap: Heap,
     class_manager: ClassManager,
 }
 
@@ -44,6 +45,7 @@ impl VM {
         let mut vm = Self {
             frames: Vec::with_capacity(DEFAULT_VEC_SIZE),
             method_area,
+            heap: Heap::new(),
             class_manager: ClassManager::new(jdk, c_path),
         };
         // Load java/lang/Object so that its class_id is always 0.
@@ -73,15 +75,19 @@ impl VM {
     fn execute_frame(&mut self) -> Result<Option<Value>> {
         let code = &self.frame().method.code;
         let op_code = &code.op_code;
-        println!(
-            "\nExecuting method: {} in class: {}",
-            self.frame().method.name,
-            self.frame().class.get_name()
-        );
+        let name: &str = self.frame().method.name.as_ref();
+        if name != "<clinit>" && name != "<init>" {
+            println!(
+                "\nExecuting method: {} in class: {}",
+                self.frame().method.name,
+                self.frame().class.get_name()
+            );
+        }
         while let Some(code) = op_code.get(self.frame().pc) {
-            // if self.frame().method.name != "<clinit>" {
-            println!("\t{code:?}");
-            // }
+            let name: &str = self.frame().method.name.as_ref();
+            if name != "<clinit>" && name != "<init>" {
+                println!("\t{code:?}");
+            }
             match code {
                 Instruction::AaLoad => todo!(),
                 Instruction::AaStore => todo!(),
@@ -165,7 +171,7 @@ impl VM {
                 Instruction::FStore2 => todo!(),
                 Instruction::FStore3 => todo!(),
                 Instruction::FSub => todo!(),
-                Instruction::GetField(_) => todo!(),
+                Instruction::GetField(field_index) => self.get_field(*field_index as usize)?,
                 Instruction::GetStatic(index) => self.get_static(*index)?,
                 Instruction::GoTo(instr) => {
                     self.frame_mut().pc = *instr;
@@ -387,12 +393,7 @@ impl VM {
         };
         let class_name = frame.cp.get_utf8(*name_index)?;
         let _ = self.load_class(class_name)?;
-        let Value::Int(length) = self.frame_mut().pop() else {
-            bail!("Expected Value::Int for array length while executing anewarray.");
-        };
-
-        let array = Value::new_array(length as usize, ArrayType::Ref);
-        Ok(self.frame_mut().push(array))
+        self.new_array(ArrayType::Ref)
     }
 
     /// Executes the `Instruction::ArrayLength` instruction.
@@ -467,6 +468,57 @@ impl VM {
         }
         frame.push(double.clone());
         Ok(frame.push(double))
+    }
+
+    /// Executes the `Instruction::GetField` instruction.
+    /// `field_index` is the index of the `Constant::FieldRef` in the
+    /// runtime constant pool.
+    fn get_field(&mut self, field_index: usize) -> Result<()> {
+        let Constant::FieldRef {
+            class_index,
+            name_and_type_index,
+        } = self.frame().cp.get(field_index).unwrap()
+        else {
+            bail!("Expected symbolic reference to a field at index: {field_index} for get_field.");
+        };
+
+        let value = self.frame_mut().pop();
+        if let Value::Null = value {
+            todo!("Throw NullPointerException")
+        }
+
+        let Value::Ref(RefType::Object(obj)) = value else {
+            bail!("Expected Value::Ref(Object) in get_field. Got {value:?}");
+        };
+
+        let (name_index, _, _) = self.unpack(*class_index, *name_and_type_index)?;
+        let field_val = obj.get_field(self.frame().cp.get_utf8(name_index)?)?;
+        if let Value::Long(_) | Value::Double(_) = field_val {
+            self.frame_mut().stack.push(field_val.clone());
+        }
+        self.frame_mut().stack.push(field_val.clone());
+        Ok(())
+    }
+
+    /// Executes the `Instruction::GetStatic` instruction.
+    /// `index` is the index of the `Constant::FieldRef` in the
+    /// runtime constant pool.
+    fn get_static(&mut self, index: usize) -> Result<()> {
+        let Constant::FieldRef {
+            class_index,
+            name_and_type_index,
+        } = self.frame().cp.get(index).unwrap()
+        else {
+            bail!("Expected symbolic reference to a field at index: {index}");
+        };
+
+        let (name_index, _, alloc) = self.unpack(*class_index, *name_and_type_index)?;
+        let field_val = alloc.get_field(self.frame().cp.get_utf8(name_index)?)?;
+        if let Value::Long(_) | Value::Double(_) = field_val {
+            self.frame_mut().stack.push(field_val.clone());
+        }
+        self.frame_mut().stack.push(field_val.clone());
+        Ok(())
     }
 
     /// Executes the `Instruction::DStore<local_index>` instruction.
@@ -819,7 +871,8 @@ impl VM {
             bail!("Expected Value::Int when accessing array length for newarray instruction.");
         };
         let array_len = array_len as usize;
-        Ok(frame.push(Value::new_array(array_len, array_type)))
+        let array = self.heap.new_array(array_len, array_type);
+        Ok(self.frame_mut().push(Value::new_array(array)))
     }
 
     /// Executes the `Instruction::New` instruction. `class_index` is an index
@@ -833,28 +886,9 @@ impl VM {
 
         let class_name = frame.cp.get_utf8(*name_index)?;
         let instance_data = self.load_hierarchy(class_name)?;
-        Ok(self.frame_mut().push(Value::new_object(instance_data)))
-    }
-
-    /// Executes the `Instruction::GetStatic` instruction.
-    /// `index` is the index of the `Constant::FieldRef` in the
-    /// runtime constant pool.
-    fn get_static(&mut self, index: usize) -> Result<()> {
-        let Constant::FieldRef {
-            class_index,
-            name_and_type_index,
-        } = self.frame().cp.get(index).unwrap()
-        else {
-            bail!("Expected symbolic reference to a field at index: {index}");
-        };
-
-        let (name_index, _, alloc) = self.unpack(*class_index, *name_and_type_index)?;
-        let field_val = alloc.get_field(self.frame().cp.get_utf8(name_index)?)?;
-        if let Value::Long(_) | Value::Double(_) = field_val {
-            self.frame_mut().stack.push(field_val.clone());
-        }
-        self.frame_mut().stack.push(field_val.clone());
-        Ok(())
+        let obj = self.heap.new_object(instance_data);
+        let value = Value::new_object(obj);
+        Ok(self.frame_mut().push(value))
     }
 
     /// Executes the `Instruction::Pop` instruction. Nothing is returned.

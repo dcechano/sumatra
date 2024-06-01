@@ -36,14 +36,10 @@ impl Value {
     pub fn default_vec(cap: usize) -> Vec<Value> { vec![Value::Null; cap] }
 
     /// Allocates a new Java Obj and returns Value::Ref for the new object.
-    pub(crate) fn new_object(instance_data: InstanceData) -> Value {
-        Value::Ref(RefType::Object(ObjRef::new(instance_data)))
-    }
+    pub fn new_object(obj: ObjRef) -> Value { Value::Ref(RefType::Object(obj)) }
 
     /// Allocates a new Java array and returns Value::Ref for the new array.
-    pub(crate) fn new_array(length: usize, array_type: ArrayType) -> Value {
-        Value::Ref(RefType::Array(ArrayRef::new(length, array_type)))
-    }
+    pub(crate) fn new_array(array_ref: ArrayRef) -> Value { Value::Ref(RefType::Array(array_ref)) }
 
     pub fn populate_locals(num_locals: usize, params: &mut Vec<Value>) {
         if params.len() > num_locals {
