@@ -8,6 +8,8 @@ use crate::{
     vm::VM,
 };
 
+pub(crate) const REGISTER_NATIVES_SIG: &str = "registerNatives()V";
+
 const NATIVES: [(&str, NativeMethod); 2] = [
     (
         "forName0(Ljava/lang/String;ZLjava/lang/ClassLoader;Ljava/lang/Class)Ljava/lang/Class;",

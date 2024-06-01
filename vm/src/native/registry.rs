@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use anyhow::{anyhow, bail, Result};
+use anyhow::{bail, Result};
 
 use crate::{
     data_types::{reference_types::ObjRef, value::Value},
@@ -11,11 +11,17 @@ use crate::{
     vm::VM,
 };
 
-const REGISTER_NATIVES_METHOD_SIG: &str = "registerNatives()V";
-
-const NATIVE_REGISTERING_METHODS: [(&str, NativeMethod); 2] = [
-    (JAVA_LANG_OBJECT, java_object::jvm_register_natives),
-    (JAVA_LANG_CLASS, java_class::jvm_register_natives),
+const INITIAL_NATIVE_METHODS: [(&str, &str, NativeMethod); 2] = [
+    (
+        JAVA_LANG_OBJECT,
+        java_object::GET_CLASS_SIG,
+        java_object::jvm_get_class,
+    ),
+    (
+        JAVA_LANG_CLASS,
+        java_class::REGISTER_NATIVES_SIG,
+        java_class::jvm_register_natives,
+    ),
 ];
 
 pub type NativeMethod = fn(&mut VM, Option<ObjRef>, Vec<Value>) -> Result<Option<Value>>;
@@ -27,7 +33,7 @@ pub struct NativeRegistry {
 impl NativeRegistry {
     pub fn new() -> Self {
         let mut registery = Self {
-            registry: HashMap::with_capacity(NATIVE_REGISTERING_METHODS.len() * 32),
+            registry: HashMap::with_capacity(INITIAL_NATIVE_METHODS.len() * 32),
         };
         registery.register_native_registering_methods();
         registery
@@ -37,14 +43,11 @@ impl NativeRegistry {
     /// Calling the stored method will register the rest of the natives for that
     /// class.
     fn register_native_registering_methods(&mut self) {
-        NATIVE_REGISTERING_METHODS
+        INITIAL_NATIVE_METHODS
             .iter()
-            .for_each(|(class, method)| {
+            .for_each(|(class, sig, method)| {
                 self.register(
-                    NativeIdentifier::new(
-                        class.to_string(),
-                        REGISTER_NATIVES_METHOD_SIG.to_string(),
-                    ),
+                    NativeIdentifier::new(class.to_string(), sig.to_string()),
                     *method,
                 )
             });
