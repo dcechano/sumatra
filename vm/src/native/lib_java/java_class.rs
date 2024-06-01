@@ -36,66 +36,202 @@ fn jvm_get_class(vm: &mut VM, this: Option<ObjRef>, _: Vec<Value>) -> Result<Opt
     Ok(Some(Value::new_object(class_obj)))
 }
 
-fn jvm_is_instance(vm: &mut VM) { todo!() }
+fn jvm_is_instance(vm: &mut VM, this: Option<ObjRef>, _: Vec<Value>) -> Result<Option<Value>> {
+    todo!()
+}
 
-fn jvm_is_assignable_from(vm: &mut VM) { todo!() }
+fn jvm_is_assignable_from(
+    vm: &mut VM,
+    this: Option<ObjRef>,
+    _: Vec<Value>,
+) -> Result<Option<Value>> {
+    todo!()
+}
 
-fn jvm_is_interface(vm: &mut VM) { todo!() }
+fn jvm_is_interface(vm: &mut VM, this: Option<ObjRef>, _: Vec<Value>) -> Result<Option<Value>> {
+    todo!()
+}
 
-fn jvm_is_array() { todo!() }
+fn jvm_is_array(vm: &mut VM, this: Option<ObjRef>, _: Vec<Value>) -> Result<Option<Value>> {
+    todo!()
+}
 
-fn jvm_is_primitive() { todo!() }
+fn jvm_is_primitive(vm: &mut VM, this: Option<ObjRef>, _: Vec<Value>) -> Result<Option<Value>> {
+    todo!()
+}
 
-fn jvm_init_class_name() { todo!() }
+fn jvm_init_class_name(vm: &mut VM, this: Option<ObjRef>, _: Vec<Value>) -> Result<Option<Value>> {
+    todo!()
+}
 
-fn jvm_get_super_class() { todo!() }
+fn jvm_get_super_class(vm: &mut VM, this: Option<ObjRef>, _: Vec<Value>) -> Result<Option<Value>> {
+    todo!()
+}
 
-fn jvm_get_interfaces() { todo!() }
+fn jvm_get_interfaces(vm: &mut VM, this: Option<ObjRef>, _: Vec<Value>) -> Result<Option<Value>> {
+    todo!()
+}
 
-fn jvm_get_modifiers() { todo!() }
+fn jvm_get_modifiers(vm: &mut VM, this: Option<ObjRef>, _: Vec<Value>) -> Result<Option<Value>> {
+    todo!()
+}
 
-fn jvm_get_signers() { todo!() }
+fn jvm_get_signers(vm: &mut VM, this: Option<ObjRef>, _: Vec<Value>) -> Result<Option<Value>> {
+    todo!()
+}
 
-fn jvm_set_signers() { todo!() }
+fn jvm_set_signers(vm: &mut VM, this: Option<ObjRef>, _: Vec<Value>) -> Result<Option<Value>> {
+    todo!()
+}
 
-fn jvm_get_enclosing_method() { todo!() }
+fn jvm_get_enclosing_method(
+    vm: &mut VM,
+    this: Option<ObjRef>,
+    _: Vec<Value>,
+) -> Result<Option<Value>> {
+    todo!()
+}
 
-fn jvm_get_declaring_class() { todo!() }
+fn jvm_get_declaring_class(
+    vm: &mut VM,
+    this: Option<ObjRef>,
+    _: Vec<Value>,
+) -> Result<Option<Value>> {
+    todo!()
+}
 
-fn jvm_get_simple_binary_name() { todo!() }
+fn jvm_get_simple_binary_name(
+    vm: &mut VM,
+    this: Option<ObjRef>,
+    _: Vec<Value>,
+) -> Result<Option<Value>> {
+    todo!()
+}
 
-fn jvm_get_protection_domain() { todo!() }
+fn jvm_get_protection_domain(
+    vm: &mut VM,
+    this: Option<ObjRef>,
+    _: Vec<Value>,
+) -> Result<Option<Value>> {
+    todo!()
+}
 
-fn jvm_get_primitive_class() { todo!() }
+fn jvm_get_primitive_class(
+    vm: &mut VM,
+    this: Option<ObjRef>,
+    _: Vec<Value>,
+) -> Result<Option<Value>> {
+    todo!()
+}
 
-fn jvm_get_generic_signature() { todo!() }
+fn jvm_get_generic_signature(
+    vm: &mut VM,
+    this: Option<ObjRef>,
+    _: Vec<Value>,
+) -> Result<Option<Value>> {
+    todo!()
+}
 
-fn jvm_get_raw_annotations() { todo!() }
+fn jvm_get_raw_annotations(
+    vm: &mut VM,
+    this: Option<ObjRef>,
+    _: Vec<Value>,
+) -> Result<Option<Value>> {
+    todo!()
+}
 
-fn jvm_get_raw_type_annotions() { todo!() }
+fn jvm_get_raw_type_annotions(
+    vm: &mut VM,
+    this: Option<ObjRef>,
+    _: Vec<Value>,
+) -> Result<Option<Value>> {
+    todo!()
+}
 
-fn jvm_get_constant_pool() { todo!() }
+fn jvm_get_constant_pool(
+    vm: &mut VM,
+    this: Option<ObjRef>,
+    _: Vec<Value>,
+) -> Result<Option<Value>> {
+    todo!()
+}
 
-fn jvm_get_declared_fields() { todo!() }
+fn jvm_get_declared_fields(
+    vm: &mut VM,
+    this: Option<ObjRef>,
+    _: Vec<Value>,
+) -> Result<Option<Value>> {
+    todo!()
+}
 
-fn jvm_get_declared_methods() { todo!() }
+fn jvm_get_declared_methods(
+    vm: &mut VM,
+    this: Option<ObjRef>,
+    _: Vec<Value>,
+) -> Result<Option<Value>> {
+    todo!()
+}
 
-fn jvm_get_declared_constructors() { todo!() }
+fn jvm_get_declared_constructors(
+    vm: &mut VM,
+    this: Option<ObjRef>,
+    _: Vec<Value>,
+) -> Result<Option<Value>> {
+    todo!()
+}
 
-fn jvm_get_record_components() { todo!() }
+fn jvm_get_record_components(
+    vm: &mut VM,
+    this: Option<ObjRef>,
+    _: Vec<Value>,
+) -> Result<Option<Value>> {
+    todo!()
+}
 
-fn jvm_is_record() { todo!() }
+fn jvm_is_record(vm: &mut VM, this: Option<ObjRef>, _: Vec<Value>) -> Result<Option<Value>> {
+    todo!()
+}
 
-fn jvm_desired_assertion_status() { todo!() }
+fn jvm_desired_assertion_status(
+    vm: &mut VM,
+    this: Option<ObjRef>,
+    _: Vec<Value>,
+) -> Result<Option<Value>> {
+    todo!()
+}
 
-fn jvm_get_nest_host() { todo!() }
+fn jvm_get_nest_host(vm: &mut VM, this: Option<ObjRef>, _: Vec<Value>) -> Result<Option<Value>> {
+    todo!()
+}
 
-fn jvm_get_nested_members() { todo!() }
+fn jvm_get_nested_members(
+    vm: &mut VM,
+    this: Option<ObjRef>,
+    _: Vec<Value>,
+) -> Result<Option<Value>> {
+    todo!()
+}
 
-fn jvm_is_hidden() { todo!() }
+fn jvm_is_hidden(vm: &mut VM, this: Option<ObjRef>, _: Vec<Value>) -> Result<Option<Value>> {
+    todo!()
+}
 
-fn jvm_get_permitted_subclasses() { todo!() }
+fn jvm_get_permitted_subclasses(
+    vm: &mut VM,
+    this: Option<ObjRef>,
+    _: Vec<Value>,
+) -> Result<Option<Value>> {
+    todo!()
+}
 
-fn jvm_get_file_version() { todo!() }
+fn jvm_get_file_version(vm: &mut VM, this: Option<ObjRef>, _: Vec<Value>) -> Result<Option<Value>> {
+    todo!()
+}
 
-fn jvm_get_class_access_flags_raw() { todo!() }
+fn jvm_get_class_access_flags_raw(
+    vm: &mut VM,
+    this: Option<ObjRef>,
+    _: Vec<Value>,
+) -> Result<Option<Value>> {
+    todo!()
+}
