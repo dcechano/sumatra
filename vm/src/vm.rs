@@ -20,7 +20,10 @@ use crate::{
         value::{RefType, Value},
     },
     lli::{class_manager::ClassManager, response::Response},
-    native::registry::NativeRegistry,
+    native::{
+        native_identifier::NativeIdentifier,
+        registry::{NativeMethod, NativeRegistry},
+    },
 };
 
 const MAIN: &str = "main([Ljava/lang/String;)V";
@@ -733,10 +736,13 @@ impl VM {
                         }
                         Some(method) => {
                             if method.is_static() {
-                                // TODO check for method in superclass of this class.
-                                continue;
+                                todo!("check for method in superclass of this class")
                             }
-                            return self.invoke(class, method);
+                            //TODO spec requires unfound native methods to be ignored.
+                            // Additionally, the program should fail if the object
+                            // that is being used to call this function is null. handle_invoke()
+                            // does not handle this case.
+                            return self.handle_invoke(class, method);
                         }
                     }
                 }
@@ -770,12 +776,7 @@ impl VM {
 
         debug_assert!(method.is_static());
         // TODO implement native method calls.
-        if method.is_native() {
-            println!("Method '{}' was a native method. Ignoring.", method.name);
-            Ok(None)
-        } else {
-            self.invoke(class, method)
-        }
+        self.handle_invoke(class, method)
     }
 
     /// Executed the `Instruction::InvokeVirtual` instruction. `method_index` is
@@ -794,12 +795,7 @@ impl VM {
         let (class, method) = self.to_method_class(name_index, desc_index, &alloc)?;
         debug_assert!(!method.is_static());
         // TODO implement native method calls.
-        if method.is_native() {
-            println!("Method '{}' was a native method. Ignoring.", method.name);
-            Ok(None)
-        } else {
-            self.invoke(class, method)
-        }
+        self.handle_invoke(class, method)
     }
 
     /// Executes the `Instruction::ILoad` instruction.
@@ -1085,6 +1081,39 @@ impl VM {
     #[inline(always)]
     fn frame(&self) -> &CallFrame { self.frames.last().unwrap() }
 
+    /// Retrieves the given method for the given class from the NativeRegistry
+    /// if it has been registered.
+    fn get_native(
+        &mut self,
+        class: &'static Class,
+        method: &'static Method,
+    ) -> Result<NativeMethod> {
+        let native_id = NativeIdentifier::new(
+            class.get_name(),
+            format!("{}{}", method.name, method.descriptor),
+        );
+        self.native_registry.get(&native_id)
+    }
+
+    /// Helper method to invoke a method. Will handle logic for if method is
+    /// native or not.
+    fn handle_invoke(
+        &mut self,
+        class: &'static Class,
+        method: &'static Method,
+    ) -> Result<Option<Value>> {
+        if method.is_native() {
+            println!(
+                "Inside class: {}, method '{}' was a native method.",
+                class.get_name(),
+                method.name
+            );
+            self.invoke_native(class, method)
+        } else {
+            self.invoke(class, method)
+        }
+    }
+
     /// Take a static reference to a class and push its '<clinit>'
     /// method as a stack frame to `vm.frames`.
     fn init_class(&mut self, class: &'static Class) -> Result<Option<Value>> {
@@ -1099,7 +1128,8 @@ impl VM {
         self.execute_frame()
     }
 
-    /// Helper function to construct a `CallFrame` and invoke a method.
+    /// Helper function to construct a `CallFrame` and invoke a non-native
+    /// method.
     fn invoke(&mut self, class: &'static Class, method: &'static Method) -> Result<Option<Value>> {
         let num_params = if method.name == "<init>" {
             method.parsed_descriptor.num_params() + 1
@@ -1120,6 +1150,37 @@ impl VM {
         });
         self.frames.push(frame);
         self.execute_frame()
+    }
+
+    /// Helper function to construct a `CallFrame` and invoke a native method.
+    fn invoke_native(
+        &mut self,
+        class: &'static Class,
+        method: &'static Method,
+    ) -> Result<Option<Value>> {
+        let native = self.get_native(class, method)?;
+        let num_params = if method.is_static() {
+            method.parsed_descriptor.num_params()
+        } else {
+            method.parsed_descriptor.num_params() + 1
+        };
+
+        let this = if method.is_static() {
+            None
+        } else {
+            let value = self.frame_mut().pop();
+            let Value::Ref(RefType::Object(obj)) = value else {
+                bail!("Expected a ObjRef in invoke_native but got: {value:?}");
+            };
+            Some(obj)
+        };
+
+        let stack_size = self.frame().stack.len();
+        let arguments = Vec::from(&self.frame().stack[stack_size - num_params..stack_size]);
+        (0..num_params).for_each(|_| {
+            self.frame_mut().pop();
+        });
+        native(self, this, arguments)
     }
 
     /// Helper function to determine if the target of a
