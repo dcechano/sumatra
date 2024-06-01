@@ -5,7 +5,7 @@ use anyhow::{anyhow, Result};
 use crate::{
     data_types::{reference_types::ObjRef, value::Value},
     native::{
-        lib_java::{java_class, JAVA_LANG_CLASS},
+        lib_java::{java_class, JAVA_LANG_CLASS, JAVA_LANG_OBJECT, java_object},
         native_identifier::NativeIdentifier,
     },
     vm::VM,
@@ -13,8 +13,10 @@ use crate::{
 
 const REGISTER_NATIVES_METHOD_SIG: &str = "registerNatives()V";
 
-const NATIVE_REGISTERING_METHODS: [(&str, NativeMethod); 1] =
-    [(JAVA_LANG_CLASS, java_class::jvm_register_natives)];
+const NATIVE_REGISTERING_METHODS: [(&str, NativeMethod); 2] = [
+    (JAVA_LANG_OBJECT, java_object::jvm_register_natives),
+    (JAVA_LANG_CLASS, java_class::jvm_register_natives),
+];
 
 pub type NativeMethod = fn(&mut VM, Option<ObjRef>, Vec<Value>) -> Result<Option<Value>>;
 

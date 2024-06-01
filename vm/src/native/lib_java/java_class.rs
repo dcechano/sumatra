@@ -2,40 +2,44 @@ use anyhow::Result;
 
 use crate::{
     data_types::{reference_types::ObjRef, value::Value},
-    native::native_identifier::NativeIdentifier,
+    native::{
+        lib_java::JAVA_LANG_CLASS, native_identifier::NativeIdentifier, registry::NativeMethod,
+    },
     vm::VM,
 };
 
-const OBJ: &str = "()Ljava/lang/Object;";
-const CLS: &str = "()Ljava/lang/Class;";
-const CPL: &str = "()Ljdk/internal/reflect/ConstantPool;";
-const STR: &str = "()Ljava/lang/String;";
-const FLD: &str = "()Ljava/lang/reflect/Field;";
-const MHD: &str = "()Ljava/lang/reflect/Method;";
-const CTR: &str = "()Ljava/lang/reflect/Constructor;";
-const PD: &str = "()Ljava/security/ProtectionDomain;";
-const BA: &str = "()[B";
-const RC: &str = "()Ljava/lang/reflect/RecordComponent;";
+const NATIVES: [(&str, NativeMethod); 2] = [
+    (
+        "forName0(Ljava/lang/String;ZLjava/lang/ClassLoader;Ljava/lang/Class)Ljava/lang/Class;",
+        jvm_for_name0,
+    ),
+    ("isInstance(Ljava/lang/Object;)Z", jvm_is_instance),
+];
 
 pub fn jvm_register_natives(
     vm: &mut VM,
     this: Option<ObjRef>,
     _: Vec<Value>,
 ) -> Result<Option<Value>> {
-    let native_identifier = NativeIdentifier::new(
-        "java/lang/Class".to_string(),
-        "()Ljava/lang/Class".to_string(),
-    );
-    vm.native_registry
-        .register(native_identifier, jvm_get_class);
+    NATIVES.iter().for_each(|(name, method)| {
+        vm.native_registry.register(
+            NativeIdentifier::new(JAVA_LANG_CLASS.to_string(), name.to_string()),
+            *method,
+        );
+    });
+
     Ok(None)
 }
 
-fn jvm_get_class(vm: &mut VM, this: Option<ObjRef>, _: Vec<Value>) -> Result<Option<Value>> {
-    let class_obj = vm.get_class_obj(this.unwrap()).unwrap();
-    Ok(Some(Value::new_object(class_obj)))
+/// Runs `private static native Class<?> forName0(String name, boolean
+/// initialize,                                             ClassLoader loader,
+///                                            Class<?> caller)`
+/// in Class.java
+fn jvm_for_name0(vm: &mut VM, this: Option<ObjRef>, _: Vec<Value>) -> Result<Option<Value>> {
+    todo!()
 }
 
+/// Runs ` public native boolean isInstance(Object obj);` in Class.java
 fn jvm_is_instance(vm: &mut VM, this: Option<ObjRef>, _: Vec<Value>) -> Result<Option<Value>> {
     todo!()
 }
