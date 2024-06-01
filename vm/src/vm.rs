@@ -978,8 +978,7 @@ impl VM {
 impl VM {
     /// Create a java.lang.Class object for a `sumatra::Class` represented by
     /// its ID.
-    pub fn create_class_obj(&mut self, instance_class_id: usize) -> Result<ObjRef> {
-        let instance_class = self.method_area.get_class(instance_class_id)?;
+    pub fn create_class_obj(&mut self, instance_class: &'static Class, instance_class_id: usize) -> Result<ObjRef> {
         let java_lang_class = self.method_area.get_class(CLASS_CLASS_ID)?;
         let java_lang_object = self.method_area.get_class(OBJECT_CLASS_ID)?;
         Ok(self.heap.new_class_object(
@@ -1170,6 +1169,7 @@ impl VM {
         match self.class_manager.request(name, &mut self.method_area) {
             Ok(Response::InitReq(class, alloc_index)) => {
                 self.init_class(class)?;
+                let _ = self.create_class_obj(class, alloc_index)?;
                 self.method_area.class_data(alloc_index)
             }
             Ok(Response::Ready(alloc_index)) => self.method_area.class_data(alloc_index),
