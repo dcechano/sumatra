@@ -15,7 +15,7 @@ use crate::{
     },
 };
 
-#[derive(Debug, Copy, Clone, Eq, PartialEq, Ord, PartialOrd)]
+#[derive(Copy, Clone, Eq, PartialEq, Ord, PartialOrd)]
 pub struct ObjRef(*mut HeapAlloc<NonStatic>);
 
 #[derive(Copy, Clone, Eq, PartialEq, Ord, PartialOrd)]
@@ -62,6 +62,17 @@ impl ObjRef {
         // the backing raw pointer and do something to invalidate it.
         // The only way to do that is by using the `get_inner` method.
         unsafe { HeapAlloc::get_class_id(self.0) }
+    }
+}
+
+impl Debug for ObjRef {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        unsafe {
+            f.debug_tuple("ObjRef")
+                .field(&(*self.0).header.name)
+                .field(&format!("0x{:x}", self.0 as usize))
+                .finish()
+        }
     }
 }
 
