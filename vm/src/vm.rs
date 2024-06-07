@@ -688,10 +688,10 @@ impl VM {
     fn if_nonnull(&mut self, index: usize) -> bool {
         let frame = self.frame_mut();
         if let Value::Null = frame.pop() {
-            frame.pc = index;
-            return true;
+            return false;
         }
-        false
+        frame.pc = index;
+        true
     }
 
     /// Executed the `Instruction::InvokeSpecial` instruction. `method_index` is
