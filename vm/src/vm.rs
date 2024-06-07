@@ -867,7 +867,14 @@ impl VM {
             // https://docs.oracle.com/javase/specs/jvms/se21/html/jvms-6.html#jvms-6.5.ldc
             Constant::Integer(int) => Value::Int(*int),
             Constant::Float(f) => Value::Float(*f),
-            Constant::Class(class_index) => Value::Class(*class_index),
+            Constant::Class(class_index) => {
+                let Constant::UTF8(class_name) = frame.cp.get(*class_index).unwrap() else {
+                    todo!("Implement error handling.");
+                };
+                // load class, just in case it is not loaded
+                let _ = self.load_class(class_name);
+                Value::new_object(self.heap.get_class_obj(class_name))
+            }
             Constant::String(string_index) => {
                 let string = cp.get_utf8(*string_index)?.into();
                 self.intern_string(string)
