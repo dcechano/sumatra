@@ -96,6 +96,13 @@ impl VM {
         let _ = self
             .create_class_obj(java_lang_string, java_lang_string_id)
             .unwrap();
+        // This calls the special initialization method in System.java that is used to initialize
+        // the static final InputStream and OutputStream.
+        let init_phase1 = java_lang_system.methods.get("initPhase1()V").unwrap();
+        let frame = CallFrame::new(java_lang_system, init_phase1, &java_lang_system.cp, vec![]);
+        self.frames.push(frame);
+        // TODO perhaps do not unwrap but return a VMError when implemented
+        self.execute_frame().unwrap();
     }
 
     /*
