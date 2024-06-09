@@ -9,7 +9,6 @@ pub enum Value {
     #[default]
     Null,
     Byte(i8),
-    Class(usize),
     Double(f64),
     Dynamic {
         bootstrap_method_attr_index: usize,
@@ -51,7 +50,6 @@ impl Value {
         match self {
             Value::Null => matches!(other, Value::Null),
             Value::Byte(_) => matches!(other, Value::Byte(_)),
-            Value::Class(_) => matches!(other, Value::Class(_)),
             Value::Double(_) => matches!(other, Value::Double(_)),
             Value::Dynamic { .. } => matches!(other, Value::Dynamic { .. }),
             Value::Float(_) => matches!(other, Value::Float(_)),
