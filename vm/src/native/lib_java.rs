@@ -3,9 +3,6 @@ use crate::{
     vm::VM,
 };
 
-pub mod java_class;
-pub mod java_object;
-pub mod java_system;
 pub(crate) const REGISTER_NATIVES_SIG: &str = "registerNatives()V";
 
 pub const JAVA_LANG_OBJECT: &str = "java/lang/Object";

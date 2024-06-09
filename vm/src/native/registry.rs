@@ -6,8 +6,8 @@ use crate::{
     data_types::{reference_types::ObjRef, value::Value},
     native::{
         lib_java::{
-            java_class, java_object, java_system, JAVA_LANG_CLASS, JAVA_LANG_OBJECT,
-            JAVA_LANG_SYSTEM, REGISTER_NATIVES_SIG,
+            lang::{java_class, java_object, java_system},
+            JAVA_LANG_CLASS, JAVA_LANG_OBJECT, JAVA_LANG_SYSTEM, REGISTER_NATIVES_SIG,
         },
         native_identifier::NativeIdentifier,
     },
