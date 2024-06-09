@@ -8,12 +8,16 @@ use crate::{
     vm::VM,
 };
 
-const NATIVES: [(&str, NativeMethod); 2] = [
+const NATIVES: [(&str, NativeMethod); 3] = [
     (
         "forName0(Ljava/lang/String;ZLjava/lang/ClassLoader;Ljava/lang/Class)Ljava/lang/Class;",
         jvm_for_name0,
     ),
     ("isInstance(Ljava/lang/Object;)Z", jvm_is_instance),
+    (
+        "desiredAssertionStatus0(Ljava/lang/Class;)Z",
+        jvm_desired_assertion_status0,
+    ),
 ];
 
 pub fn jvm_register_natives(
@@ -196,12 +200,15 @@ fn jvm_is_record(vm: &mut VM, this: Option<ObjRef>, _: Vec<Value>) -> Result<Opt
     todo!()
 }
 
-fn jvm_desired_assertion_status(
-    vm: &mut VM,
-    this: Option<ObjRef>,
+fn jvm_desired_assertion_status0(
+    _: &mut VM,
+    _: Option<ObjRef>,
     _: Vec<Value>,
 ) -> Result<Option<Value>> {
-    todo!()
+    // Return false as the desired assertion status.
+    // Tbh, I am not completely sure if I need this to be true, false, or it does
+    // not matter.
+    Ok(Some(Value::Int(0)))
 }
 
 fn jvm_get_nest_host(vm: &mut VM, this: Option<ObjRef>, _: Vec<Value>) -> Result<Option<Value>> {
