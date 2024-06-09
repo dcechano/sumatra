@@ -1281,8 +1281,10 @@ impl VM {
     fn load_class(&mut self, name: &str) -> Result<StaticData> {
         match self.class_manager.request(name, &mut self.method_area) {
             Ok(Response::InitReq(class, alloc_index)) => {
-                self.init_class(class)?;
+                // Class obj needs to be created before initializing the class
+                // so that class initializers can use the class obj if needed.
                 let _ = self.create_class_obj(class, alloc_index)?;
+                self.init_class(class)?;
                 // `self.method_area.class_data()` loads the class, which is
                 // unnecessary here, so we construct a `StaticData` manually.
                 let fields = self.method_area.get_mut_fields(alloc_index)?;
