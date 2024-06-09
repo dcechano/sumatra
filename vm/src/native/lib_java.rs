@@ -1,3 +1,6 @@
+pub mod internal;
+pub mod lang;
+
 use crate::{
     native::{native_identifier::NativeIdentifier, registry::NativeMethod},
     vm::VM,
