@@ -1,2 +1,2 @@
 pub mod java_system_props;
-mod java_system_props_raw;
+pub mod java_system_props_raw;
