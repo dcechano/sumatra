@@ -805,7 +805,7 @@ impl VM {
             name_and_type_index,
         } = frame.cp.get(*method_index).unwrap()
         else {
-            bail!("Expected Constant::MethodRef in invoke_static.");
+            bail!("Expected Constant::MethodRef in invoke_virtual.");
         };
 
         let (name_index, desc_index, alloc) = self.unpack(*class_index, *name_and_type_index)?;
