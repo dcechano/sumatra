@@ -1,3 +1,5 @@
+use anyhow::Result;
+
 use crate::{
     data_types::{reference_types::ObjRef, value::Value},
     native::{
@@ -6,8 +8,8 @@ use crate::{
     vm::VM,
 };
 
-const NATIVES: [(&str, NativeMethod); 1] = [
-    ("platformProperties"), /* (
+const NATIVES: [(&str, NativeMethod); 0] = [
+    /* (
                              *     "forName0(Ljava/lang/String;ZLjava/lang/ClassLoader;Ljava/
                              * lang/Class)Ljava/lang/Class;",
                              *     crate::native::lib_java::lang::java_class::jvm_for_name0,
@@ -24,7 +26,7 @@ pub fn jvm_register_natives(
     vm: &mut VM,
     this: Option<ObjRef>,
     _: Vec<Value>,
-) -> anyhow::Result<Option<Value>> {
+) -> Result<Option<Value>> {
     NATIVES.iter().for_each(|(name, method)| {
         vm.native_registry.register(
             NativeIdentifier::new(JAVA_LANG_CLASS.to_string(), name.to_string()),
