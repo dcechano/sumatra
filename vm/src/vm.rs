@@ -811,7 +811,13 @@ impl VM {
         let (name_index, desc_index, alloc) = self.unpack(*class_index, *name_and_type_index)?;
         let (class, method) = self.to_method_class(name_index, desc_index, &alloc)?;
         debug_assert!(!method.is_static());
-        // TODO implement native method calls.
+        // Assert the object ref is nonnull
+        let num_params = method.parsed_descriptor.num_params();
+        let stack_len = self.frame().stack.len();
+        let obj_ref = self.frame().stack.get(stack_len - 1 - num_params).unwrap();
+        if let Value::Null = obj_ref {
+            todo!("Throw NullPointerException!")
+        }
         self.handle_invoke(class, method)
     }
 
