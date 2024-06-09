@@ -4,3 +4,4 @@
 /.idea/
 /miri.sh
 /.fleet/run.json
+/compile.sh
