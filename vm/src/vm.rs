@@ -1179,7 +1179,7 @@ impl VM {
     /// Helper function to construct a `CallFrame` and invoke a non-native
     /// method.
     fn invoke(&mut self, class: &'static Class, method: &'static Method) -> Result<Option<Value>> {
-        let num_params = if method.name == "<init>" {
+        let num_params = if method.name == "<init>" || !method.is_static() {
             method.parsed_descriptor.num_params() + 1
         } else {
             method.parsed_descriptor.num_params()
