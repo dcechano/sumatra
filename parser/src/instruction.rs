@@ -31,6 +31,7 @@ pub enum Instruction {
     ANewArray(u16),
     /// Return reference on top of stack.
     AReturn,
+    /// Put array length on top of stack
     ArrayLength,
     /// Store reference into local variable
     AStore(u8),
@@ -48,7 +49,9 @@ pub enum Instruction {
     /// The immediate byte is sign-extended to an int value. That value is
     /// pushed onto the operand stack.
     BiPush(i8),
+    /// Load char from array and put onto stack
     CaLoad,
+    /// Store char into char array
     CaStore,
     Checkcast(u16),
     D2F,
@@ -56,6 +59,7 @@ pub enum Instruction {
     D2L,
     /// Add double
     DAdd,
+    /// Load double from array
     DaLoad,
     DaStore,
     Dcmpg,
@@ -63,6 +67,7 @@ pub enum Instruction {
     DConst0,
     DConst1,
     DDiv,
+    /// Load double from local variable
     DLoad(u8),
     /// Load double from local variable 0
     DLoad0,
@@ -75,6 +80,7 @@ pub enum Instruction {
     DMul,
     DNeg,
     DRem,
+    /// Return double from current java method
     DReturn,
     /// Store double into local variable n and n + 1.
     DStore(u8),
@@ -114,6 +120,7 @@ pub enum Instruction {
     FMul,
     FNeg,
     FRem,
+    /// Return float from current java method
     FReturn,
     FStore(u8),
     FStore0,
@@ -121,10 +128,13 @@ pub enum Instruction {
     FStore2,
     FStore3,
     FSub,
+    /// get field from obj and add to stack,
+    /// where the operand is index of class in the constant pool.
     GetField(u16),
     /// get `static` field from class and add to stack,
     /// where the operand is index of class in the constant pool.
     GetStatic(usize),
+    /// Branch to instruction at offset.
     GoTo(usize),
     GoToW(usize),
     I2B,
@@ -176,6 +186,7 @@ pub enum Instruction {
     /// Branch to offset if reference is not null.
     IfNonNull(usize),
     IfNull(usize),
+    /// Increment local variable at first index by second argument
     Iinc(u8, i8), // TODO double check the spec on this one. It was confusing.
     /// load local int variable at supplied index and push to operand stack.
     ILoad(u8),
@@ -192,6 +203,8 @@ pub enum Instruction {
     InstanceOf(u16),
     InvokeDynamic(u16, u8, u8), // last 2 bytes are always 0
     InvokeInterface(u16, u8, u8),
+    /// Invoke instance method; direct invocation of instance initialization
+    /// methods and methods of the current class and its supertypes
     InvokeSpecial(u16),
     /// Invoke a class (static) method.
     /// The provided u16 is an index to the run-time constant pool where the
@@ -248,6 +261,7 @@ pub enum Instruction {
     },
     LOr,
     LRem,
+    /// Return long from current java method.
     LReturn,
     LShL,
     LShR,
@@ -259,9 +273,12 @@ pub enum Instruction {
     LSub,
     LuShR,
     LxOr,
+    /// Enter monitor for object
     MonitorEnter,
+    /// Exit monitor for object
     MonitorExit,
     MultiaNewArray(u16, u8),
+    /// Create new obj class at provided constant pool index
     New(u16),
     /// Construct a new array for the provided type.
     NewArray(ArrayType),
@@ -282,6 +299,7 @@ pub enum Instruction {
     Return,
     SaLoad,
     SaStore,
+    /// Push short to operand stack.
     SiPush(i16),
     Swap,
     TableSwitch {
