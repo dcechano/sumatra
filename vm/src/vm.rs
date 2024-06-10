@@ -1059,8 +1059,7 @@ impl VM {
     /// char array as an argument.
     pub fn create_java_string(&mut self, string: &str, intern: bool) -> ObjRef {
         let mut char_array = ArrayRef::new(string.len(), ArrayType::Char);
-        string
-            .bytes()
+        string.encode_utf16()
             .enumerate()
             .for_each(|(index, byte)| char_array.insert(index, Value::Int(byte as i32)));
         let char_array = Value::new_array(char_array);
