@@ -347,7 +347,7 @@ impl VM {
                 Instruction::IMul => todo!(),
                 Instruction::INeg => todo!(),
                 Instruction::InstanceOf(_) => todo!(),
-                Instruction::InvokeDynamic(index, _, _) => println!("\t    InvokeDynamic: {index}"),
+                Instruction::InvokeDynamic(index, _, _) => todo!(),
                 Instruction::InvokeInterface(_, _, _) => todo!(),
                 Instruction::InvokeSpecial(method_index) => {
                     if let Some(value) = self.invoke_special(*method_index as usize)? {
@@ -643,6 +643,15 @@ impl VM {
         let frame = self.frame_mut();
         let value = frame.clone_top();
         Ok(frame.push(value))
+    }
+
+    /// Executes the `Instruction::I2B` instruction.
+    fn i2b(&mut self) -> Result<()> {
+        let Value::Int(int) = self.frame_mut().pop() else {
+            bail!("Expected int in i2b.");
+        };
+
+        Ok(self.frame_mut().push(Value::Byte(int as i8)))
     }
 
     /// Executes the `Instruction::IaStore` instruction.
@@ -1093,7 +1102,8 @@ impl VM {
     /// char array as an argument.
     pub fn create_java_string(&mut self, string: &str, intern: bool) -> ObjRef {
         let mut char_array = ArrayRef::new(string.len(), ArrayType::Char);
-        string.encode_utf16()
+        string
+            .encode_utf16()
             .enumerate()
             .for_each(|(index, byte)| char_array.insert(index, Value::Int(byte as i32)));
         let char_array = Value::new_array(char_array);

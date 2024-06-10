@@ -137,6 +137,7 @@ pub enum Instruction {
     /// Branch to instruction at offset.
     GoTo(usize),
     GoToW(usize),
+    /// Convert int to byte
     I2B,
     I2C,
     I2D,
