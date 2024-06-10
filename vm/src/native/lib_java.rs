@@ -1,16 +1,17 @@
-pub mod internal;
-pub mod lang;
-
 use crate::{
     native::{native_identifier::NativeIdentifier, registry::NativeMethod},
     vm::VM,
 };
+
+pub mod internal;
+pub mod lang;
 
 pub(crate) const REGISTER_NATIVES_SIG: &str = "registerNatives()V";
 
 pub const JAVA_LANG_OBJECT: &str = "java/lang/Object";
 pub const JAVA_LANG_CLASS: &str = "java/lang/Class";
 pub const JAVA_LANG_SYSTEM: &str = "java/lang/System";
+pub const JAVA_LANG_STRING_UTF16: &str = "java/lang/StringUTF16";
 
 pub const JDK_INTERNAL_SYSTEM_PROPS_RAW: &str = "jdk/internal/util/SystemProps$Raw";
 
