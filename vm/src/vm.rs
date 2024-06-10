@@ -890,7 +890,11 @@ impl VM {
             }
             Constant::String(string_index) => {
                 let string = cp.get_utf8(*string_index)?.into();
-                self.intern_string(string)
+                let string_obj = match self.heap.interned_string(string) {
+                    None => self.create_java_string(string, true),
+                    Some(string_obj) => string_obj,
+                };
+                Value::new_object(string_obj)
             }
             Constant::MethodHandle {
                 reference_kind,
