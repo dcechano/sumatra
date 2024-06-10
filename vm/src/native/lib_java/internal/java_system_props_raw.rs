@@ -1,9 +1,11 @@
+use anyhow::Result;
+
+use sumatra_parser::instruction::ArrayType;
+
 use crate::{
     data_types::{reference_types::ObjRef, value::Value},
     vm::VM,
 };
-use anyhow::Result;
-use sumatra_parser::instruction::ArrayType;
 
 // const NATIVES: [(&str, NativeMethod); 1] = [(
 //     "platformProperties()[Ljava/lang/String;",

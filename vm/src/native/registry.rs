@@ -7,9 +7,9 @@ use crate::{
     native::{
         lib_java::{
             internal::java_system_props_raw,
-            JAVA_LANG_CLASS,
-            JAVA_LANG_OBJECT, JAVA_LANG_STRING_UTF16, JAVA_LANG_SYSTEM, JDK_INTERNAL_SYSTEM_PROPS_RAW,
-            lang::{java_class, java_object, java_string_utf16, java_system}, REGISTER_NATIVES_SIG,
+            lang::{java_class, java_object, java_string_utf16, java_system},
+            JAVA_LANG_CLASS, JAVA_LANG_OBJECT, JAVA_LANG_STRING_UTF16, JAVA_LANG_SYSTEM,
+            JDK_INTERNAL_SYSTEM_PROPS_RAW, REGISTER_NATIVES_SIG,
         },
         native_identifier::NativeIdentifier,
     },
