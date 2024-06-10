@@ -15,7 +15,7 @@ use crate::{
     compare::Compare,
     data_types::{
         instance_data::InstanceData,
-        reference_types::ObjRef,
+        reference_types::{ArrayRef, ObjRef},
         static_data::StaticData,
         value::{RefType, Value},
     },
@@ -1021,7 +1021,6 @@ impl VM {
     }
 
     fn return_val(&mut self) -> Value {
-        println!("Exiting {}", self.frame().method.name);
         let value = self.frame_mut().pop();
         debug_assert!(self.frame().stack.is_empty());
         self.frames.pop();
@@ -1053,6 +1052,50 @@ impl VM {
             java_lang_class,
             java_lang_object,
         ))
+    }
+
+    /// Create an instance of java.lang.String manually from a Rust &str.
+    /// This method works by calling the java.lang.String constructor with a
+    /// char array as an argument.
+    pub fn create_java_string(&mut self, string: &str, intern: bool) -> ObjRef {
+        let mut char_array = ArrayRef::new(string.len(), ArrayType::Char);
+        string
+            .bytes()
+            .enumerate()
+            .for_each(|(index, byte)| char_array.insert(index, Value::Int(byte as i32)));
+        let char_array = Value::new_array(char_array);
+
+        let StaticData {
+            class_id: string_id,
+            class: string_class,
+            ..
+        } = self.load_class(STRING).unwrap();
+        let object_class = self.method_area.get_class(OBJECT_CLASS_ID).unwrap();
+
+        let java_string = if intern {
+            self.heap.new_tenured_obj(InstanceData::new(
+                string_class,
+                string_id,
+                vec![object_class],
+            ))
+        } else {
+            self.heap.new_object(InstanceData::new(
+                string_class,
+                string_id,
+                vec![object_class],
+            ))
+        };
+
+        let constructor = string_class.methods.get("<init>([C)V").unwrap();
+        let frame = CallFrame::new(
+            string_class,
+            constructor,
+            &string_class.cp,
+            vec![Value::new_object(java_string.clone()), char_array],
+        );
+        self.frames.push(frame);
+        let _ = self.execute_frame();
+        java_string
     }
 
     /// Create a java.lang.Class object for the given `ObjRef`.
@@ -1152,6 +1195,8 @@ impl VM {
         }
     }
 
+    pub(crate) fn heap(&mut self) -> &mut Heap { &mut self.heap }
+
     /// Take a static reference to a class and push its '<clinit>'
     /// method as a stack frame to `vm.frames`.
     fn init_class(&mut self, class: &'static Class) -> Result<Option<Value>> {
@@ -1164,23 +1209,6 @@ impl VM {
         let frame = CallFrame::new(class, clinit, &class.cp, vec![]);
         self.frames.push(frame);
         self.execute_frame()
-    }
-
-    /// Helper function to intern the inner value of a Value::StringConst, and
-    /// turn it into an instance of java.lang.String.
-    fn intern_string(&mut self, name: &str) -> Value {
-        let method_area = &mut self.method_area;
-        let request = self.class_manager.request(STRING, method_area).unwrap();
-        let Response::Ready(string_id) = request else {
-            panic!("String class was already supposed to be loaded in inter_string! NotFound");
-        };
-        let string_class = self.method_area.get_class(string_id).unwrap();
-        let object_class = self.method_area.get_class(OBJECT_CLASS_ID).unwrap();
-        let string_obj = self.heap.intern_string(
-            name,
-            InstanceData::new(string_class, string_id, vec![object_class]),
-        );
-        Value::new_object(string_obj)
     }
 
     /// Helper function to construct a `CallFrame` and invoke a non-native

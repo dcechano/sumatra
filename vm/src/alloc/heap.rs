@@ -47,21 +47,18 @@ impl Heap {
         obj
     }
 
-    pub(crate) fn intern_string(&mut self, string: &str, instance_data: InstanceData) -> ObjRef {
+    pub(crate) fn interned_string(&mut self, string: &str) -> Option<ObjRef> {
         match self.strings.get(string) {
             Some(obj) => {
                 // SAFETY: Since we manage the pointer ourselves, we know it is valid
                 // as long as the pointer wasn't invalidated elsewhere.
-                unsafe { ObjRef::from_raw(*obj) }
+                Some(unsafe { ObjRef::from_raw(*obj) })
             }
-            None => {
-                let string_obj = self.new_object(instance_data);
-                self.strings
-                    .insert(string.to_string(), string_obj.get_inner() as *mut _);
-                string_obj
-            }
+            None => None,
         }
     }
+
+    pub(crate) fn is_interned(&self, string: &str) -> bool { self.strings.contains_key(string) }
 
     pub(crate) fn new_class_object(
         &mut self,
