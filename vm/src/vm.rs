@@ -175,8 +175,8 @@ impl VM {
                 Instruction::BaLoad => todo!(),
                 Instruction::BaStore => todo!(),
                 Instruction::BiPush(byte) => self.frame_mut().stack.push(Value::Int(*byte as i32)),
-                Instruction::CaLoad => todo!(),
-                Instruction::CaStore => todo!(),
+                Instruction::CaLoad => self.caload()?,
+                Instruction::CaStore => self.castore()?,
                 Instruction::Checkcast(_) => todo!(),
                 Instruction::D2F => todo!(),
                 Instruction::D2I => todo!(),
@@ -515,6 +515,36 @@ impl VM {
         }
 
         Ok(frame.push(object))
+    }
+
+    /// Executes the `Instruction::CaLoad` instruction.
+    fn caload(&mut self) -> Result<()> {
+        let frame = self.frame_mut();
+        let Value::Int(index) = frame.pop() else {
+            bail!("Expected Value::Int as index in caload.");
+        };
+        let Value::Ref(RefType::Array(mut array_ref)) = frame.pop() else {
+            bail!("Expected RefType::Array as array_ref in caload.");
+        };
+        let Value::Int(char) = array_ref.get(index as usize) else {
+            bail!("Expected Value::Int as char in caload.");
+        };
+        Ok(frame.push(Value::Int(char)))
+    }
+
+    /// Executes the `Instruction::CaStore` instruction.
+    fn castore(&mut self) -> Result<()> {
+        let frame = self.frame_mut();
+        let Value::Int(value) = frame.pop() else {
+            bail!("Expected Value::Int for the value in castore.");
+        };
+        let Value::Int(index) = frame.pop() else {
+            bail!("Expected Value::Int for the index in castore.");
+        };
+        let Value::Ref(RefType::Array(mut array_ref)) = frame.pop() else {
+            bail!("Expected RefType::Array for the objref in castore.");
+        };
+        Ok(array_ref.insert(index as usize, Value::Int(index)))
     }
 
     /// Executes the `Instruction::DAdd` instruction.
