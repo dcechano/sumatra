@@ -663,7 +663,7 @@ impl VM {
         };
         match frame.pop() {
             Value::Ref(RefType::Array(mut array)) => {
-                if array.get_type() != ArrayType::Int {
+                if array.array_type() != ArrayType::Int {
                     bail!("Expected ArrayType::Int for iastore instruction.");
                 }
                 Ok(array.insert(index as usize, value))

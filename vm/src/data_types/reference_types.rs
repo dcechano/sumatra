@@ -82,6 +82,16 @@ impl ArrayRef {
         Self(HeapAlloc::new_array(length, array_type))
     }
 
+    /// Returns the `ArrayType` of `ArrayRef` instance.
+    pub fn array_type(&self) -> ArrayType {
+        // SAFETY: It is safe to dereference the ptr because it is impossible to
+        // get an invalid ptr to a HeapAlloc without bypassing the APIs in oop.rs
+        // which this binary does not do.
+        unsafe {
+            (*self.0).header.array_data.unwrap().1
+        }
+    }
+
     /// insert the `value` into the array at the given `index`.
     pub fn insert(&mut self, index: usize, value: Value) {
         // SAFETY: It is safe to dereference the ptr because it is impossible to
@@ -136,15 +146,7 @@ impl ArrayRef {
             *length
         }
     }
-
-    /// Returns the `ArrayType` of `ArrayRef` instance.
-    pub fn get_type(&self) -> ArrayType {
-        unsafe {
-            let (_, array_type) = (*self.0).header.array_data.as_ref().unwrap();
-            *array_type
-        }
-    }
-
+    
     /// Validate the `ArrayType` is consistent with the provided `Value`.
     fn validate_type(value: &Value, array_type: &ArrayType) -> bool {
         // `Value::from` cannot be used to convert the `ArrayType` to a `Value`
