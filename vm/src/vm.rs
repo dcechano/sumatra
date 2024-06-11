@@ -142,18 +142,31 @@ impl VM {
         let code = &self.frame().method.code;
         let op_code = &code.op_code;
         let name: &str = self.frame().method.name.as_ref();
-        if name != "<clinit>" && name != "<init>" {
-            println!(
-                "\nExecuting method: {} in class: {}",
-                self.frame().method.name,
-                self.frame().class.get_name()
-            );
-        }
+        let indents = self.frames.len();
+        // if name != "<clinit>" && name != "<init>" {
+        println!(
+            "\n{}Executing method: {}{} in class: {}",
+            "\t".repeat(indents),
+            self.frame().method.name,
+            self.frame().method.descriptor,
+            self.frame().class.get_name()
+        );
+        // println!(
+        //     "{}CURRENT STACK: {:?}",
+        //     "\t".repeat(indents + 1),
+        //     self.frame().stack
+        // );
+        // println!(
+        //     "{}CURRENT LOCALS: {:?}",
+        //     "\t".repeat(indents + 1),
+        //     self.frame().locals
+        // );
+        // }
         while let Some(code) = op_code.get(self.frame().pc) {
             let name: &str = self.frame().method.name.as_ref();
-            if name != "<clinit>" && name != "<init>" {
-                println!("\t{code:?}");
-            }
+            // if name != "<clinit>" && name != "<init>" {
+            println!("{}{code:?}", "\t".repeat(indents),);
+            // }
             match code {
                 Instruction::AaLoad => todo!(),
                 Instruction::AaStore => todo!(),
@@ -173,7 +186,7 @@ impl VM {
                 Instruction::AStore3 => self.a_store_n(3)?,
                 Instruction::AThrow => todo!(),
                 Instruction::BaLoad => todo!(),
-                Instruction::BaStore => todo!(),
+                Instruction::BaStore => self.bastore()?,
                 Instruction::BiPush(byte) => self.frame_mut().stack.push(Value::Int(*byte as i32)),
                 Instruction::CaLoad => self.caload()?,
                 Instruction::CaStore => self.castore()?,
@@ -244,7 +257,7 @@ impl VM {
                     continue;
                 }
                 Instruction::GoToW(_) => todo!(),
-                Instruction::I2B => todo!(),
+                Instruction::I2B => self.i2b()?,
                 Instruction::I2C => todo!(),
                 Instruction::I2D => todo!(),
                 Instruction::I2F => todo!(),
@@ -442,18 +455,30 @@ impl VM {
                 Instruction::TableSwitch { .. } => todo!(),
                 Instruction::Wide(winstr) => todo!(),
             }
-            println!("\t\tStack: {:?}", self.frame().stack);
-            println!("\t\tLocals: {:?}", self.frame().locals);
+            // if name != "<clinit>" && name != "<init>" {
+            // println!(
+            //     "{}Stack: {:?}",
+            //     "\t".repeat(indents + 1),
+            //     self.frame().stack
+            // );
+            // println!(
+            //     "{}Locals: {:?}",
+            //     "\t".repeat(indents + 1),
+            //     self.frame().locals
+            // );
+            // }
             self.frame_mut().pc += 1;
         }
 
-        if name != "<clinit>" && name != "<init>" {
-            println!(
-                "\nExiting method: {} in class: {}",
-                self.frame().method.name,
-                self.frame().class.get_name()
-            );
-        }
+        // if name != "<clinit>" && name != "<init>" {
+        println!(
+            "\n{}Exiting method: {}{} in class: {}",
+            "\t".repeat(indents),
+            self.frame().method.name,
+            self.frame().method.descriptor,
+            self.frame().class.get_name()
+        );
+        // }
         self.frames.pop();
         Ok(None)
     }
@@ -517,6 +542,27 @@ impl VM {
         Ok(frame.push(object))
     }
 
+    /// Executes the `Instruction::BaStore` instruction.
+    fn bastore(&mut self) -> Result<()> {
+        let frame = self.frame_mut();
+        let value = frame.pop();
+        let Value::Int(value) = value else {
+            bail!("Expected Value::Int for the value in castore. {value:?}");
+        };
+        let Value::Int(index) = frame.pop() else {
+            bail!("Expected Value::Int for the index in castore.");
+        };
+        let Value::Ref(RefType::Array(mut array_ref)) = frame.pop() else {
+            bail!("Expected RefType::Array for the objref in castore.");
+        };
+        let value = match array_ref.array_type() {
+            ArrayType::Boolean => Value::Int(value & 0xffi32),
+            ArrayType::Byte => Value::Int(value & 1),
+            array_type => bail!("Invalid array type: {array_type:?} in bastore."),
+        };
+        Ok(array_ref.insert(index as usize, value))
+    }
+
     /// Executes the `Instruction::CaLoad` instruction.
     fn caload(&mut self) -> Result<()> {
         let frame = self.frame_mut();
@@ -543,6 +589,9 @@ impl VM {
         };
         let Value::Ref(RefType::Array(mut array_ref)) = frame.pop() else {
             bail!("Expected RefType::Array for the objref in castore.");
+        };
+        let ArrayType::Char = array_ref.array_type() else {
+            bail!("Expected char for array type in castore.");
         };
         Ok(array_ref.insert(index as usize, Value::Int(index)))
     }
@@ -651,7 +700,7 @@ impl VM {
             bail!("Expected int in i2b.");
         };
 
-        Ok(self.frame_mut().push(Value::Byte(int as i8)))
+        Ok(self.frame_mut().push(Value::Int(int & 0xffi32)))
     }
 
     /// Executes the `Instruction::IaStore` instruction.
