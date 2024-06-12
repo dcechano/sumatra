@@ -221,7 +221,6 @@ impl HeapAlloc<NonStatic> {
         }
     }
 
-    #[allow(clippy::new_ret_no_self)]
     pub(crate) fn new_array(length: usize, array_type: ArrayType) -> *mut HeapAlloc<NonStatic> {
         if length > isize::MAX as usize {
             panic!("Attempted to initialize array with illegal length: {length}");
