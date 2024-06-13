@@ -1,4 +1,4 @@
-use std::path::PathBuf;
+use std::{num::Wrapping, path::PathBuf};
 
 use anyhow::{bail, Result};
 
@@ -274,7 +274,7 @@ impl VM {
                 Instruction::IConst3 => self.iconst_n(3),
                 Instruction::IConst4 => self.iconst_n(4),
                 Instruction::IConst5 => self.iconst_n(5),
-                Instruction::IDiv => todo!(),
+                Instruction::IDiv => self.idiv()?,
                 Instruction::IfAcmpeq(index) => {
                     if self.ifcmp(*index, Compare::Equal) {
                         continue;
@@ -647,6 +647,18 @@ impl VM {
         Ok(frame.push(value))
     }
 
+    fn idiv(&mut self) -> Result<()> {
+        let frame = self.frame_mut();
+        let Value::Int(value2) = frame.pop() else {
+            bail!("Expected int for value2 of idiv");
+        };
+        let Value::Int(value1) = frame.pop() else {
+            bail!("Expected int for value1 of idiv");
+        };
+        let result = Wrapping::<i32>(value1) / Wrapping::<i32>(value2);
+        Ok(frame.push(Value::Int(result.0)))
+    }
+
     /// Executes the `Instruction::GetField` instruction.
     /// `field_index` is the index of the `Constant::FieldRef` in the
     /// runtime constant pool.
@@ -655,9 +667,9 @@ impl VM {
             class_index,
             name_and_type_index,
         } = self.frame().cp.get(field_index).unwrap()
-            else {
-                bail!("Expected symbolic reference to a field at index: {field_index} for get_field.");
-            };
+        else {
+            bail!("Expected symbolic reference to a field at index: {field_index} for get_field.");
+        };
 
         let value = self.frame_mut().pop();
         if let Value::Null = value {
@@ -685,9 +697,9 @@ impl VM {
             class_index,
             name_and_type_index,
         } = self.frame().cp.get(index).unwrap()
-            else {
-                bail!("Expected symbolic reference to a field at index: {index}");
-            };
+        else {
+            bail!("Expected symbolic reference to a field at index: {index}");
+        };
 
         let (name_index, _, alloc) = self.unpack(*class_index, *name_and_type_index)?;
         let field_val = alloc.get_field(self.frame().cp.get_utf8(name_index)?)?;
