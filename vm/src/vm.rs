@@ -353,8 +353,8 @@ impl VM {
                 Instruction::IfNull(index) => {
                     if self.if_null(*index) {
                         continue;
-                    } 
-                },
+                    }
+                }
                 Instruction::Iinc(index, inc) => self.iinc(*index as usize, *inc as i32),
                 Instruction::ILoad(local_index) => self.iload_n(*local_index as usize)?,
                 Instruction::ILoad0 => self.iload_n(0)?,
@@ -791,7 +791,6 @@ impl VM {
             return true;
         }
         false
-
     }
 
     /// Executes the `Instruction::IfNonNull` instruction. Returns a `bool`
