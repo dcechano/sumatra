@@ -660,6 +660,7 @@ impl VM {
         Ok(frame.push(Value::Int(result.0)))
     }
 
+    /// Executes the `Instruction::IDiv` instruction
     fn idiv(&mut self) -> Result<()> {
         let frame = self.frame_mut();
         let Value::Int(value2) = frame.pop() else {
