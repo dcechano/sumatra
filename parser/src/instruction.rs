@@ -144,6 +144,7 @@ pub enum Instruction {
     I2F,
     I2L,
     I2S,
+    /// Add ints
     IAdd,
     IaLoad,
     IAnd,
@@ -163,6 +164,7 @@ pub enum Instruction {
     IConst4,
     /// Push int constant 5.
     IConst5,
+    /// Divide ints
     IDiv,
     IfAcmpeq(usize),
     IfAcmpne(usize),
