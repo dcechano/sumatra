@@ -16,7 +16,7 @@ use crate::{
     vm::VM,
 };
 
-const INITIAL_NATIVE_METHODS: [(&str, &str, NativeMethod); 5] = [
+const INITIAL_NATIVE_METHODS: [(&str, &str, NativeMethod); 6] = [
     (
         JAVA_LANG_OBJECT,
         java_object::GET_CLASS_SIG,
@@ -36,6 +36,11 @@ const INITIAL_NATIVE_METHODS: [(&str, &str, NativeMethod); 5] = [
         JDK_INTERNAL_SYSTEM_PROPS_RAW,
         java_system_props_raw::PLATFORM_PROPS_SIG,
         java_system_props_raw::jvm_platform_properties,
+    ),
+    (
+        JDK_INTERNAL_SYSTEM_PROPS_RAW,
+        java_system_props_raw::VM_PROPS_SIG,
+        java_system_props_raw::jvm_vm_properties,
     ),
     (
         JAVA_LANG_STRING_UTF16,
