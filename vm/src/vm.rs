@@ -179,7 +179,7 @@ impl VM {
                 Instruction::ANewArray(class_index) => self.anew_array(*class_index as usize)?,
                 Instruction::AReturn => return Ok(Some(self.return_val())),
                 Instruction::ArrayLength => self.array_length()?,
-                Instruction::AStore(_) => todo!(),
+                Instruction::AStore(index) => self.a_store_n(*index as usize)?,
                 Instruction::AStore0 => self.a_store_n(0)?,
                 Instruction::AStore1 => self.a_store_n(1)?,
                 Instruction::AStore2 => self.a_store_n(2)?,
@@ -350,7 +350,11 @@ impl VM {
                         continue;
                     }
                 }
-                Instruction::IfNull(_) => todo!(),
+                Instruction::IfNull(index) => {
+                    if self.if_null(*index) {
+                        continue;
+                    } 
+                },
                 Instruction::Iinc(index, inc) => self.iinc(*index as usize, *inc as i32),
                 Instruction::ILoad(local_index) => self.iload_n(*local_index as usize)?,
                 Instruction::ILoad0 => self.iload_n(0)?,
@@ -776,6 +780,18 @@ impl VM {
             frame.pc = offset;
         }
         jmp
+    }
+
+    /// Executes the `Instruction::IfNull` instruction. Returns a `bool`
+    /// indicating if a branch is required. Program counter is already updated.
+    fn if_null(&mut self, index: usize) -> bool {
+        let frame = self.frame_mut();
+        if let Value::Null = frame.pop() {
+            frame.pc = index;
+            return true;
+        }
+        false
+
     }
 
     /// Executes the `Instruction::IfNonNull` instruction. Returns a `bool`
