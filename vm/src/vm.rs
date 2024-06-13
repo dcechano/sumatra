@@ -263,7 +263,7 @@ impl VM {
                 Instruction::I2F => todo!(),
                 Instruction::I2L => todo!(),
                 Instruction::I2S => todo!(),
-                Instruction::IAdd => todo!(),
+                Instruction::IAdd => self.iadd()?,
                 Instruction::IaLoad => todo!(),
                 Instruction::IAnd => todo!(),
                 Instruction::IaStore => self.iastore()?,
@@ -645,6 +645,19 @@ impl VM {
         let frame = self.frame_mut();
         let value = frame.clone_top();
         Ok(frame.push(value))
+    }
+    
+    /// Executes the `Instruction::IAdd` instruction
+    fn iadd(&mut self) -> Result<()> {
+        let frame = self.frame_mut();
+        let Value::Int(value2) = frame.pop() else {
+            bail!("Expected int for value2 of iadd");
+        };
+        let Value::Int(value1) = frame.pop() else {
+            bail!("Expected int for value1 of iadd");
+        };
+        let result = Wrapping::<i32>(value1) + Wrapping::<i32>(value2);
+        Ok(frame.push(Value::Int(result.0)))
     }
 
     fn idiv(&mut self) -> Result<()> {
