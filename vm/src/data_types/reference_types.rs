@@ -87,9 +87,7 @@ impl ArrayRef {
         // SAFETY: It is safe to dereference the ptr because it is impossible to
         // get an invalid ptr to a HeapAlloc without bypassing the APIs in oop.rs
         // which this binary does not do.
-        unsafe {
-            (*self.0).header.array_data.unwrap().1
-        }
+        unsafe { (*self.0).header.array_data.unwrap().1 }
     }
 
     /// insert the `value` into the array at the given `index`.
@@ -146,7 +144,7 @@ impl ArrayRef {
             *length
         }
     }
-    
+
     /// Validate the `ArrayType` is consistent with the provided `Value`.
     fn validate_type(value: &Value, array_type: &ArrayType) -> bool {
         // `Value::from` cannot be used to convert the `ArrayType` to a `Value`
@@ -162,7 +160,7 @@ impl ArrayRef {
             ArrayType::Float => matches!(value, Value::Float(_)),
             ArrayType::Double => matches!(value, Value::Double(_)),
             ArrayType::Long => matches!(value, Value::Long(_)),
-            ArrayType::Ref => matches!(value, Value::Ref(RefType::Array(_)) | Value::Null),
+            ArrayType::Ref => matches!(value, Value::Ref(_) | Value::Null),
             ArrayType::Dummy => {
                 panic!("Invalid ArrayType while validating against a Value.")
             }
