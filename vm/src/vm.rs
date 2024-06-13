@@ -626,6 +626,27 @@ impl VM {
         Ok(frame.push(double))
     }
 
+    /// Executes the `Instruction::DStore<local_index>` instruction.
+    /// `local_index` is the index of the local variable in the currently
+    /// executing frame's local variable array.
+    fn dstore_n(&mut self, local_index: usize) -> Result<()> {
+        let frame = self.frame_mut();
+        let double = frame.pop();
+        if !matches!(double, Value::Double(_)) {
+            bail!("Expected a double for dstore instruction.");
+        }
+
+        *frame.locals.get_mut(local_index + 1).unwrap() = double.clone();
+        Ok(*frame.locals.get_mut(local_index).unwrap() = double)
+    }
+
+    /// Executes the `Instruction::Dup` instruction.
+    fn dup(&mut self) -> Result<()> {
+        let frame = self.frame_mut();
+        let value = frame.clone_top();
+        Ok(frame.push(value))
+    }
+
     /// Executes the `Instruction::GetField` instruction.
     /// `field_index` is the index of the `Constant::FieldRef` in the
     /// runtime constant pool.
@@ -634,9 +655,9 @@ impl VM {
             class_index,
             name_and_type_index,
         } = self.frame().cp.get(field_index).unwrap()
-        else {
-            bail!("Expected symbolic reference to a field at index: {field_index} for get_field.");
-        };
+            else {
+                bail!("Expected symbolic reference to a field at index: {field_index} for get_field.");
+            };
 
         let value = self.frame_mut().pop();
         if let Value::Null = value {
@@ -664,9 +685,9 @@ impl VM {
             class_index,
             name_and_type_index,
         } = self.frame().cp.get(index).unwrap()
-        else {
-            bail!("Expected symbolic reference to a field at index: {index}");
-        };
+            else {
+                bail!("Expected symbolic reference to a field at index: {index}");
+            };
 
         let (name_index, _, alloc) = self.unpack(*class_index, *name_and_type_index)?;
         let field_val = alloc.get_field(self.frame().cp.get_utf8(name_index)?)?;
@@ -675,27 +696,6 @@ impl VM {
         }
         self.frame_mut().stack.push(field_val.clone());
         Ok(())
-    }
-
-    /// Executes the `Instruction::DStore<local_index>` instruction.
-    /// `local_index` is the index of the local variable in the currently
-    /// executing frame's local variable array.
-    fn dstore_n(&mut self, local_index: usize) -> Result<()> {
-        let frame = self.frame_mut();
-        let double = frame.pop();
-        if !matches!(double, Value::Double(_)) {
-            bail!("Expected a double for dstore instruction.");
-        }
-
-        *frame.locals.get_mut(local_index + 1).unwrap() = double.clone();
-        Ok(*frame.locals.get_mut(local_index).unwrap() = double)
-    }
-
-    /// Executes the `Instruction::Dup` instruction.
-    fn dup(&mut self) -> Result<()> {
-        let frame = self.frame_mut();
-        let value = frame.clone_top();
-        Ok(frame.push(value))
     }
 
     /// Executes the `Instruction::I2B` instruction.
