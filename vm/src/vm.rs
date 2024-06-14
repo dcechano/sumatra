@@ -646,32 +646,6 @@ impl VM {
         let value = frame.clone_top();
         Ok(frame.push(value))
     }
-    
-    /// Executes the `Instruction::IAdd` instruction
-    fn iadd(&mut self) -> Result<()> {
-        let frame = self.frame_mut();
-        let Value::Int(value2) = frame.pop() else {
-            bail!("Expected int for value2 of iadd");
-        };
-        let Value::Int(value1) = frame.pop() else {
-            bail!("Expected int for value1 of iadd");
-        };
-        let result = Wrapping::<i32>(value1) + Wrapping::<i32>(value2);
-        Ok(frame.push(Value::Int(result.0)))
-    }
-
-    /// Executes the `Instruction::IDiv` instruction
-    fn idiv(&mut self) -> Result<()> {
-        let frame = self.frame_mut();
-        let Value::Int(value2) = frame.pop() else {
-            bail!("Expected int for value2 of idiv");
-        };
-        let Value::Int(value1) = frame.pop() else {
-            bail!("Expected int for value1 of idiv");
-        };
-        let result = Wrapping::<i32>(value1) / Wrapping::<i32>(value2);
-        Ok(frame.push(Value::Int(result.0)))
-    }
 
     /// Executes the `Instruction::GetField` instruction.
     /// `field_index` is the index of the `Constant::FieldRef` in the
@@ -733,6 +707,19 @@ impl VM {
         Ok(self.frame_mut().push(Value::Int(int & 0xffi32)))
     }
 
+    /// Executes the `Instruction::IAdd` instruction
+    fn iadd(&mut self) -> Result<()> {
+        let frame = self.frame_mut();
+        let Value::Int(value2) = frame.pop() else {
+            bail!("Expected int for value2 of idiv");
+        };
+        let Value::Int(value1) = frame.pop() else {
+            bail!("Expected int for value1 of idiv");
+        };
+        let result = Wrapping::<i32>(value1) + Wrapping::<i32>(value2);
+        Ok(frame.push(Value::Int(result.0)))
+    }
+
     /// Executes the `Instruction::IaStore` instruction.
     fn iastore(&mut self) -> Result<()> {
         let frame = self.frame_mut();
@@ -755,6 +742,19 @@ impl VM {
     /// Executes the `Instruction::IConst` instruction. `int` is the integer
     /// to be pushed on the operand stack.
     fn iconst_n(&mut self, int: i32) { self.frame_mut().push(Value::Int(int)); }
+
+    /// Executes the `Instruction::IDiv` instruction
+    fn idiv(&mut self) -> Result<()> {
+        let frame = self.frame_mut();
+        let Value::Int(value2) = frame.pop() else {
+            bail!("Expected int for value2 of idiv");
+        };
+        let Value::Int(value1) = frame.pop() else {
+            bail!("Expected int for value1 of idiv");
+        };
+        let result = Wrapping::<i32>(value1) / Wrapping::<i32>(value2);
+        Ok(frame.push(Value::Int(result.0)))
+    }
 
     /// Exectutes the `Instruction::Iinc` instruction. `index` is the index of
     /// the local variable to incremented by `inc`.
