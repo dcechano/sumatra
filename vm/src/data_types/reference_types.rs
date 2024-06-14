@@ -118,10 +118,8 @@ impl ArrayRef {
         // SAFETY: It is safe to dereference the ptr because it is impossible to
         // get an invalid ptr to a HeapAlloc without bypassing the APIs in oop.rs
         // which this binary does not do.
-        let Some((length, _)) = (unsafe { (*self.0).header.array_data.as_ref() }) else {
-            panic!("Pointer stored in ArrayRef was not an array!");
-        };
-        if index >= *length {
+        let len = self.len();
+        if index >= len {
             todo!("Throw ArrayIndexOutOfBounds Exception")
         }
 
