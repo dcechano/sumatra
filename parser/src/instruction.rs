@@ -112,10 +112,15 @@ pub enum Instruction {
     FConst1,
     FConst2,
     FDiv,
+    /// Loads float from local at provided index
     FLoad(u8),
+    /// Loads float local at index 0
     FLoad0,
+    /// Loads float local at index 1
     FLoad1,
+    /// Loads float local at index 2
     FLoad2,
+    /// Loads float local at index 3
     FLoad3,
     FMul,
     FNeg,

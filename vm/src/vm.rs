@@ -226,7 +226,7 @@ impl VM {
                 Instruction::F2D => todo!(),
                 Instruction::F2I => todo!(),
                 Instruction::F2L => todo!(),
-                Instruction::FAdd => todo!(),
+                Instruction::FAdd => self.fadd()?,
                 Instruction::FaLoad => todo!(),
                 Instruction::FaStore => todo!(),
                 Instruction::Fcmpg => todo!(),
@@ -235,11 +235,11 @@ impl VM {
                 Instruction::FConst1 => todo!(),
                 Instruction::FConst2 => todo!(),
                 Instruction::FDiv => todo!(),
-                Instruction::FLoad(_) => todo!(),
-                Instruction::FLoad0 => todo!(),
-                Instruction::FLoad1 => todo!(),
-                Instruction::FLoad2 => todo!(),
-                Instruction::FLoad3 => todo!(),
+                Instruction::FLoad(index) => self.fload_n(*index as usize)?,
+                Instruction::FLoad0 => self.fload_n(0)?,
+                Instruction::FLoad1 => self.fload_n(1)?,
+                Instruction::FLoad2 => self.fload_n(2)?,
+                Instruction::FLoad3 => self.fload_n(3)?,
                 Instruction::FMul => todo!(),
                 Instruction::FNeg => todo!(),
                 Instruction::FRem => todo!(),
@@ -645,6 +645,28 @@ impl VM {
         let frame = self.frame_mut();
         let value = frame.clone_top();
         Ok(frame.push(value))
+    }
+
+    /// Executes the `Instruction::FAdd` instruction.
+    fn fadd(&mut self) -> Result<()> {
+        let frame = self.frame_mut();
+        let Value::Float(value2) = frame.pop() else {
+            bail!("Expected float for value2 of idiv");
+        };
+        let Value::Float(value1) = frame.pop() else {
+            bail!("Expected float for value1 of idiv");
+        };
+        Ok(frame.push(Value::Float(value1 + value2)))
+    }
+
+    /// Executes the `Instruction::Fload` and `Instruction::Fload<n>`
+    /// instructions
+    fn fload_n(&mut self, index: usize) -> Result<()> {
+        let frame = self.frame_mut();
+        let Value::Float(float) = frame.load(index)? else {
+            bail!("Expected float in fload_n");
+        };
+        Ok(frame.push(Value::Float(float)))
     }
 
     /// Executes the `Instruction::GetField` instruction.
