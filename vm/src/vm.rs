@@ -1,4 +1,4 @@
-use std::{num::Wrapping, path::PathBuf};
+use std::{env::var, num::Wrapping, path::PathBuf};
 
 use anyhow::{bail, Result};
 
@@ -229,8 +229,8 @@ impl VM {
                 Instruction::FAdd => self.fadd()?,
                 Instruction::FaLoad => todo!(),
                 Instruction::FaStore => todo!(),
-                Instruction::Fcmpg => todo!(),
-                Instruction::Fcmpl => todo!(),
+                Instruction::Fcmpg => self.fcmp(Compare::GreaterThan)?,
+                Instruction::Fcmpl => self.fcmp(Compare::LessThan)?,
                 Instruction::FConst0 => self.frame_mut().push(Value::Float(0f32)),
                 Instruction::FConst1 => self.frame_mut().push(Value::Float(1f32)),
                 Instruction::FConst2 => self.frame_mut().push(Value::Float(2f32)),
@@ -657,6 +657,34 @@ impl VM {
             bail!("Expected float for value1 of idiv");
         };
         Ok(frame.push(Value::Float(value1 + value2)))
+    }
+
+    /// Executes the `Instruction::Fcmpl` and `Instruction::Fcmpg` instruction.
+    fn fcmp(&mut self, compare: Compare) -> Result<()> {
+        let frame = self.frame_mut();
+        let Value::Float(value2) = frame.pop() else {
+            bail!("Expected int for value2 in fcmp.");
+        };
+
+        let Value::Float(value1) = frame.pop() else {
+            bail!("Expected int for value1 in fcmp.");
+        };
+
+        if value2.is_nan() || value1.is_nan() {
+            return match compare {
+                Compare::LessThan => Ok(frame.push(Value::Int(1))),
+                Compare::GreaterThan => Ok(frame.push(Value::Int(-1))),
+                _ => panic!("fmcp not used properly. Only Compare::LessThan or Compare::GreaterThan are possible"),
+            };
+        }
+
+        return if value1 > value2 {
+            Ok(frame.push(Value::Int(1)))
+        } else if value2 == value1 {
+            Ok(frame.push(Value::Int(0)))
+        } else {
+            Ok(frame.push(Value::Int(-1)))
+        };
     }
 
     /// Executes the `Instruction::Fload` and `Instruction::Fload<n>`
