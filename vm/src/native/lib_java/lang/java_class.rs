@@ -143,16 +143,31 @@ fn jvm_get_primitive_class(
         panic!("bytes was not a RefType::Array as expected in jvm_get_primitive_class");
     };
     let bytes = bytes.get_all();
-    let class_name = bytes
+
+    let primitive_name = bytes
         .iter()
-        .map(|byte| {
+        .enumerate()
+        .map(|(index, byte)| {
             let Value::Byte(byte) = byte else {
                 panic!("Expected a Value::Byte in jvm_get_primitive_class. Got {byte:?}");
             };
             char::from(*byte as u8)
         })
         .collect::<String>();
-    let string_obj = vm.heap().get_class_obj(&class_name);
+
+    let class_name = match primitive_name.as_bytes() {
+        b"boolean" => "java/lang/Boolean",
+        b"byte" => "java/lang/Byte",
+        b"char" => "java/lang/Char",
+        b"double" => "java/lang/Double",
+        b"float" => "java/lang/Float",
+        b"int" => "java/lang/Integer",
+        b"long" => "java/lang/Long",
+        b"short" => "java/lang/Short",
+        b"void" => "java/lang/Void",
+        primitive => panic!("Invalid primitive type: {primitive:?} in jvm_get_primitive_class."),
+    };
+    let string_obj = vm.heap().get_class_obj(class_name);
     Ok(Some(Value::new_object(string_obj)))
 }
 
