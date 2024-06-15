@@ -13,6 +13,7 @@ use crate::{
 
 #[derive(Debug, Clone, Eq, PartialEq, Hash)]
 pub enum Instruction {
+    /// Load reference from array
     AaLoad,
     AaStore,
     /// Push null
@@ -240,6 +241,7 @@ pub enum Instruction {
     IStore3,
     /// Subtract ints and store result
     ISub,
+    /// Logical shift int right
     IuShR,
     IxOr,
     Jsr(i16),

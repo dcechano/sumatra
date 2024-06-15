@@ -1,4 +1,4 @@
-use std::{env::var, num::Wrapping, path::PathBuf};
+use std::{num::Wrapping, path::PathBuf};
 
 use anyhow::{bail, Result};
 
@@ -168,7 +168,7 @@ impl VM {
             println!("{}{code:?}", "\t".repeat(indents),);
             // }
             match code {
-                Instruction::AaLoad => todo!(),
+                Instruction::AaLoad => self.aaload()?,
                 Instruction::AaStore => todo!(),
                 Instruction::AConstNull => self.frame_mut().stack.push(Value::Null),
                 Instruction::ALoad(index) => self.a_load(*index as usize)?,
@@ -485,6 +485,26 @@ impl VM {
         // }
         self.frames.pop();
         Ok(None)
+    }
+
+    /// Executes `Instruction::AaLoad` instruction.
+    fn aaload(&mut self) -> Result<()> {
+        let frame = self.frame_mut();
+        let Value::Int(index) = frame.pop() else {
+            bail!("Expected int for index in aaload.");
+        };
+
+        let array_ref = frame.pop();
+        if let Value::Null = array_ref {
+            todo!("Throw NullPointerException")
+        };
+
+        let Value::Ref(RefType::Array(array_ref)) = array_ref else {
+            bail!("Expected an array for array_ref in aaload.");
+        };
+
+        let value = array_ref.get(index as usize);
+        Ok(frame.push(value))
     }
 
     /// Executes the `Instruction::AaNewArray` instruction.
