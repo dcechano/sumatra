@@ -126,6 +126,13 @@ impl ArrayRef {
         unsafe { (*self.0).elements.add(index).as_ref().unwrap().clone() }
     }
 
+    /// Returns all elements of the Java array as a Vec.
+    pub fn get_all(&self) -> Vec<Value> {
+        (0..self.len())
+            .map(|index| self.get(index))
+            .collect::<Vec<Value>>()
+    }
+
     /// Get the inner value. Returned as a *const to emphasize that
     /// this return type should NOT be modified except by the GC.
     pub fn get_inner(&self) -> *const HeapAlloc<NonStatic> { self.0 }
