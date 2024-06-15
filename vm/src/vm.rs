@@ -401,7 +401,7 @@ impl VM {
                 Instruction::IStore2 => self.istore_n(2)?,
                 Instruction::IStore3 => self.istore_n(3)?,
                 Instruction::ISub => self.isub()?,
-                Instruction::IuShR => todo!(),
+                Instruction::IuShR => self.iushr()?,
                 Instruction::IxOr => todo!(),
                 Instruction::Jsr(_) => todo!(),
                 Instruction::JsrW(_) => todo!(),
@@ -1079,6 +1079,26 @@ impl VM {
             }
         }
         bail!("expected 2 integers for irem instruction.");
+    }
+
+    /// Executes the `Instruction::IuShR` instruction.
+    fn iushr(&mut self) -> Result<()> {
+        let frame = self.frame_mut();
+        let Value::Int(value2) = frame.pop() else {
+            bail!("Expected int for value2 in ishur.");
+        };
+        let Value::Int(value1) = frame.pop() else {
+            bail!("Expected int for value1 in ishur.");
+        };
+
+        let shift = value2 & 0x1f;
+        let result = if value1 < 0 {
+            // Check: https://docs.oracle.com/javase/specs/jvms/se21/html/jvms-6.html#jvms-6.5.iushr
+            (value1 >> shift) + 2i32.rotate_left(!(shift as u32))
+        } else {
+            value1 >> shift
+        };
+        Ok(frame.push(Value::Int(result)))
     }
 
     /// Executes the `Instruction::Ldc`, and `Instruction::LdcW` instructions.
