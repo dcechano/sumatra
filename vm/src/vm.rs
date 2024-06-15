@@ -400,7 +400,7 @@ impl VM {
                 Instruction::IStore1 => self.istore_n(1)?,
                 Instruction::IStore2 => self.istore_n(2)?,
                 Instruction::IStore3 => self.istore_n(3)?,
-                Instruction::ISub => todo!(),
+                Instruction::ISub => self.isub()?,
                 Instruction::IuShR => todo!(),
                 Instruction::IxOr => todo!(),
                 Instruction::Jsr(_) => todo!(),
@@ -1026,6 +1026,21 @@ impl VM {
             bail!("Expected a int for istore instruction.");
         }
         Ok(*frame.locals.get_mut(local_index).unwrap() = int)
+    }
+
+    /// Executes the `Instruction::ISub` instruction.
+    fn isub(&mut self) -> Result<()> {
+        let frame = self.frame_mut();
+        let Value::Int(value2) = frame.pop() else {
+            bail!("Expected int for value2 in isub.");
+        };
+
+        let Value::Int(value1) = frame.pop() else {
+            bail!("Expected int for value1 in isub.");
+        };
+
+        let result = Wrapping::<i32>(value1) - Wrapping::<i32>(value2);
+        Ok(frame.push(Value::Int(result.0)))
     }
 
     /// Executes `Instruction::IRem` instruction and pushes
