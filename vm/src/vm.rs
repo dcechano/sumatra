@@ -597,7 +597,7 @@ impl VM {
         let ArrayType::Char = array_ref.array_type() else {
             bail!("Expected char for array type in castore.");
         };
-        Ok(array_ref.insert(index as usize, Value::Int(index)))
+        Ok(array_ref.insert(index as usize, Value::Byte(index as i8)))
     }
 
     /// Executes the `Instruction::DAdd` instruction.

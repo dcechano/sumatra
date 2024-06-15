@@ -230,10 +230,15 @@ pub enum Instruction {
     IShR,
     /// Store int into local variable
     IStore(u8),
+    /// Store int into local variable 0.
     IStore0,
+    /// Store int into local variable 1.
     IStore1,
+    /// Store int into local variable 2.
     IStore2,
+    /// Store int into local variable 3.
     IStore3,
+    /// Subtract ints and store result
     ISub,
     IuShR,
     IxOr,
