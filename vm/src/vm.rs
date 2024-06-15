@@ -551,17 +551,17 @@ impl VM {
         let frame = self.frame_mut();
         let value = frame.pop();
         let Value::Int(value) = value else {
-            bail!("Expected Value::Int for the value in castore. {value:?}");
+            bail!("Expected Value::Int for the value in bastore. {value:?}");
         };
         let Value::Int(index) = frame.pop() else {
-            bail!("Expected Value::Int for the index in castore.");
+            bail!("Expected Value::Int for the index in bastore.");
         };
         let Value::Ref(RefType::Array(mut array_ref)) = frame.pop() else {
-            bail!("Expected RefType::Array for the objref in castore.");
+            bail!("Expected RefType::Array for the objref in bastore.");
         };
         let value = match array_ref.array_type() {
-            ArrayType::Boolean => Value::Int(value & 0xffi32),
-            ArrayType::Byte => Value::Int(value & 1),
+            ArrayType::Boolean => Value::Byte((value & 1) as i8),
+            ArrayType::Byte => Value::Byte(value as i8),
             array_type => bail!("Invalid array type: {array_type:?} in bastore."),
         };
         Ok(array_ref.insert(index as usize, value))
@@ -576,10 +576,10 @@ impl VM {
         let Value::Ref(RefType::Array(mut array_ref)) = frame.pop() else {
             bail!("Expected RefType::Array as array_ref in caload.");
         };
-        let Value::Int(char) = array_ref.get(index as usize) else {
+        let Value::Byte(char) = array_ref.get(index as usize) else {
             bail!("Expected Value::Int as char in caload.");
         };
-        Ok(frame.push(Value::Int(char)))
+        Ok(frame.push(Value::Int(char as i32)))
     }
 
     /// Executes the `Instruction::CaStore` instruction.
@@ -1245,7 +1245,7 @@ impl VM {
         string
             .encode_utf16()
             .enumerate()
-            .for_each(|(index, byte)| char_array.insert(index, Value::Int(byte as i32)));
+            .for_each(|(index, byte)| char_array.insert(index, Value::Byte(byte as i8)));
         let char_array = Value::new_array(char_array);
 
         let StaticData {
@@ -1277,7 +1277,7 @@ impl VM {
             vec![Value::new_object(java_string.clone()), char_array],
         );
         self.frames.push(frame);
-        let _ = self.execute_frame();
+        let _ = self.execute_frame().unwrap();
         java_string
     }
 

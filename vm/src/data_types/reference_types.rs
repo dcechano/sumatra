@@ -157,11 +157,11 @@ impl ArrayRef {
         // would cause this function to return `false` in some cases when it should
         // otherwise return `true`.
         match array_type {
-            ArrayType::Boolean
-            | ArrayType::Char
-            | ArrayType::Short
-            | ArrayType::Byte
-            | ArrayType::Int => matches!(value, Value::Int(_)),
+            ArrayType::Boolean | ArrayType::Char | ArrayType::Byte => {
+                matches!(value, Value::Byte(_))
+            }
+            ArrayType::Short => matches!(value, Value::Short(_)),
+            ArrayType::Int => matches!(value, Value::Int(_)),
             ArrayType::Float => matches!(value, Value::Float(_)),
             ArrayType::Double => matches!(value, Value::Double(_)),
             ArrayType::Long => matches!(value, Value::Long(_)),
