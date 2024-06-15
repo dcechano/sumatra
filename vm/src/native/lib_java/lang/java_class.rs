@@ -1,22 +1,29 @@
 use anyhow::Result;
 
 use crate::{
-    data_types::{reference_types::ObjRef, value::Value},
+    data_types::{
+        reference_types::ObjRef,
+        value::{RefType, Value},
+    },
     native::{
         lib_java::JAVA_LANG_CLASS, native_identifier::NativeIdentifier, registry::NativeMethod,
     },
     vm::VM,
 };
 
-const NATIVES: [(&str, NativeMethod); 3] = [
+const NATIVES: [(&str, NativeMethod); 4] = [
     (
-        "forName0(Ljava/lang/String;ZLjava/lang/ClassLoader;Ljava/lang/Class)Ljava/lang/Class;",
+        "forName0(Ljava/lang/String;ZLjava/lang/ClassLoader;Ljava/lang/Class;)Ljava/lang/Class;",
         jvm_for_name0,
     ),
     ("isInstance(Ljava/lang/Object;)Z", jvm_is_instance),
     (
         "desiredAssertionStatus0(Ljava/lang/Class;)Z",
         jvm_desired_assertion_status0,
+    ),
+    (
+        "getPrimitiveClass(Ljava/lang/String;)Ljava/lang/Class;",
+        jvm_get_primitive_class,
     ),
 ];
 
@@ -127,9 +134,26 @@ fn jvm_get_protection_domain(
 fn jvm_get_primitive_class(
     vm: &mut VM,
     this: Option<ObjRef>,
-    _: Vec<Value>,
+    args: Vec<Value>,
 ) -> Result<Option<Value>> {
-    todo!()
+    let Value::Ref(RefType::Object(string_obj)) = &args[0] else {
+        panic!("Arg was not a RefType::Object as expected in jvm_get_primitive_class");
+    };
+    let Value::Ref(RefType::Array(bytes)) = string_obj.get_field("value").unwrap() else {
+        panic!("bytes was not a RefType::Array as expected in jvm_get_primitive_class");
+    };
+    let bytes = bytes.get_all();
+    let class_name = bytes
+        .iter()
+        .map(|byte| {
+            let Value::Byte(byte) = byte else {
+                panic!("Expected a Value::Byte in jvm_get_primitive_class. Got {byte:?}");
+            };
+            char::from(*byte as u8)
+        })
+        .collect::<String>();
+    let string_obj = vm.heap().get_class_obj(&class_name);
+    Ok(Some(Value::new_object(string_obj)))
 }
 
 fn jvm_get_generic_signature(
