@@ -190,7 +190,7 @@ impl VM {
                 Instruction::BiPush(byte) => self.frame_mut().stack.push(Value::Int(*byte as i32)),
                 Instruction::CaLoad => self.caload()?,
                 Instruction::CaStore => self.castore()?,
-                Instruction::Checkcast(_) => todo!(),
+                Instruction::Checkcast(index) => self.check_cast(*index as usize)?,
                 Instruction::D2F => todo!(),
                 Instruction::D2I => todo!(),
                 Instruction::D2L => todo!(),
@@ -618,6 +618,25 @@ impl VM {
             bail!("Expected char for array type in castore.");
         };
         Ok(array_ref.insert(index as usize, Value::Byte(index as i8)))
+    }
+
+    /// Executes the `Instruction::Checkcast` instruction.
+    fn check_cast(&mut self, index: usize) -> Result<()> {
+        let frame = self.frame_mut();
+        let obj = frame.pop();
+        match obj {
+            Value::Null => {
+                frame.push(Value::Null);
+                return Ok(());
+            }
+            Value::Ref(RefType::Array(_)) => {
+                todo!();
+            }
+            Value::Ref(RefType::Object(_)) => {
+                todo!();
+            }
+            ref_type => panic!("Invalid reference type for check_cast: {ref_type:?}"),
+        }
     }
 
     /// Executes the `Instruction::DAdd` instruction.
