@@ -258,11 +258,11 @@ impl VM {
                 }
                 Instruction::GoToW(_) => todo!(),
                 Instruction::I2B => self.i2b()?,
-                Instruction::I2C => todo!(),
-                Instruction::I2D => todo!(),
-                Instruction::I2F => todo!(),
-                Instruction::I2L => todo!(),
-                Instruction::I2S => todo!(),
+                Instruction::I2C => self.i2c()?,
+                Instruction::I2D => self.i2d()?,
+                Instruction::I2F => self.i2f()?,
+                Instruction::I2L => self.i2l()?,
+                Instruction::I2S => self.i2s()?,
                 Instruction::IAdd => self.iadd()?,
                 Instruction::IaLoad => todo!(),
                 Instruction::IAnd => todo!(),
@@ -805,6 +805,51 @@ impl VM {
         };
 
         Ok(self.frame_mut().push(Value::Int((int as i8) as i32)))
+    }
+
+    /// Executes the `Instruction::I2C` instruction.
+    fn i2c(&mut self) -> Result<()> {
+        let Value::Int(int) = self.frame_mut().pop() else {
+            bail!("Expected int in i2c.");
+        };
+
+        Ok(self.frame_mut().push(Value::Int((int as u16) as i32)))
+    }
+
+    /// Executes the `Instruction::I2D` instruction.
+    fn i2d(&mut self) -> Result<()> {
+        let Value::Int(int) = self.frame_mut().pop() else {
+            bail!("Expected int in i2d.");
+        };
+
+        Ok(self.frame_mut().push(Value::Double(int as f64)))
+    }
+
+    /// Executes the `Instruction::I2F` instruction.
+    fn i2f(&mut self) -> Result<()> {
+        let Value::Int(int) = self.frame_mut().pop() else {
+            bail!("Expected int in i2f.");
+        };
+
+        Ok(self.frame_mut().push(Value::Float(int as f32)))
+    }
+
+    /// Executes the `Instruction::I2L` instruction.
+    fn i2l(&mut self) -> Result<()> {
+        let Value::Int(int) = self.frame_mut().pop() else {
+            bail!("Expected int in i2l.");
+        };
+
+        Ok(self.frame_mut().push(Value::Long(int as i64)))
+    }
+
+    /// Executes the `Instruction::I2S` instruction.
+    fn i2s(&mut self) -> Result<()> {
+        let Value::Int(int) = self.frame_mut().pop() else {
+            bail!("Expected int in i2s.");
+        };
+
+        Ok(self.frame_mut().push(Value::Short(int as i16)))
     }
 
     /// Executes the `Instruction::IAdd` instruction
