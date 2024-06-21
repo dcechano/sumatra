@@ -626,14 +626,25 @@ impl VM {
         let obj = frame.pop();
         match obj {
             Value::Null => {
-                frame.push(Value::Null);
-                return Ok(());
+                return Ok(frame.push(Value::Null));
             }
             Value::Ref(RefType::Array(_)) => {
                 todo!();
             }
-            Value::Ref(RefType::Object(_)) => {
-                todo!();
+            Value::Ref(RefType::Object(obj_ref)) => {
+                let class_id = obj_ref.get_class_id();
+                let instance_class = self.method_area.get_class(class_id)?;
+
+                let Constant::Class(name_index) = self.frame_mut().cp.get(index).unwrap() else {
+                    bail!("Expected Constant::Class for provided index in check_cast.");
+                };
+                let class_name = self.frame_mut().cp.get_utf8(*name_index)?;
+                let test_class = self.load_class(class_name)?.class;
+
+                if !self.is_instance_of(instance_class, test_class) {
+                    todo!("Throw ClassCastException.");
+                }
+                Ok(self.frame_mut().push(obj))
             }
             ref_type => panic!("Invalid reference type for check_cast: {ref_type:?}"),
         }
@@ -1521,6 +1532,53 @@ impl VM {
         native(self, this, arguments)
     }
 
+    /// Helper function to check if the class `instance` is an instance of the
+    /// class `test_class`.
+    fn is_instance_of(&mut self, instance: &'static Class, test_class: &'static Class) -> bool {
+        if instance.get_name() == test_class.get_name() {
+            return true;
+        }
+        if instance.is_interface() {
+            return self.is_interface_of(instance, test_class);
+        }
+        self.is_subclass_of(instance, test_class)
+    }
+
+    /// Helper function to check if the class `instance` implements
+    /// `test_class`. Used primarily in `is_instance_of()`.
+    fn is_interface_of(&mut self, instance: &'static Class, test_class: &'static Class) -> bool {
+        todo!()
+    }
+
+    /// Helper function to check if the class `instance` is a subclass of
+    /// `test_class`. Used primarily in `is_instance_of()`.
+    fn is_subclass_of(&mut self, instance: &'static Class, test_class: &'static Class) -> bool {
+        let test_class_name = test_class.get_name();
+        if &test_class_name == OBJECT {
+            return true;
+        }
+
+        let mut curr_class = instance;
+        loop {
+            let super_index = curr_class.super_class;
+            if super_index == 0 {
+                /*
+                superclass index of 0 means that `curr_class` is java.lang.Object.
+                There are no more superclasses to check and therefore `instance` is not
+                instance of `test_class`.
+                */
+                return false;
+            };
+            let Constant::Class(super_name_index) = curr_class.cp.get(super_index).unwrap() else {
+                panic!("Expected a Constant::Class in is_subclass_of.");
+            };
+            let super_class_name = curr_class.cp.get_utf8(*super_name_index).unwrap();
+            if &test_class_name == super_class_name {
+                return true;
+            }
+            curr_class = self.load_class(super_class_name).unwrap().class;
+        }
+    }
     /// Helper function to determine if the target of a
     /// `Instruction::InvokeSpecial` instruction is defined in the
     /// superclass of the current class.
