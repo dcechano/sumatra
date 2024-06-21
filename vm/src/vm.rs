@@ -1172,7 +1172,7 @@ impl VM {
     }
 
     /// Executes the `Instruction::Ldc`, and `Instruction::LdcW` instructions.
-    /// `index` is the index of the constnat in the runtime constant pool.
+    /// `index` is the index of the constant in the runtime constant pool.
     fn load_const(&mut self, index: &usize) -> Result<()> {
         let frame = self.frame_mut();
         let cp = frame.cp;
