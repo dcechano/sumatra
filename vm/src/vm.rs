@@ -363,7 +363,7 @@ impl VM {
                 Instruction::ILoad3 => self.iload_n(3)?,
                 Instruction::IMul => todo!(),
                 Instruction::INeg => todo!(),
-                Instruction::InstanceOf(_) => todo!(),
+                Instruction::InstanceOf(index) => self.instance_of(*index as usize)?,
                 Instruction::InvokeDynamic(index, _, _) => todo!(),
                 Instruction::InvokeInterface(_, _, _) => todo!(),
                 Instruction::InvokeSpecial(method_index) => {
@@ -928,6 +928,33 @@ impl VM {
         }
         frame.pc = index;
         true
+    }
+
+    /// Execute the `Instruction::InstanceOf` instruction.
+    fn instance_of(&mut self, index: usize) -> Result<()> {
+        let frame = self.frame_mut();
+        let obj = frame.pop();
+
+        match obj {
+            Value::Null => Ok(frame.push(Value::Int(0))),
+            Value::Ref(RefType::Array(_)) => todo!(),
+            Value::Ref(RefType::Object(obj_ref)) => {
+                let class_id = obj_ref.get_class_id();
+                let instance_class = self.method_area.get_class(class_id)?;
+
+                let Constant::Class(name_index) = self.frame_mut().cp.get(index).unwrap() else {
+                    bail!("Expected Constant::Class for provided index in check_cast.");
+                };
+                let class_name = self.frame_mut().cp.get_utf8(*name_index)?;
+                let test_class = self.load_class(class_name)?.class;
+
+                match self.is_instance_of(instance_class, test_class) {
+                    true => Ok(self.frame_mut().push(Value::Int(1))),
+                    false => Ok(self.frame_mut().push(Value::Int(0))),
+                }
+            }
+            ref_type => panic!("Invalid reference type {ref_type:?}."),
+        }
     }
 
     /// Executed the `Instruction::InvokeSpecial` instruction. `method_index` is
