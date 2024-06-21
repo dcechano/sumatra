@@ -804,7 +804,7 @@ impl VM {
             bail!("Expected int in i2b.");
         };
 
-        Ok(self.frame_mut().push(Value::Int(int & 0xffi32)))
+        Ok(self.frame_mut().push(Value::Int((int as i8) as i32)))
     }
 
     /// Executes the `Instruction::IAdd` instruction
