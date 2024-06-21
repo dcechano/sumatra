@@ -245,6 +245,7 @@ pub enum Instruction {
     ISub,
     /// Logical shift int right
     IuShR,
+    /// Calculate the XOR of 2 ints
     IxOr,
     Jsr(i16),
     JsrW(i32),
