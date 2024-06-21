@@ -210,6 +210,7 @@ pub enum Instruction {
     ILoad3,
     IMul,
     INeg,
+    /// Determine a reference is of a given type.
     InstanceOf(u16),
     InvokeDynamic(u16, u8, u8), // last 2 bytes are always 0
     InvokeInterface(u16, u8, u8),
