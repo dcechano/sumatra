@@ -402,7 +402,7 @@ impl VM {
                 Instruction::IStore3 => self.istore_n(3)?,
                 Instruction::ISub => self.isub()?,
                 Instruction::IuShR => self.iushr()?,
-                Instruction::IxOr => todo!(),
+                Instruction::IxOr => self.ixor()?,
                 Instruction::Jsr(_) => todo!(),
                 Instruction::JsrW(_) => todo!(),
                 Instruction::L2D => todo!(),
@@ -1156,6 +1156,19 @@ impl VM {
             value1 >> shift
         };
         Ok(frame.push(Value::Int(result)))
+    }
+
+    /// Executes the `Instruction::IxOr` instruction.
+    fn ixor(&mut self) -> Result<()> {
+        let frame = self.frame_mut();
+        let Value::Int(value2) = frame.pop() else {
+            bail!("Expected Value::Int for value2 in ixor.");
+        };
+        let Value::Int(value1) = frame.pop() else {
+            bail!("Expected Value::Int for value1 in ixor.");
+        };
+
+        Ok(frame.push(Value::Int(value2 ^ value1)))
     }
 
     /// Executes the `Instruction::Ldc`, and `Instruction::LdcW` instructions.
