@@ -146,10 +146,15 @@ pub enum Instruction {
     GoToW(usize),
     /// Convert int to byte
     I2B,
+    /// Convert int to char
     I2C,
+    /// Convert int to double
     I2D,
+    /// Convert int to float
     I2F,
+    /// Convert int to long
     I2L,
+    /// Convert int to short
     I2S,
     /// Add ints
     IAdd,
