@@ -54,6 +54,7 @@ pub enum Instruction {
     CaLoad,
     /// Store char into char array
     CaStore,
+    /// Check whether object is of a given type
     Checkcast(u16),
     D2F,
     D2I,
