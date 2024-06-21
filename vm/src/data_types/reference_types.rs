@@ -41,6 +41,11 @@ impl ObjRef {
     /// memory problems. `raw` must be a valid pointer to a `HeapAlloc`.
     pub unsafe fn from_raw(raw: *mut HeapAlloc<NonStatic>) -> Self { Self(raw) }
 
+    /// Calculate the hash for the ptr backing this object instance
+    pub fn hash_code(&self) -> i32 {
+        hash(unsafe { std::mem::transmute::<&Self, *const u8>(self) })
+    }
+
     pub fn set_field(&mut self, name: &str, value: Value) -> Result<()> {
         unsafe { (*self.0).set_field(name, value) }
     }
@@ -137,6 +142,11 @@ impl ArrayRef {
     /// this return type should NOT be modified except by the GC.
     pub fn get_inner(&self) -> *const HeapAlloc<NonStatic> { self.0 }
 
+    /// Calculate the hash for the ptr backing this array instance
+    pub fn hash_code(&self) -> i32 {
+        hash(unsafe { std::mem::transmute::<&Self, *const u8>(self) })
+    }
+
     /// Returns the length of the `ArrayRef` instance.
     pub fn len(&self) -> usize {
         // SAFETY: It is safe to dereference the ptr because it is impossible to
@@ -185,6 +195,15 @@ impl Debug for ArrayRef {
             debug_tuple.finish()
         }
     }
+}
+
+/// Calculate the hash of a ptr as a *mut u8
+fn hash(ptr: *const u8) -> i32 {
+    let data = ptr as u64;
+    let hash = data >> 32 ^ (data);
+    let hash = (hash & ((1 << 30) - 1)) as u32;
+
+    unsafe { std::mem::transmute(hash) }
 }
 
 #[cfg(test)]

@@ -6,6 +6,7 @@ use crate::{
 };
 
 pub(crate) const GET_CLASS_SIG: &str = "getClass()Ljava/lang/Class;";
+pub(crate) const HASH_CODE_SIG: &str = "hashCode()I";
 
 pub(crate) fn jvm_get_class(
     vm: &mut VM,
@@ -14,4 +15,12 @@ pub(crate) fn jvm_get_class(
 ) -> Result<Option<Value>> {
     let class_obj = vm.get_class_obj(this.unwrap()).unwrap();
     Ok(Some(Value::new_object(class_obj)))
+}
+
+pub(crate) fn jvm_hash_code(
+    _: &mut VM,
+    this: Option<ObjRef>,
+    _: Vec<Value>,
+) -> Result<Option<Value>> {
+    Ok(Some(Value::Int(this.unwrap().hash_code())))
 }

@@ -16,11 +16,16 @@ use crate::{
     vm::VM,
 };
 
-const INITIAL_NATIVE_METHODS: [(&str, &str, NativeMethod); 6] = [
+const INITIAL_NATIVE_METHODS: [(&str, &str, NativeMethod); 7] = [
     (
         JAVA_LANG_OBJECT,
         java_object::GET_CLASS_SIG,
         java_object::jvm_get_class,
+    ),
+    (
+        JAVA_LANG_OBJECT,
+        java_object::HASH_CODE_SIG,
+        java_object::jvm_hash_code,
     ),
     (
         JAVA_LANG_CLASS,
