@@ -223,9 +223,9 @@ impl VM {
                 Instruction::Dup2 => todo!(),
                 Instruction::Dup2X1 => todo!(),
                 Instruction::Dup2X2 => todo!(),
-                Instruction::F2D => todo!(),
-                Instruction::F2I => todo!(),
-                Instruction::F2L => todo!(),
+                Instruction::F2D => self.f2d()?,
+                Instruction::F2I => self.f2i()?,
+                Instruction::F2L => self.f2l()?,
                 Instruction::FAdd => self.fadd()?,
                 Instruction::FaLoad => todo!(),
                 Instruction::FaStore => todo!(),
@@ -694,7 +694,39 @@ impl VM {
     fn dup(&mut self) -> Result<()> {
         let frame = self.frame_mut();
         let value = frame.clone_top();
+        if matches!(value, (Value::Double(_) | Value::Long(_))) {
+            todo!("Handle this before it becomes a bug!");
+        }
         Ok(frame.push(value))
+    }
+
+    /// Executes the `Instruction::F2D` instruction
+    fn f2d(&mut self) -> Result<()> {
+        let frame = self.frame_mut();
+        let Value::Float(value) = frame.pop() else {
+            bail!("Expected float for value in f2d.");
+        };
+        frame.push(Value::Double(value as f64));
+        Ok(frame.push(Value::Double(value as f64)))
+    }
+
+    /// Executes the `Instruction::F2I instruction
+    fn f2i(&mut self) -> Result<()> {
+        let frame = self.frame_mut();
+        let Value::Float(value) = frame.pop() else {
+            bail!("Expected float for value in f2i.");
+        };
+        Ok(frame.push(Value::Int(value as i32)))
+    }
+
+    /// Executes the `Instruction::F2L instruction
+    fn f2l(&mut self) -> Result<()> {
+        let frame = self.frame_mut();
+        let Value::Float(value) = frame.pop() else {
+            bail!("Expected float for value in f2i.");
+        };
+        frame.push(Value::Long(value as i64));
+        Ok(frame.push(Value::Long(value as i64)))
     }
 
     /// Executes the `Instruction::FAdd` instruction.
