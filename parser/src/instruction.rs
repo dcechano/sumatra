@@ -130,10 +130,15 @@ pub enum Instruction {
     FRem,
     /// Return float from current java method
     FReturn,
+    /// Store float into local variable
     FStore(u8),
+    /// Store float into local at index 0
     FStore0,
+    /// Store float into local at index 1
     FStore1,
+    /// Store float into local at index 2
     FStore2,
+    /// Store float into local at index 3
     FStore3,
     FSub,
     /// get field from obj and add to stack,
