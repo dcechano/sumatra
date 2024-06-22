@@ -240,7 +240,7 @@ impl VM {
                 Instruction::FLoad1 => self.fload_n(1)?,
                 Instruction::FLoad2 => self.fload_n(2)?,
                 Instruction::FLoad3 => self.fload_n(3)?,
-                Instruction::FMul => todo!(),
+                Instruction::FMul => self.fmul()?,
                 Instruction::FNeg => todo!(),
                 Instruction::FRem => todo!(),
                 Instruction::FReturn => return Ok(Some(self.return_val())),
@@ -745,6 +745,24 @@ impl VM {
             bail!("Expected float in fload_n");
         };
         Ok(frame.push(Value::Float(float)))
+    }
+
+    /// Executes the `Instruction::FMul` instruction.
+    fn fmul(&mut self) -> Result<()> {
+        let frame = self.frame_mut();
+        let Value::Float(value2) = frame.pop() else {
+            bail!("Expected float for value2 in fmul.");
+        };
+        let Value::Float(value1) = frame.pop() else {
+            bail!("Expected float for value1 in fmul.");
+        };
+
+        let result = value2 * value1;
+        if !result.is_nan() && result < f32::EPSILON {
+            Ok(frame.push(Value::Float(0_f32)))
+        } else {
+            Ok(frame.push(Value::Float(result)))
+        }
     }
 
     /// Executes the `Instruction::GetField` instruction.
