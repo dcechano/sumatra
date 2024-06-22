@@ -265,7 +265,7 @@ impl VM {
                 Instruction::I2S => self.i2s()?,
                 Instruction::IAdd => self.iadd()?,
                 Instruction::IaLoad => todo!(),
-                Instruction::IAnd => todo!(),
+                Instruction::IAnd => self.iand()?,
                 Instruction::IaStore => self.iastore()?,
                 Instruction::IConstM1 => self.iconst_n(-1),
                 Instruction::IConst0 => self.iconst_n(0),
@@ -921,6 +921,18 @@ impl VM {
         };
         let result = Wrapping::<i32>(value1) + Wrapping::<i32>(value2);
         Ok(frame.push(Value::Int(result.0)))
+    }
+
+    /// Executes the `Instruction::IAnd` instruction.
+    fn iand(&mut self) -> Result<()> {
+        let frame = self.frame_mut();
+        let Value::Int(value2) = frame.pop() else {
+            bail!("Expected int for value2 in iand.");
+        };
+        let Value::Int(value1) = frame.pop() else {
+            bail!("Expected int for value1 in iand.");
+        };
+        Ok(frame.push(Value::Int(value2 & value1)))
     }
 
     /// Executes the `Instruction::IaStore` instruction.
