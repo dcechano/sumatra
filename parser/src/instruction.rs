@@ -102,9 +102,13 @@ pub enum Instruction {
     Dup2,
     Dup2X1,
     Dup2X2,
+    /// Convert a float to a double
     F2D,
+    /// Convert a float to an int
     F2I,
+    /// Convert a float to a long
     F2L,
+    /// Add two floats
     FAdd,
     FaLoad,
     FaStore,
