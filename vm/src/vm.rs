@@ -839,7 +839,7 @@ impl VM {
         let Value::Int(int) = self.frame_mut().pop() else {
             bail!("Expected int in i2d.");
         };
-
+        self.frame_mut().push(Value::Double(int as f64));
         Ok(self.frame_mut().push(Value::Double(int as f64)))
     }
 
@@ -857,7 +857,7 @@ impl VM {
         let Value::Int(int) = self.frame_mut().pop() else {
             bail!("Expected int in i2l.");
         };
-
+        self.frame_mut().push(Value::Long(int as i64));
         Ok(self.frame_mut().push(Value::Long(int as i64)))
     }
 
