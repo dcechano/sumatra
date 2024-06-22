@@ -244,11 +244,11 @@ impl VM {
                 Instruction::FNeg => todo!(),
                 Instruction::FRem => todo!(),
                 Instruction::FReturn => return Ok(Some(self.return_val())),
-                Instruction::FStore(_) => todo!(),
-                Instruction::FStore0 => todo!(),
-                Instruction::FStore1 => todo!(),
-                Instruction::FStore2 => todo!(),
-                Instruction::FStore3 => todo!(),
+                Instruction::FStore(index) => self.fstore_n(*index as usize)?,
+                Instruction::FStore0 => self.fstore_n(0)?,
+                Instruction::FStore1 => self.fstore_n(1)?,
+                Instruction::FStore2 => self.fstore_n(2)?,
+                Instruction::FStore3 => self.fstore_n(3)?,
                 Instruction::FSub => todo!(),
                 Instruction::GetField(field_index) => self.get_field(*field_index as usize)?,
                 Instruction::GetStatic(index) => self.get_static(*index)?,
@@ -763,6 +763,14 @@ impl VM {
         } else {
             Ok(frame.push(Value::Float(result)))
         }
+    }
+
+    /// Executes the `Instruction::FStore<n>` instruction.
+    fn fstore_n(&mut self, index: usize) -> Result<()> {
+        let Value::Float(value) = self.frame_mut().pop() else {
+            bail!("Expected float for value in fstore_n.");
+        };
+        self.frame_mut().insert_local(index, Value::Float(value))
     }
 
     /// Executes the `Instruction::GetField` instruction.
