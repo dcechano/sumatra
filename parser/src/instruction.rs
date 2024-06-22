@@ -124,6 +124,7 @@ pub enum Instruction {
     FLoad2,
     /// Loads float local at index 3
     FLoad3,
+    /// Multiply two floats
     FMul,
     FNeg,
     FRem,
