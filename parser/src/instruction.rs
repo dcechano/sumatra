@@ -169,6 +169,7 @@ pub enum Instruction {
     /// Add ints
     IAdd,
     IaLoad,
+    /// Bitwise AND two ints
     IAnd,
     /// Store into int array.
     IaStore,
