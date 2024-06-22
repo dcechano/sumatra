@@ -171,15 +171,15 @@ impl VM {
                 Instruction::AaLoad => self.aaload()?,
                 Instruction::AaStore => todo!(),
                 Instruction::AConstNull => self.frame_mut().stack.push(Value::Null),
-                Instruction::ALoad(index) => self.a_load(*index as usize)?,
+                Instruction::ALoad(index) => self.a_load(*index)?,
                 Instruction::ALoad0 => self.a_load(0)?,
                 Instruction::ALoad1 => self.a_load(1)?,
                 Instruction::ALoad2 => self.a_load(2)?,
                 Instruction::ALoad3 => self.a_load(3)?,
-                Instruction::ANewArray(class_index) => self.anew_array(*class_index as usize)?,
+                Instruction::ANewArray(class_index) => self.anew_array(*class_index)?,
                 Instruction::AReturn => return Ok(Some(self.return_val())),
                 Instruction::ArrayLength => self.array_length()?,
-                Instruction::AStore(index) => self.a_store_n(*index as usize)?,
+                Instruction::AStore(index) => self.a_store_n(*index)?,
                 Instruction::AStore0 => self.a_store_n(0)?,
                 Instruction::AStore1 => self.a_store_n(1)?,
                 Instruction::AStore2 => self.a_store_n(2)?,
@@ -190,7 +190,7 @@ impl VM {
                 Instruction::BiPush(byte) => self.frame_mut().stack.push(Value::Int(*byte as i32)),
                 Instruction::CaLoad => self.caload()?,
                 Instruction::CaStore => self.castore()?,
-                Instruction::Checkcast(index) => self.check_cast(*index as usize)?,
+                Instruction::Checkcast(index) => self.check_cast(*index)?,
                 Instruction::D2F => todo!(),
                 Instruction::D2I => todo!(),
                 Instruction::D2L => todo!(),
@@ -208,7 +208,7 @@ impl VM {
                     self.frame_mut().push(Value::Double(1f64));
                 }
                 Instruction::DDiv => todo!(),
-                Instruction::DLoad(local_index) => self.dload_n(*local_index as usize)?,
+                Instruction::DLoad(local_index) => self.dload_n(*local_index)?,
                 Instruction::DLoad0 => self.dload_n(0)?,
                 Instruction::DLoad1 => self.dload_n(1)?,
                 Instruction::DLoad2 => self.dload_n(2)?,
@@ -217,7 +217,7 @@ impl VM {
                 Instruction::DNeg => todo!(),
                 Instruction::DRem => todo!(),
                 Instruction::DReturn => return Ok(Some(self.return_val())),
-                Instruction::DStore(local_index) => self.dstore_n(*local_index as usize)?,
+                Instruction::DStore(local_index) => self.dstore_n(*local_index)?,
                 Instruction::DStore0 => self.dstore_n(0)?,
                 Instruction::DStore1 => self.dstore_n(1)?,
                 Instruction::DStore2 => self.dstore_n(2)?,
@@ -241,7 +241,7 @@ impl VM {
                 Instruction::FConst1 => self.frame_mut().push(Value::Float(1f32)),
                 Instruction::FConst2 => self.frame_mut().push(Value::Float(2f32)),
                 Instruction::FDiv => todo!(),
-                Instruction::FLoad(index) => self.fload_n(*index as usize)?,
+                Instruction::FLoad(index) => self.fload_n(*index)?,
                 Instruction::FLoad0 => self.fload_n(0)?,
                 Instruction::FLoad1 => self.fload_n(1)?,
                 Instruction::FLoad2 => self.fload_n(2)?,
@@ -250,13 +250,13 @@ impl VM {
                 Instruction::FNeg => todo!(),
                 Instruction::FRem => todo!(),
                 Instruction::FReturn => return Ok(Some(self.return_val())),
-                Instruction::FStore(index) => self.fstore_n(*index as usize)?,
+                Instruction::FStore(index) => self.fstore_n(*index)?,
                 Instruction::FStore0 => self.fstore_n(0)?,
                 Instruction::FStore1 => self.fstore_n(1)?,
                 Instruction::FStore2 => self.fstore_n(2)?,
                 Instruction::FStore3 => self.fstore_n(3)?,
                 Instruction::FSub => todo!(),
-                Instruction::GetField(field_index) => self.get_field(*field_index as usize)?,
+                Instruction::GetField(field_index) => self.get_field(*field_index)?,
                 Instruction::GetStatic(index) => self.get_static(*index)?,
                 Instruction::GoTo(instr) => {
                     self.frame_mut().pc = *instr;
@@ -361,19 +361,19 @@ impl VM {
                         continue;
                     }
                 }
-                Instruction::Iinc(index, inc) => self.iinc(*index as usize, *inc as i32),
-                Instruction::ILoad(local_index) => self.iload_n(*local_index as usize)?,
+                Instruction::Iinc(index, inc) => self.iinc(*index, *inc as i32),
+                Instruction::ILoad(local_index) => self.iload_n(*local_index)?,
                 Instruction::ILoad0 => self.iload_n(0)?,
                 Instruction::ILoad1 => self.iload_n(1)?,
                 Instruction::ILoad2 => self.iload_n(2)?,
                 Instruction::ILoad3 => self.iload_n(3)?,
                 Instruction::IMul => todo!(),
                 Instruction::INeg => todo!(),
-                Instruction::InstanceOf(index) => self.instance_of(*index as usize)?,
+                Instruction::InstanceOf(index) => self.instance_of(*index)?,
                 Instruction::InvokeDynamic(index, _, _) => todo!(),
                 Instruction::InvokeInterface(_, _, _) => todo!(),
                 Instruction::InvokeSpecial(method_index) => {
-                    if let Some(value) = self.invoke_special(*method_index as usize)? {
+                    if let Some(value) = self.invoke_special(*method_index)? {
                         if let Value::Double(_) | Value::Long(_) = value {
                             self.frame_mut().stack.push(value.clone());
                         }
@@ -381,7 +381,7 @@ impl VM {
                     }
                 }
                 Instruction::InvokeStatic(method_index) => {
-                    if let Some(value) = self.invoke_static(*method_index as usize)? {
+                    if let Some(value) = self.invoke_static(*method_index)? {
                         if let Value::Double(_) | Value::Long(_) = value {
                             self.frame_mut().stack.push(value.clone());
                         }
@@ -389,7 +389,7 @@ impl VM {
                     }
                 }
                 Instruction::InvokeVirtual(method_index) => {
-                    if let Some(value) = self.invoke_virtual(method_index)? {
+                    if let Some(value) = self.invoke_virtual(*method_index)? {
                         if let Value::Double(_) | Value::Long(_) = value {
                             self.frame_mut().stack.push(value.clone());
                         }
@@ -401,7 +401,7 @@ impl VM {
                 Instruction::IReturn => return Ok(Some(self.return_val())),
                 Instruction::IShL => todo!(),
                 Instruction::IShR => todo!(),
-                Instruction::IStore(local_index) => self.istore_n(*local_index as usize)?,
+                Instruction::IStore(local_index) => self.istore_n(*local_index)?,
                 Instruction::IStore0 => self.istore_n(0)?,
                 Instruction::IStore1 => self.istore_n(1)?,
                 Instruction::IStore2 => self.istore_n(2)?,
@@ -421,9 +421,9 @@ impl VM {
                 Instruction::Lcmp => todo!(),
                 Instruction::LConst0 => todo!(),
                 Instruction::LConst1 => todo!(),
-                Instruction::Ldc(index) => self.load_const(index)?,
-                Instruction::LdcW(index) => self.load_const(index)?,
-                Instruction::Ldc2W(index) => self.load_const2(index)?,
+                Instruction::Ldc(index) => self.load_const(*index)?,
+                Instruction::LdcW(index) => self.load_const(*index)?,
+                Instruction::Ldc2W(index) => self.load_const2(*index)?,
                 Instruction::LDiv => todo!(),
                 Instruction::LLoad(_) => todo!(),
                 Instruction::LLoad0 => todo!(),
@@ -449,13 +449,13 @@ impl VM {
                 Instruction::MonitorEnter => self.monitor_enter()?,
                 Instruction::MonitorExit => self.monitor_exit()?,
                 Instruction::MultiaNewArray(_, _) => todo!(),
-                Instruction::New(class_index) => self.new_obj(*class_index as usize)?,
+                Instruction::New(class_index) => self.new_obj(*class_index)?,
                 Instruction::NewArray(array_type) => self.new_array(array_type.clone())?,
                 Instruction::Nop => todo!(),
                 Instruction::Pop => self.pop(),
                 Instruction::Pop2 => self.pop2()?,
-                Instruction::PutField(field_index) => self.put_field(*field_index as usize)?,
-                Instruction::PutStatic(field_index) => self.put_static(*field_index as usize)?,
+                Instruction::PutField(field_index) => self.put_field(*field_index)?,
+                Instruction::PutStatic(field_index) => self.put_static(*field_index)?,
                 Instruction::Ret(_) => todo!(),
                 Instruction::Return => break,
                 Instruction::SaLoad => todo!(),
@@ -1183,12 +1183,12 @@ impl VM {
 
     /// Executed the `Instruction::InvokeVirtual` instruction. `method_index` is
     /// the index to the `Constant::MethodRef` in the runtime constant pool.
-    fn invoke_virtual(&mut self, method_index: &usize) -> Result<Option<Value>> {
+    fn invoke_virtual(&mut self, method_index: usize) -> Result<Option<Value>> {
         let frame = self.frame();
         let Constant::MethodRef {
             class_index,
             name_and_type_index,
-        } = frame.cp.get(*method_index).unwrap()
+        } = frame.cp.get(method_index).unwrap()
         else {
             bail!("Expected Constant::MethodRef in invoke_virtual.");
         };
@@ -1295,10 +1295,10 @@ impl VM {
 
     /// Executes the `Instruction::Ldc`, and `Instruction::LdcW` instructions.
     /// `index` is the index of the constant in the runtime constant pool.
-    fn load_const(&mut self, index: &usize) -> Result<()> {
+    fn load_const(&mut self, index: usize) -> Result<()> {
         let frame = self.frame_mut();
         let cp = frame.cp;
-        let constant = cp.get(*index).unwrap();
+        let constant = cp.get(index).unwrap();
         let value = match constant {
             // Only these Constants are considered to be loadable:
             //https://docs.oracle.com/javase/specs/jvms/se21/html/jvms-4.html#jvms-4.4-310
@@ -1346,10 +1346,10 @@ impl VM {
     /// Executes the `Instruction::Ldc2W` instruction.
     /// `index` is the index of the Java long or Java double
     /// in the runtime constant pool.
-    fn load_const2(&mut self, index: &usize) -> Result<()> {
+    fn load_const2(&mut self, index: usize) -> Result<()> {
         let frame = self.frame_mut();
         let cp = frame.cp;
-        let constant = cp.get(*index).unwrap();
+        let constant = cp.get(index).unwrap();
         let value = match constant {
             Constant::Long(l) => Value::Long(*l),
             Constant::Double(d) => Value::Double(*d),
@@ -1432,7 +1432,7 @@ impl VM {
             bail!("Expected a ref of RefType::Object for put_field instruction.")
         };
 
-        let (f_name, _) = self.unpack_f_name(class_index, name_and_type_index)?;
+        let (f_name, _) = self.unpack_f_name(*class_index, *name_and_type_index)?;
         obj.set_field(&f_name, value)?;
         Ok(())
     }
@@ -1448,7 +1448,7 @@ impl VM {
         else {
             bail!("Expected Constant::FieldRef for a put_static instruction.");
         };
-        let (f_name, mut data) = self.unpack_f_name(class_index, name_and_type_index)?;
+        let (f_name, mut data) = self.unpack_f_name(*class_index, *name_and_type_index)?;
         data.set_field(&f_name, self.frame_mut().pop())?;
         Ok(())
     }
@@ -1908,10 +1908,10 @@ impl VM {
     /// is to avoid running afoul of the Rust aliasing rules.
     fn unpack_f_name(
         &mut self,
-        class_index: &usize,
-        name_and_type: &usize,
+        class_index: usize,
+        name_and_type: usize,
     ) -> Result<(String, StaticData)> {
-        let (name_index, _, data) = self.unpack(*class_index, *name_and_type)?;
+        let (name_index, _, data) = self.unpack(class_index, name_and_type)?;
         let f_name = self.frame().cp.get_utf8(name_index)?.into();
         Ok((f_name, data))
     }
