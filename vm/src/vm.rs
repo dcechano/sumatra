@@ -723,7 +723,7 @@ impl VM {
     fn f2l(&mut self) -> Result<()> {
         let frame = self.frame_mut();
         let Value::Float(value) = frame.pop() else {
-            bail!("Expected float for value in f2i.");
+            bail!("Expected float for value in f2l.");
         };
         frame.push(Value::Long(value as i64));
         Ok(frame.push(Value::Long(value as i64)))
