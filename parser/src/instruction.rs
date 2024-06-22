@@ -19,7 +19,7 @@ pub enum Instruction {
     /// Push null
     AConstNull,
     /// Load reference from local variable
-    ALoad(u8),
+    ALoad(usize),
     /// Load reference from local variable
     ALoad0,
     /// Load reference from local variable
@@ -29,13 +29,13 @@ pub enum Instruction {
     /// Load reference from local variable
     ALoad3,
     /// Create new array of reference
-    ANewArray(u16),
+    ANewArray(usize),
     /// Return reference on top of stack.
     AReturn,
     /// Put array length on top of stack
     ArrayLength,
     /// Store reference into local variable
-    AStore(u8),
+    AStore(usize),
     /// Store reference into local variable
     AStore0,
     /// Store reference into local variable
@@ -55,7 +55,7 @@ pub enum Instruction {
     /// Store char into char array
     CaStore,
     /// Check whether object is of a given type
-    Checkcast(u16),
+    Checkcast(usize),
     D2F,
     D2I,
     D2L,
@@ -70,7 +70,7 @@ pub enum Instruction {
     DConst1,
     DDiv,
     /// Load double from local variable
-    DLoad(u8),
+    DLoad(usize),
     /// Load double from local variable 0
     DLoad0,
     /// Load double from local variable 1
@@ -85,7 +85,7 @@ pub enum Instruction {
     /// Return double from current java method
     DReturn,
     /// Store double into local variable n and n + 1.
-    DStore(u8),
+    DStore(usize),
     /// Store double into local variable 0 and 1.
     DStore0,
     /// Store double into local variable 1 and 2.
@@ -119,7 +119,7 @@ pub enum Instruction {
     FConst2,
     FDiv,
     /// Loads float from local at provided index
-    FLoad(u8),
+    FLoad(usize),
     /// Loads float local at index 0
     FLoad0,
     /// Loads float local at index 1
@@ -135,7 +135,7 @@ pub enum Instruction {
     /// Return float from current java method
     FReturn,
     /// Store float into local variable
-    FStore(u8),
+    FStore(usize),
     /// Store float into local at index 0
     FStore0,
     /// Store float into local at index 1
@@ -147,7 +147,7 @@ pub enum Instruction {
     FSub,
     /// get field from obj and add to stack,
     /// where the operand is index of class in the constant pool.
-    GetField(u16),
+    GetField(usize),
     /// get `static` field from class and add to stack,
     /// where the operand is index of class in the constant pool.
     GetStatic(usize),
@@ -213,9 +213,9 @@ pub enum Instruction {
     IfNonNull(usize),
     IfNull(usize),
     /// Increment local variable at first index by second argument
-    Iinc(u8, i8), // TODO double check the spec on this one. It was confusing.
+    Iinc(usize, i8), // TODO double check the spec on this one. It was confusing.
     /// load local int variable at supplied index and push to operand stack.
-    ILoad(u8),
+    ILoad(usize),
     /// load local int variable at index 0 and push to operand stack.
     ILoad0,
     /// load local int variable at index 1 and push to operand stack.
@@ -227,16 +227,16 @@ pub enum Instruction {
     IMul,
     INeg,
     /// Determine a reference is of a given type.
-    InstanceOf(u16),
-    InvokeDynamic(u16, u8, u8), // last 2 bytes are always 0
-    InvokeInterface(u16, u8, u8),
+    InstanceOf(usize),
+    InvokeDynamic(usize, u8, u8), // last 2 bytes are always 0
+    InvokeInterface(usize, u8, u8),
     /// Invoke instance method; direct invocation of instance initialization
     /// methods and methods of the current class and its supertypes
-    InvokeSpecial(u16),
+    InvokeSpecial(usize),
     /// Invoke a class (static) method.
     /// The provided u16 is an index to the run-time constant pool where the
     /// entry is a symbolic reference to a method or interface method.
-    InvokeStatic(u16),
+    InvokeStatic(usize),
     /// Invoke instance method; dispatch based on class
     InvokeVirtual(usize),
     IOr,
@@ -248,7 +248,7 @@ pub enum Instruction {
     IShL,
     IShR,
     /// Store int into local variable
-    IStore(u8),
+    IStore(usize),
     /// Store int into local variable 0.
     IStore0,
     /// Store int into local variable 1.
@@ -263,8 +263,8 @@ pub enum Instruction {
     IuShR,
     /// Calculate the XOR of 2 ints
     IxOr,
-    Jsr(i16),
-    JsrW(i32),
+    Jsr(isize),
+    JsrW(isize),
     L2D,
     L2F,
     L2I,
@@ -282,7 +282,7 @@ pub enum Instruction {
     /// Push long or double from run-time constant pool (wide index).
     Ldc2W(usize),
     LDiv,
-    LLoad(u8),
+    LLoad(usize),
     LLoad0,
     LLoad1,
     LLoad2,
@@ -299,7 +299,7 @@ pub enum Instruction {
     LReturn,
     LShL,
     LShR,
-    LStore(u8),
+    LStore(usize),
     LStore0,
     LStore1,
     LStore2,
@@ -311,9 +311,9 @@ pub enum Instruction {
     MonitorEnter,
     /// Exit monitor for object
     MonitorExit,
-    MultiaNewArray(u16, u8),
+    MultiaNewArray(usize, u8),
     /// Create new obj class at provided constant pool index
-    New(u16),
+    New(usize),
     /// Construct a new array for the provided type.
     NewArray(ArrayType),
     Nop,
@@ -323,12 +323,12 @@ pub enum Instruction {
     /// Pops one or two values from the operand stack.
     Pop2,
     /// Set field in object
-    PutField(u16),
+    PutField(usize),
     /// Assign value on top of operand stack to the
     /// class field found in the runtime constant pool
     /// at the given index.
-    PutStatic(u16),
-    Ret(u8),
+    PutStatic(usize),
+    Ret(usize),
     /// Used to return from a `void` method.
     Return,
     SaLoad,
@@ -386,15 +386,15 @@ impl Instruction {
                 50 => AaLoad,
                 83 => AaStore,
                 1 => AConstNull,
-                25 => ALoad(cursor.read_u8()?),
+                25 => ALoad(cursor.read_u8()? as usize),
                 42 => ALoad0,
                 43 => ALoad1,
                 44 => ALoad2,
                 45 => ALoad3,
-                189 => ANewArray(cursor.read_u16()?),
+                189 => ANewArray(cursor.read_u16()? as usize),
                 176 => AReturn,
                 190 => ArrayLength,
-                58 => AStore(cursor.read_u8()?),
+                58 => AStore(cursor.read_u8()? as usize),
                 75 => AStore0,
                 76 => AStore1,
                 77 => AStore2,
@@ -405,7 +405,7 @@ impl Instruction {
                 16 => BiPush(cursor.read_i8()?),
                 52 => CaLoad,
                 85 => CaStore,
-                192 => Checkcast(cursor.read_u16()?),
+                192 => Checkcast(cursor.read_u16()? as usize),
                 144 => D2F,
                 142 => D2I,
                 143 => D2L,
@@ -417,7 +417,7 @@ impl Instruction {
                 14 => DConst0,
                 15 => DConst1,
                 111 => DDiv,
-                24 => DLoad(cursor.read_u8()?),
+                24 => DLoad(cursor.read_u8()? as usize),
                 38 => DLoad0,
                 39 => DLoad1,
                 40 => DLoad2,
@@ -426,7 +426,7 @@ impl Instruction {
                 119 => DNeg,
                 115 => DRem,
                 175 => DReturn,
-                57 => DStore(cursor.read_u8()?),
+                57 => DStore(cursor.read_u8()? as usize),
                 71 => DStore0,
                 72 => DStore1,
                 73 => DStore2,
@@ -450,7 +450,7 @@ impl Instruction {
                 12 => FConst1,
                 13 => FConst2,
                 110 => FDiv,
-                23 => FLoad(cursor.read_u8()?),
+                23 => FLoad(cursor.read_u8()? as usize),
                 34 => FLoad0,
                 35 => FLoad1,
                 36 => FLoad2,
@@ -459,13 +459,13 @@ impl Instruction {
                 118 => FNeg,
                 114 => FRem,
                 174 => FReturn,
-                56 => FStore(cursor.read_u8()?),
+                56 => FStore(cursor.read_u8()? as usize),
                 67 => FStore0,
                 68 => FStore1,
                 69 => FStore2,
                 70 => FStore3,
                 102 => FSub,
-                180 => GetField(cursor.read_u16()?),
+                180 => GetField(cursor.read_u16()? as usize),
                 178 => GetStatic(cursor.read_u16()? as usize),
                 167 => {
                     jmp_registry.push((
@@ -611,26 +611,34 @@ impl Instruction {
                     ));
                     IfNull(0)
                 }
-                132 => Iinc(cursor.read_u8()?, cursor.read_i8()?),
-                21 => ILoad(cursor.read_u8()?),
+                132 => Iinc(cursor.read_u8()? as usize, cursor.read_i8()?),
+                21 => ILoad(cursor.read_u8()? as usize),
                 26 => ILoad0,
                 27 => ILoad1,
                 28 => ILoad2,
                 29 => ILoad3,
                 104 => IMul,
                 116 => INeg,
-                193 => InstanceOf(cursor.read_u16()?),
-                186 => InvokeDynamic(cursor.read_u16()?, cursor.read_u8()?, cursor.read_u8()?),
-                185 => InvokeInterface(cursor.read_u16()?, cursor.read_u8()?, cursor.read_u8()?),
-                183 => InvokeSpecial(cursor.read_u16()?),
-                184 => InvokeStatic(cursor.read_u16()?),
+                193 => InstanceOf(cursor.read_u16()? as usize),
+                186 => InvokeDynamic(
+                    cursor.read_u16()? as usize,
+                    cursor.read_u8()?,
+                    cursor.read_u8()?,
+                ),
+                185 => InvokeInterface(
+                    cursor.read_u16()? as usize,
+                    cursor.read_u8()?,
+                    cursor.read_u8()?,
+                ),
+                183 => InvokeSpecial(cursor.read_u16()? as usize),
+                184 => InvokeStatic(cursor.read_u16()? as usize),
                 182 => InvokeVirtual(cursor.read_u16()? as usize),
                 128 => IOr,
                 112 => IRem,
                 172 => IReturn,
                 120 => IShL,
                 122 => IShR,
-                54 => IStore(cursor.read_u8()?),
+                54 => IStore(cursor.read_u8()? as usize),
                 59 => IStore0,
                 60 => IStore1,
                 61 => IStore2,
@@ -638,8 +646,8 @@ impl Instruction {
                 100 => ISub,
                 124 => IuShR,
                 130 => IxOr,
-                168 => Jsr(cursor.read_i16()?),
-                201 => JsrW(cursor.read_i32()?),
+                168 => Jsr(cursor.read_i16()? as isize),
+                201 => JsrW(cursor.read_i32()? as isize),
                 138 => L2D,
                 137 => L2F,
                 136 => L2I,
@@ -654,7 +662,7 @@ impl Instruction {
                 19 => LdcW(cursor.read_u16()? as usize),
                 20 => Ldc2W(cursor.read_u16()? as usize),
                 109 => LDiv,
-                22 => LLoad(cursor.read_u8()?),
+                22 => LLoad(cursor.read_u8()? as usize),
                 30 => LLoad0,
                 31 => LLoad1,
                 32 => LLoad2,
@@ -693,7 +701,7 @@ impl Instruction {
                 173 => LReturn,
                 121 => LShL,
                 123 => LShR,
-                55 => LStore(cursor.read_u8()?),
+                55 => LStore(cursor.read_u8()? as usize),
                 63 => LStore0,
                 64 => LStore1,
                 65 => LStore2,
@@ -703,15 +711,15 @@ impl Instruction {
                 131 => LxOr,
                 194 => MonitorEnter,
                 195 => MonitorExit,
-                197 => MultiaNewArray(cursor.read_u16()?, cursor.read_u8()?),
+                197 => MultiaNewArray(cursor.read_u16()? as usize, cursor.read_u8()?),
                 188 => NewArray(ArrayType::try_from(cursor.read_u8()?)?),
-                187 => New(cursor.read_u16()?),
+                187 => New(cursor.read_u16()? as usize),
                 0 => Nop,
                 87 => Pop,
                 88 => Pop2,
-                181 => PutField(cursor.read_u16()?),
-                179 => PutStatic(cursor.read_u16()?),
-                169 => Ret(cursor.read_u8()?),
+                181 => PutField(cursor.read_u16()? as usize),
+                179 => PutStatic(cursor.read_u16()? as usize),
+                169 => Ret(cursor.read_u8()? as usize),
                 177 => Return,
                 53 => SaLoad,
                 86 => SaStore,
