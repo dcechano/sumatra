@@ -1,7 +1,7 @@
 use anyhow::Result;
 
 use crate::{
-    data_types::{reference_types::ObjRef, value::Value},
+    data_types::{object::ObjRef, value::Value},
     vm::VM,
 };
 

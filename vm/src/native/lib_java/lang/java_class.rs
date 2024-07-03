@@ -2,7 +2,7 @@ use anyhow::Result;
 
 use crate::{
     data_types::{
-        reference_types::ObjRef,
+        object::ObjRef,
         value::{RefType, Value},
     },
     native::{

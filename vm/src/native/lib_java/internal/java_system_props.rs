@@ -1,7 +1,7 @@
 use anyhow::Result;
 
 use crate::{
-    data_types::{reference_types::ObjRef, value::Value},
+    data_types::{object::ObjRef, value::Value},
     native::{
         lib_java::JAVA_LANG_CLASS, native_identifier::NativeIdentifier, registry::NativeMethod,
     },

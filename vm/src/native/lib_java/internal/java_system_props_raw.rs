@@ -3,7 +3,7 @@ use anyhow::Result;
 use sumatra_parser::instruction::ArrayType;
 
 use crate::{
-    data_types::{reference_types::ObjRef, value::Value},
+    data_types::{object::ObjRef, value::Value},
     vm::VM,
 };
 

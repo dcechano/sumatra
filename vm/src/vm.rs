@@ -14,8 +14,9 @@ use crate::{
     class::Class,
     compare::Compare,
     data_types::{
+        array::ArrayRef,
         instance_data::InstanceData,
-        reference_types::{ArrayRef, ObjRef},
+        object::ObjRef,
         static_data::StaticData,
         value::{RefType, Value},
     },
