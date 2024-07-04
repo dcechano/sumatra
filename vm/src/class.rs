@@ -58,6 +58,29 @@ impl Class {
     /// Returns true if the class is synthetic (not declared in the source
     /// code).
     pub fn is_synthetic(&self) -> bool { self.access_flags.contains(ClassAccessFlags::SYNTHETIC) }
+
+    /// Returns the name of this class' superclass
+    pub fn superclass(&mut self) -> String {
+        let super_index = self.super_class;
+        let Constant::Class(name_index) = self.cp.get(super_index).unwrap() else {
+            panic!("Expected an Constant::Class at at superclass index.");
+        };
+        self.cp.get_utf8(*name_index).unwrap().to_string()
+    }
+
+    /// Returns the names of this class' IMMEDIATE interfaces. Does not return
+    /// interface names of this class' superclasses.
+    pub fn interfaces(&mut self) -> Vec<String> {
+        self.interfaces
+            .iter()
+            .map(|interface| {
+                let Constant::Class(name_index) = self.cp.get(*interface).unwrap() else {
+                    panic!("Expected an Constant::Class at an interface index.");
+                };
+                self.cp.get_utf8(*name_index).unwrap().to_string()
+            })
+            .collect()
+    }
 }
 
 impl From<&ClassFile> for Class {
