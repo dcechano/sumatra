@@ -17,7 +17,7 @@ use crate::{
         header::Header,
     },
     class::Class,
-    data_types::value::Value,
+    data_types::{array::ArrayComp, value::Value},
 };
 
 pub struct HeapAlloc<T: AllocType> {
@@ -221,7 +221,7 @@ impl HeapAlloc<NonStatic> {
         }
     }
 
-    pub(crate) fn new_array(length: usize, array_type: ArrayType) -> *mut HeapAlloc<NonStatic> {
+    pub(crate) fn new_array(length: usize, array_type: ArrayComp) -> *mut HeapAlloc<NonStatic> {
         if length > isize::MAX as usize {
             panic!("Attempted to initialize array with illegal length: {length}");
         }
@@ -262,7 +262,7 @@ impl HeapAlloc<NonStatic> {
         }
     }
 
-    fn default_values(length: usize, elements: *mut Value, array_type: &ArrayType) {
+    fn default_values(length: usize, elements: *mut Value, array_type: &ArrayComp) {
         let default = Value::from(array_type.clone());
         for i in 0..length {
             // SAFETY: The responsibility for length being a valid index is left to the
@@ -324,7 +324,7 @@ mod test {
     use crate::{
         alloc::oop::{HeapAlloc, NonStatic},
         class::Class,
-        data_types::value::Value,
+        data_types::{array::ArrayComp, value::Value},
     };
 
     //TODO fine for now but eventually this will have to removed and made to use
@@ -372,10 +372,10 @@ mod test {
         const NEW_ENTRY: Value = Value::Int(42);
 
         unsafe {
-            let ptr = HeapAlloc::new_array(LENGTH, ArrayType::Int);
+            let ptr = HeapAlloc::new_array(LENGTH, ArrayComp::Int);
             let (length, array_type) = (*ptr).header.array_data.as_ref().unwrap();
             assert_eq!(*length, LENGTH);
-            assert_eq!(*array_type, ArrayType::Int);
+            assert_eq!(*array_type, ArrayComp::Int);
             for i in 0..LENGTH {
                 assert_eq!((*ptr).elements.add(i).as_ref().unwrap(), &Value::Int(0));
             }

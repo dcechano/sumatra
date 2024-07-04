@@ -14,7 +14,7 @@ use crate::{
     class::Class,
     compare::Compare,
     data_types::{
-        array::ArrayRef,
+        array::{ArrayComp, ArrayRef},
         instance_data::InstanceData,
         object::ObjRef,
         static_data::StaticData,
@@ -451,7 +451,9 @@ impl VM {
                 Instruction::MonitorExit => self.monitor_exit()?,
                 Instruction::MultiaNewArray(_, _) => todo!(),
                 Instruction::New(class_index) => self.new_obj(*class_index)?,
-                Instruction::NewArray(array_type) => self.new_array(array_type.clone())?,
+                Instruction::NewArray(array_type) => {
+                    self.new_array(ArrayComp::try_from(*array_type)?)?
+                }
                 Instruction::Nop => todo!(),
                 Instruction::Pop => self.pop(),
                 Instruction::Pop2 => self.pop2()?,
@@ -522,7 +524,7 @@ impl VM {
         };
         let class_name = frame.cp.get_utf8(*name_index)?;
         let _ = self.load_class(class_name)?;
-        self.new_array(ArrayType::Ref)
+        self.new_array(ArrayComp::Ref(class_name.to_string()))
     }
 
     /// Executes the `Instruction::ArrayLength` instruction.
@@ -586,9 +588,9 @@ impl VM {
         let Value::Ref(RefType::Array(mut array_ref)) = frame.pop() else {
             bail!("Expected RefType::Array for the objref in bastore.");
         };
-        let value = match array_ref.array_type() {
-            ArrayType::Boolean => Value::Byte((value & 1) as i8),
-            ArrayType::Byte => Value::Byte(value as i8),
+        let value = match array_ref.array_comp() {
+            ArrayComp::Boolean => Value::Byte((value & 1) as i8),
+            ArrayComp::Byte => Value::Byte(value as i8),
             array_type => bail!("Invalid array type: {array_type:?} in bastore."),
         };
         Ok(array_ref.insert(index as usize, value))
@@ -621,7 +623,7 @@ impl VM {
         let Value::Ref(RefType::Array(mut array_ref)) = frame.pop() else {
             bail!("Expected RefType::Array for the objref in castore.");
         };
-        let ArrayType::Char = array_ref.array_type() else {
+        let ArrayComp::Char = array_ref.array_comp() else {
             bail!("Expected char for array type in castore.");
         };
         Ok(array_ref.insert(index as usize, Value::Byte(index as i8)))
@@ -952,7 +954,7 @@ impl VM {
         };
         match frame.pop() {
             Value::Ref(RefType::Array(mut array)) => {
-                if array.array_type() != ArrayType::Int {
+                if *array.array_comp() != ArrayComp::Int {
                     bail!("Expected ArrayType::Int for iastore instruction.");
                 }
                 Ok(array.insert(index as usize, value))
@@ -1376,13 +1378,13 @@ impl VM {
 
     /// Executes the `Instruction::NewArray` instruction. Length
     /// is assumed to be immediately on the operand stack.
-    fn new_array(&mut self, array_type: ArrayType) -> Result<()> {
+    fn new_array(&mut self, array_comp: ArrayComp) -> Result<()> {
         let frame = self.frame_mut();
         let Value::Int(array_len) = frame.pop() else {
             bail!("Expected Value::Int when accessing array length for newarray instruction.");
         };
         let array_len = array_len as usize;
-        let array = self.heap.new_array(array_len, array_type);
+        let array = self.heap.new_array(array_len, array_comp);
         Ok(self.frame_mut().push(Value::new_array(array)))
     }
 
@@ -1492,7 +1494,7 @@ impl VM {
     /// This method works by calling the java.lang.String constructor with a
     /// char array as an argument.
     pub fn create_java_string(&mut self, string: &str, intern: bool) -> ObjRef {
-        let mut char_array = ArrayRef::new(string.len(), ArrayType::Char);
+        let mut char_array = ArrayRef::new(string.len(), ArrayComp::Char);
         string
             .encode_utf16()
             .enumerate()

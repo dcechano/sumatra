@@ -2,7 +2,10 @@ use std::cmp::Ordering;
 
 use sumatra_parser::instruction::ArrayType;
 
-use crate::data_types::{array::ArrayRef, object::ObjRef};
+use crate::data_types::{
+    array::{ArrayComp, ArrayRef},
+    object::ObjRef,
+};
 
 #[derive(Default, Debug, Clone)]
 pub enum Value {
@@ -236,21 +239,18 @@ pub enum RefType {
     Array(ArrayRef),
 }
 
-impl From<ArrayType> for Value {
-    fn from(array_type: ArrayType) -> Self {
-        match array_type {
-            ArrayType::Boolean
-            | ArrayType::Char
-            | ArrayType::Short
-            | ArrayType::Byte
-            | ArrayType::Int => Value::Int(0),
-            ArrayType::Float => Value::Float(0.0),
-            ArrayType::Double => Value::Double(0.0),
-            ArrayType::Long => Value::Long(0),
-            ArrayType::Ref => Value::Null,
-            ArrayType::Dummy => {
-                panic!("Invalid ArrayType while constructing array with default values.")
-            }
+impl From<ArrayComp> for Value {
+    fn from(array_comp: ArrayComp) -> Self {
+        match array_comp {
+            ArrayComp::Boolean
+            | ArrayComp::Char
+            | ArrayComp::Short
+            | ArrayComp::Byte
+            | ArrayComp::Int => Value::Int(0),
+            ArrayComp::Float => Value::Float(0.0),
+            ArrayComp::Double => Value::Double(0.0),
+            ArrayComp::Long => Value::Long(0),
+            ArrayComp::Ref(_) => Value::Null,
         }
     }
 }

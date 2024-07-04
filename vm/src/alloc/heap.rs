@@ -1,11 +1,13 @@
 use std::collections::HashMap;
 
-use sumatra_parser::instruction::ArrayType;
-
 use crate::{
     alloc::{alloc_type::NonStatic, oop::HeapAlloc},
     class::Class,
-    data_types::{array::ArrayRef, instance_data::InstanceData, object::ObjRef},
+    data_types::{
+        array::{ArrayComp, ArrayRef},
+        instance_data::InstanceData,
+        object::ObjRef,
+    },
 };
 
 pub(crate) struct Heap {
@@ -27,8 +29,8 @@ impl Heap {
         }
     }
 
-    pub(crate) fn new_array(&mut self, length: usize, array_type: ArrayType) -> ArrayRef {
-        let array = ArrayRef::new(length, array_type);
+    pub(crate) fn new_array(&mut self, length: usize, array_comp: ArrayComp) -> ArrayRef {
+        let array = ArrayRef::new(length, array_comp);
         self.gen1.push(array.get_inner() as *mut _);
         array
     }

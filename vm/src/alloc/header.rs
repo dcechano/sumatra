@@ -3,9 +3,13 @@ use std::{
     ptr,
 };
 
-use sumatra_parser::{field::Field, instruction::ArrayType};
+use sumatra_parser::field::Field;
 
-use crate::{alloc::fields_table::FieldsTable, class::Class, data_types::value::Value};
+use crate::{
+    alloc::fields_table::FieldsTable,
+    class::Class,
+    data_types::{array::ArrayComp, value::Value},
+};
 
 const ARRAY_CLASS_NAME: &str = "java/lang/Object";
 
@@ -14,7 +18,7 @@ pub(crate) struct Header {
     pub class_id: usize,
     pub name: String,
     pub fields: FieldsTable,
-    pub array_data: Option<(usize, ArrayType)>,
+    pub array_data: Option<(usize, ArrayComp)>,
 }
 
 impl Header {
@@ -31,7 +35,7 @@ impl Header {
         }
     }
 
-    pub(crate) fn new_array(length: usize, array_type: ArrayType) -> Self {
+    pub(crate) fn new_array(length: usize, array_type: ArrayComp) -> Self {
         Self {
             class_id: 0,
             name: ARRAY_CLASS_NAME.to_string(),

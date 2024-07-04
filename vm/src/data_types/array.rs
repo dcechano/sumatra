@@ -1,8 +1,8 @@
+use anyhow::{anyhow, bail, Result};
 use std::{
     fmt::{Debug, Formatter},
     ptr,
 };
-
 use sumatra_parser::instruction::ArrayType;
 
 use crate::{
@@ -13,18 +13,18 @@ use crate::{
 #[derive(Copy, Clone, Eq, PartialEq, Ord, PartialOrd)]
 pub struct ArrayRef(*mut HeapAlloc<NonStatic>);
 
-impl ArrayRef {
+impl ArrayRef { 
     /// Create a new array from the given `ArrayType` and `length`.
-    pub fn new(length: usize, array_type: ArrayType) -> Self {
+    pub fn new(length: usize, array_type: ArrayComp) -> Self {
         Self(HeapAlloc::new_array(length, array_type))
     }
 
-    /// Returns the `ArrayType` of `ArrayRef` instance.
-    pub fn array_type(&self) -> ArrayType {
+    /// Returns the `ArrayComp` of `ArrayRef` instance.
+    pub fn array_comp(&self) -> &ArrayComp {
         // SAFETY: It is safe to dereference the ptr because it is impossible to
         // get an invalid ptr to a HeapAlloc without bypassing the APIs in oop.rs
         // which this binary does not do.
-        unsafe { (*self.0).header.array_data.unwrap().1 }
+        unsafe { &(*self.0).header.array_data.as_ref().unwrap().1 }
     }
 
     /// insert the `value` into the array at the given `index`.
@@ -92,25 +92,24 @@ impl ArrayRef {
         }
     }
 
-    /// Validate the `ArrayType` is consistent with the provided `Value`.
-    fn validate_type(value: &Value, array_type: &ArrayType) -> bool {
-        // `Value::from` cannot be used to convert the `ArrayType` to a `Value`
-        // because the `From` impl converts `ArrayType::Ref` to `Value::Null`. Which
+    /// Validate the `ArrayComp` is consistent with the provided `Value`.
+    fn validate_type(value: &Value, array_type: &ArrayComp) -> bool {
+        // `Value::from` cannot be used to convert the `ArrayComp` to a `Value`
+        // because the `From` impl converts `ArrayComp::Ref` to `Value::Null`. Which
         // would cause this function to return `false` in some cases when it should
         // otherwise return `true`.
         match array_type {
-            ArrayType::Boolean | ArrayType::Char | ArrayType::Byte => {
+            ArrayComp::Boolean | ArrayComp::Char | ArrayComp::Byte => {
                 matches!(value, Value::Byte(_))
             }
-            ArrayType::Short => matches!(value, Value::Short(_)),
-            ArrayType::Int => matches!(value, Value::Int(_)),
-            ArrayType::Float => matches!(value, Value::Float(_)),
-            ArrayType::Double => matches!(value, Value::Double(_)),
-            ArrayType::Long => matches!(value, Value::Long(_)),
-            ArrayType::Ref => matches!(value, Value::Ref(_) | Value::Null),
-            ArrayType::Dummy => {
-                panic!("Invalid ArrayType while validating against a Value.")
-            }
+            ArrayComp::Short => matches!(value, Value::Short(_)),
+            ArrayComp::Int => matches!(value, Value::Int(_)),
+            ArrayComp::Float => matches!(value, Value::Float(_)),
+            ArrayComp::Double => matches!(value, Value::Double(_)),
+            ArrayComp::Long => matches!(value, Value::Long(_)),
+            //TODO consider if the value below is correct. It does not consider the value
+            // of the string in ArrayComp::Ref
+            ArrayComp::Ref(_) => matches!(value, Value::Ref(_) | Value::Null),
         }
     }
 }
@@ -126,6 +125,39 @@ impl Debug for ArrayRef {
             }
             debug_tuple.finish()
         }
+    }
+}
+
+#[derive(Debug, Eq, PartialEq, Hash, Clone)]
+pub enum ArrayComp {
+    Byte,
+    Char,
+    Double,
+    Float,
+    Int,
+    Long,
+    Short,
+    Boolean,
+    Ref(String),
+}
+
+impl TryFrom<ArrayType> for ArrayComp {
+    type Error = anyhow::Error;
+
+    fn try_from(array_type: ArrayType) -> Result<Self> {
+        let comp = match array_type {
+            ArrayType::Boolean => ArrayComp::Boolean,
+            ArrayType::Char => ArrayComp::Char,
+            ArrayType::Float => ArrayComp::Float,
+            ArrayType::Double => ArrayComp::Double,
+            ArrayType::Byte => ArrayComp::Byte,
+            ArrayType::Short => ArrayComp::Short,
+            ArrayType::Int => ArrayComp::Short,
+            ArrayType::Long => ArrayComp::Long,
+            ArrayType::Dummy => bail!("Tried to convert from ArrayType::Dummy to ArrayComp"),
+            ArrayType::Ref => bail!("Tried to convert from ArrayType::Ref to ArrayComp::Ref(_)"),
+        };
+        Ok(comp)
     }
 }
 
