@@ -62,6 +62,10 @@ impl Class {
     /// Returns the name of this class' superclass
     pub fn superclass(&self) -> String {
         let super_index = self.super_class;
+        if super_index == 0 {
+            panic!("No superclass on java/lang/Object");
+        }
+        
         let Constant::Class(name_index) = self.cp.get(super_index).unwrap() else {
             panic!("Expected an Constant::Class at at superclass index.");
         };
