@@ -25,9 +25,10 @@ pub fn jvm_platform_properties(
     _: Option<ObjRef>,
     _: Vec<Value>,
 ) -> Result<Option<Value>> {
-    let mut string_array = vm
-        .heap()
-        .new_array(NUM_PLATFORM_PROPS, ArrayComp::Ref(STRING_CLASS.to_string()));
+    let mut string_array = vm.heap().new_array(
+        NUM_PLATFORM_PROPS,
+        ArrayComp::Class(STRING_CLASS.to_string()),
+    );
     (0..NUM_PLATFORM_PROPS).for_each(|index| {
         string_array.insert(index, Value::Null);
     });
@@ -37,7 +38,7 @@ pub fn jvm_platform_properties(
 pub fn jvm_vm_properties(vm: &mut VM, _: Option<ObjRef>, _: Vec<Value>) -> Result<Option<Value>> {
     let mut string_array = vm
         .heap()
-        .new_array(2, ArrayComp::Ref(STRING_CLASS.to_string()));
+        .new_array(2, ArrayComp::Class(STRING_CLASS.to_string()));
     string_array.insert(0, Value::Null);
     string_array.insert(1, Value::Null);
     Ok(Some(Value::new_array(string_array)))

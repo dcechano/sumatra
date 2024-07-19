@@ -1,4 +1,4 @@
-use anyhow::{anyhow, bail, Result};
+use anyhow::{bail, Result};
 use std::{
     fmt::{Debug, Formatter},
     ptr,
@@ -13,7 +13,7 @@ use crate::{
 #[derive(Copy, Clone, Eq, PartialEq, Ord, PartialOrd)]
 pub struct ArrayRef(*mut HeapAlloc<NonStatic>);
 
-impl ArrayRef { 
+impl ArrayRef {
     /// Create a new array from the given `ArrayType` and `length`.
     pub fn new(length: usize, array_type: ArrayComp) -> Self {
         Self(HeapAlloc::new_array(length, array_type))
@@ -27,20 +27,22 @@ impl ArrayRef {
         unsafe { &(*self.0).header.array_data.as_ref().unwrap().1 }
     }
 
-    /// insert the `value` into the array at the given `index`.
+    /// insert the `value` into the array at the given `index`. Does superficial
+    /// checking of the component types but for reference types the checking
+    /// should be done by the caller.
     pub fn insert(&mut self, index: usize, value: Value) {
         // SAFETY: It is safe to dereference the ptr because it is impossible to
         // get an invalid ptr to a HeapAlloc without bypassing the APIs in oop.rs
         // which this binary does not do.
-        let Some((length, array_type)) = (unsafe { (*self.0).header.array_data.as_ref() }) else {
+        let Some((length, array_comp)) = (unsafe { (*self.0).header.array_data.as_ref() }) else {
             panic!("Pointer stored in ArrayRef was not an array!");
         };
         if index >= *length {
             todo!("Throw ArrayIndexOutOfBounds Exception")
         }
 
-        if !Self::validate_type(&value, array_type) {
-            panic!("Attempted to put {value:?} into array with type: {array_type:?}");
+        if !Self::validate_comp(&value, array_comp) {
+            panic!("Attempted to put {value:?} into array with type: {array_comp:?}");
         }
 
         unsafe {
@@ -93,7 +95,8 @@ impl ArrayRef {
     }
 
     /// Validate the `ArrayComp` is consistent with the provided `Value`.
-    fn validate_type(value: &Value, array_type: &ArrayComp) -> bool {
+    /// Does not compare the classes of reference types.
+    fn validate_comp(value: &Value, array_type: &ArrayComp) -> bool {
         // `Value::from` cannot be used to convert the `ArrayComp` to a `Value`
         // because the `From` impl converts `ArrayComp::Ref` to `Value::Null`. Which
         // would cause this function to return `false` in some cases when it should
@@ -109,7 +112,9 @@ impl ArrayRef {
             ArrayComp::Long => matches!(value, Value::Long(_)),
             //TODO consider if the value below is correct. It does not consider the value
             // of the string in ArrayComp::Ref
-            ArrayComp::Ref(_) => matches!(value, Value::Ref(_) | Value::Null),
+            ArrayComp::Array(_) | ArrayComp::Class(_) => {
+                matches!(value, Value::Ref(_) | Value::Null)
+            }
         }
     }
 }
@@ -132,13 +137,14 @@ impl Debug for ArrayRef {
 pub enum ArrayComp {
     Byte,
     Char,
+    Class(String),
     Double,
     Float,
     Int,
     Long,
     Short,
     Boolean,
-    Ref(String),
+    Array(Box<ArrayComp>),
 }
 
 impl TryFrom<ArrayType> for ArrayComp {
@@ -155,7 +161,7 @@ impl TryFrom<ArrayType> for ArrayComp {
             ArrayType::Int => ArrayComp::Short,
             ArrayType::Long => ArrayComp::Long,
             ArrayType::Dummy => bail!("Tried to convert from ArrayType::Dummy to ArrayComp"),
-            ArrayType::Ref => bail!("Tried to convert from ArrayType::Ref to ArrayComp::Ref(_)"),
+            ArrayType::Ref => bail!("Tried to convert from ArrayType::Ref to ArrayComp::Array(_) or ArrayComp::Class(_)"),
         };
         Ok(comp)
     }

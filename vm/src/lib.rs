@@ -1,8 +1,8 @@
 #![allow(warnings)]
 // TODO Remove
 
-use anyhow::{Result, bail};
 use crate::{class::Class, vm::VM};
+use anyhow::{bail, Result};
 use sumatra_parser::constant::Constant;
 
 pub mod alloc;
@@ -15,15 +15,19 @@ mod native;
 pub mod vm;
 
 /// Checks if `superclass` is the superclass of `child_class`.
-/// By the logic of this function a class is the superclass of itself. Will return `Ok(true)`
-/// if `child_class` == `superclass`.
-fn is_subclass(vm: &mut VM, child_class: &'static Class, superclass: &'static Class) -> Result<bool> {
+/// By the logic of this function a class is the superclass of itself. Will
+/// return `Ok(true)` if `child_class` == `superclass`.
+fn is_subclass(
+    vm: &mut VM,
+    child_class: &'static Class,
+    superclass: &'static Class,
+) -> Result<bool> {
     if "java/lang/Object" == superclass.get_name() {
         return Ok(true);
     }
 
     if child_class.super_class == 0 {
-        return Ok(false)
+        return Ok(false);
     }
 
     let mut class = child_class;
@@ -39,7 +43,11 @@ fn is_subclass(vm: &mut VM, child_class: &'static Class, superclass: &'static Cl
 }
 
 /// Checks if the `implementor` implements `interface`.
-fn is_implemented(vm: &mut VM, implementor: &'static Class, interface: &'static Class) -> Result<bool> {
+fn is_implemented(
+    vm: &mut VM,
+    implementor: &'static Class,
+    interface: &'static Class,
+) -> Result<bool> {
     if !interface.is_interface() {
         panic!("Expected an interface.");
     }
@@ -56,13 +64,13 @@ fn is_implemented(vm: &mut VM, implementor: &'static Class, interface: &'static 
         }
         class = get_superclass(vm, class).unwrap();
         if class.super_class == 0 {
-            return Ok(false)
+            return Ok(false);
         }
     }
 }
 
-/// Gets the superclass of the provided class. It is the responsibility of the caller
-/// to ensure that `class` is not java/lang/Object. 
+/// Gets the superclass of the provided class. It is the responsibility of the
+/// caller to ensure that `class` is not java/lang/Object.
 fn get_superclass(vm: &mut VM, class: &'static Class) -> Result<&'static Class> {
     let super_index = class.super_class;
     let Constant::Class(name_index) = class.cp.get(super_index).unwrap() else {

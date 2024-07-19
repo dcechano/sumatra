@@ -250,7 +250,7 @@ impl From<ArrayComp> for Value {
             ArrayComp::Float => Value::Float(0.0),
             ArrayComp::Double => Value::Double(0.0),
             ArrayComp::Long => Value::Long(0),
-            ArrayComp::Ref(_) => Value::Null,
+            ArrayComp::Array(_) | ArrayComp::Class(_) => Value::Null,
         }
     }
 }

@@ -170,7 +170,7 @@ impl VM {
             // }
             match code {
                 Instruction::AaLoad => self.aaload()?,
-                Instruction::AaStore => todo!(),
+                Instruction::AaStore => self.aastore()?,
                 Instruction::AConstNull => self.frame_mut().stack.push(Value::Null),
                 Instruction::ALoad(index) => self.a_load(*index)?,
                 Instruction::ALoad0 => self.a_load(0)?,
@@ -516,15 +516,98 @@ impl VM {
         Ok(frame.push(value))
     }
 
+    fn aastore(&mut self) -> Result<()> {
+        let frame = self.frame_mut();
+
+        let value = frame.pop();
+        let Value::Int(index) = frame.pop() else {
+            bail!("Expected int for index in aastore.");
+        };
+
+        let array_ref = frame.pop();
+        if let Value::Null = array_ref {
+            todo!("Throw NullPointerException");
+        };
+
+        let Value::Ref(RefType::Array(mut array)) = array_ref else {
+            bail!("Expected an array for arrayref in aastore.");
+        };
+
+        match value {
+            Value::Null => return Ok(array.insert(index as usize, Value::Null)),
+            Value::Ref(RefType::Object(obj)) => {
+                let class_id = obj.get_class_id();
+                let obj_class = self.method_area.get_class(class_id)?;
+
+                let ArrayComp::Class(comp_class) = array.array_comp() else {
+                    todo!("Do something when comp_class is not a class type. IDK.");
+                };
+
+                let comp_class = self.assume_load(comp_class);
+                if comp_class.is_interface() && self.is_interface_of(obj_class, comp_class) {
+                    todo!("Implement Interface inserting")
+                }
+
+                if !self.is_instance_of(obj_class, comp_class) {
+                    todo!("Do something here! (Shouldn't happen)");
+                }
+
+                Ok(array.insert(index as usize, Value::Ref(RefType::Object(obj))))
+            }
+            Value::Ref(RefType::Array(operand_array)) => {
+                match array.array_comp() {
+                    ArrayComp::Array(inner_array) => {
+                        todo!("Implement arrays within arrays.")
+                    }
+                    _ => todo!("Do something when inner array has component of primitives"),
+                }
+
+                //
+                // let comp_class = self.assume_load(comp_class);
+                //
+                // if comp_class.is_interface() {
+                //     todo!("Check if the interface is on that is implemented by arrays.")
+                // }
+
+                todo!()
+            }
+            Value::Byte(_)
+            | Value::Double(_)
+            | Value::Dynamic { .. }
+            | Value::Float(_)
+            | Value::Int(_)
+            | Value::Long(_)
+            | Value::MethodHandle { .. }
+            | Value::MethodType(_)
+            | Value::ReturnAddress(_)
+            | Value::StringConst(_)
+            | Value::Short(_) => {
+                // Should be impossible.
+                bail!("Primitive used for insert in aastore.");
+            }
+        }
+    }
+
     /// Executes the `Instruction::AaNewArray` instruction.
     fn anew_array(&mut self, class_index: usize) -> Result<()> {
+        //TODO Fix this function. It should parse the class_name and do something if it
+        // is of the form [<class>;.
         let frame = self.frame();
         let Constant::Class(name_index) = frame.cp.get(class_index).unwrap() else {
             bail!("Expected Constant::Class while executing anewarray.");
         };
         let class_name = frame.cp.get_utf8(*name_index)?;
+
+        if class_name.starts_with('[') {
+            todo!();
+            let bytes = class_name.as_bytes();
+            let mut i = 1;
+            while bytes[i] == b'[' {
+                i += 1;
+            }
+        }
         let _ = self.load_class(class_name)?;
-        self.new_array(ArrayComp::Ref(class_name.to_string()))
+        self.new_array(ArrayComp::Class(class_name.to_string()))
     }
 
     /// Executes the `Instruction::ArrayLength` instruction.
@@ -923,12 +1006,14 @@ impl VM {
     /// Executes the `Instruction::IAdd` instruction
     fn iadd(&mut self) -> Result<()> {
         let frame = self.frame_mut();
+
         let Value::Int(value2) = frame.pop() else {
-            bail!("Expected int for value2 of idiv");
+            bail!("Expected int for value2 of iadd");
         };
         let Value::Int(value1) = frame.pop() else {
-            bail!("Expected int for value1 of idiv");
+            bail!("Expected int for value1 of iadd");
         };
+
         let result = Wrapping::<i32>(value1) + Wrapping::<i32>(value2);
         Ok(frame.push(Value::Int(result.0)))
     }
@@ -1473,6 +1558,33 @@ impl VM {
 // Utility functions are seperated into a different impl block for ease of
 // navigation.
 impl VM {
+    /// Loads the class with the given `name`. DOES NOT initialize the class.
+    /// If the class is uninitialized the method will panic!
+    pub fn assume_load(&mut self, name: &str) -> &'static Class {
+        match self.class_manager.request(name, &mut self.method_area) {
+            Ok(Response::InitReq(_, _)) => panic!("Cannot initialize class in VM::assume_load."),
+            Ok(Response::Ready(alloc_index)) => {
+                self.method_area.class_data(alloc_index).unwrap().class
+            }
+            Err(e) => panic!("VM::assume_load had an error: {e:?}"),
+            _ => panic!("Manager returned a not found!"),
+        }
+    }
+
+    pub fn assume_load_id(&mut self, id: usize) -> &'static Class {
+        self.method_area
+            .get_class(id)
+            .unwrap_or_else(|err| panic!("VM::assume_load_id had and error: {err:?}"))
+    }
+
+    fn construct_comp(&mut self, class_name: &str) -> ArrayComp {
+        let len = class_name.len();
+        let class_name = class_name.trim_start_matches('[');
+        let array_size = len - class_name.len();
+        if array_size > 1 {}
+        todo!()
+    }
+
     /// Create a java.lang.Class object for a `sumatra::Class` represented by
     /// its ID.
     pub fn create_class_obj(
@@ -1796,6 +1908,9 @@ impl VM {
     /// Load the class definition specified by `name`. If
     /// the class is found in the `MethodArea`, a `StaticData` object
     /// is returned. This function handles initialization if necessary.
+    /// It is important to not call this method unless mutable
+    /// access to the fields is strictly necessary. Irresponsible use can
+    /// lead to aliasing and undefined behavior.
     fn load_class(&mut self, name: &str) -> Result<StaticData> {
         match self.class_manager.request(name, &mut self.method_area) {
             Ok(Response::InitReq(class, alloc_index)) => {
@@ -1809,6 +1924,23 @@ impl VM {
                 Ok(StaticData::new(alloc_index, class, fields))
             }
             Ok(Response::Ready(alloc_index)) => self.method_area.class_data(alloc_index),
+            Err(e) => bail!(e),
+            _ => panic!("Manager returned a not found!"),
+        }
+    }
+
+    /// Similar to `load_class` except this method just returns the class
+    /// without mutable access to its fields.
+    pub(crate) fn load_class_immut(&mut self, name: &str) -> Result<&'static Class> {
+        match self.class_manager.request(name, &mut self.method_area) {
+            Ok(Response::InitReq(class, alloc_index)) => {
+                // Class obj needs to be created before initializing the class
+                // so that class initializers can use the class obj if needed.
+                let _ = self.create_class_obj(class, alloc_index)?;
+                self.init_class(class)?;
+                Ok(class)
+            }
+            Ok(Response::Ready(alloc_index)) => self.method_area.get_class(alloc_index),
             Err(e) => bail!(e),
             _ => panic!("Manager returned a not found!"),
         }
