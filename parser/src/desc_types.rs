@@ -300,6 +300,10 @@ impl FromStr for MethodDescriptor {
 #[derive(Debug, Default, Eq, PartialEq, Clone)]
 pub struct FieldDescriptor(FieldType);
 
+impl FieldDescriptor {
+    pub fn get_field_type(&self) -> FieldType { self.0.clone() }
+}
+
 impl FromStr for FieldDescriptor {
     type Err = anyhow::Error;
 
