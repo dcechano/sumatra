@@ -1,11 +1,12 @@
 use anyhow::Result;
 
-use crate::data_types::object::ObjRef;
-use crate::data_types::value::Value;
-use crate::native::lib_java::JAVA_LANG_CLASS;
-use crate::native::native_identifier::NativeIdentifier;
-use crate::native::registry::NativeMethod;
-use crate::vm::VM;
+use crate::{
+    data_types::{object::ObjRef, value::Value},
+    native::{
+        lib_java::JAVA_LANG_CLASS, native_identifier::NativeIdentifier, registry::NativeMethod,
+    },
+    vm::VM,
+};
 
 const NATIVES: [(&str, NativeMethod); 67] = [
     ("getInt(Ljava/lang/Object;J)I", jvm_get_int),
@@ -77,7 +78,6 @@ const NATIVES: [(&str, NativeMethod); 67] = [
     ("getLoadAverage(DI)V", jvm_get_load_average0)
 ];
 
-
 pub fn jvm_register_natives(
     vm: &mut VM,
     this: Option<ObjRef>,
@@ -93,154 +93,75 @@ pub fn jvm_register_natives(
     Ok(None)
 }
 
-fn jvm_get_int(
-    vm: &mut VM,
-    this: Option<ObjRef>,
-    _: Vec<Value>,
-) -> Result<Option<Value>> {
+fn jvm_get_int(vm: &mut VM, this: Option<ObjRef>, _: Vec<Value>) -> Result<Option<Value>> {
     todo!()
 }
 
-fn jvm_put_int(
-    vm: &mut VM,
-    this: Option<ObjRef>,
-    _: Vec<Value>,
-) -> Result<Option<Value>> {
+fn jvm_put_int(vm: &mut VM, this: Option<ObjRef>, _: Vec<Value>) -> Result<Option<Value>> {
     todo!()
 }
 
-fn jvm_get_reference(
-    vm: &mut VM,
-    this: Option<ObjRef>,
-    _: Vec<Value>,
-) -> Result<Option<Value>> {
+fn jvm_get_reference(vm: &mut VM, this: Option<ObjRef>, _: Vec<Value>) -> Result<Option<Value>> {
     todo!()
 }
 
-fn jvm_put_reference(
-    vm: &mut VM,
-    this: Option<ObjRef>,
-    _: Vec<Value>,
-) -> Result<Option<Value>> {
+fn jvm_put_reference(vm: &mut VM, this: Option<ObjRef>, _: Vec<Value>) -> Result<Option<Value>> {
     todo!()
 }
 
-fn jvm_get_boolean(
-    vm: &mut VM,
-    this: Option<ObjRef>,
-    _: Vec<Value>,
-) -> Result<Option<Value>> {
+fn jvm_get_boolean(vm: &mut VM, this: Option<ObjRef>, _: Vec<Value>) -> Result<Option<Value>> {
     todo!()
 }
 
-
-fn jvm_put_boolean(
-    vm: &mut VM,
-    this: Option<ObjRef>,
-    _: Vec<Value>,
-) -> Result<Option<Value>> {
+fn jvm_put_boolean(vm: &mut VM, this: Option<ObjRef>, _: Vec<Value>) -> Result<Option<Value>> {
     todo!()
 }
 
-fn jvm_get_byte(
-    vm: &mut VM,
-    this: Option<ObjRef>,
-    _: Vec<Value>,
-) -> Result<Option<Value>> {
+fn jvm_get_byte(vm: &mut VM, this: Option<ObjRef>, _: Vec<Value>) -> Result<Option<Value>> {
     todo!()
 }
 
-
-fn jvm_put_byte(
-    vm: &mut VM,
-    this: Option<ObjRef>,
-    _: Vec<Value>,
-) -> Result<Option<Value>> {
+fn jvm_put_byte(vm: &mut VM, this: Option<ObjRef>, _: Vec<Value>) -> Result<Option<Value>> {
     todo!()
 }
 
-fn jvm_get_short(
-    vm: &mut VM,
-    this: Option<ObjRef>,
-    _: Vec<Value>,
-) -> Result<Option<Value>> {
+fn jvm_get_short(vm: &mut VM, this: Option<ObjRef>, _: Vec<Value>) -> Result<Option<Value>> {
     todo!()
 }
 
-
-fn jvm_put_short(
-    vm: &mut VM,
-    this: Option<ObjRef>,
-    _: Vec<Value>,
-) -> Result<Option<Value>> {
+fn jvm_put_short(vm: &mut VM, this: Option<ObjRef>, _: Vec<Value>) -> Result<Option<Value>> {
     todo!()
 }
 
-fn jvm_get_char(
-    vm: &mut VM,
-    this: Option<ObjRef>,
-    _: Vec<Value>,
-) -> Result<Option<Value>> {
+fn jvm_get_char(vm: &mut VM, this: Option<ObjRef>, _: Vec<Value>) -> Result<Option<Value>> {
     todo!()
 }
 
-
-fn jvm_put_char(
-    vm: &mut VM,
-    this: Option<ObjRef>,
-    _: Vec<Value>,
-) -> Result<Option<Value>> {
+fn jvm_put_char(vm: &mut VM, this: Option<ObjRef>, _: Vec<Value>) -> Result<Option<Value>> {
     todo!()
 }
 
-fn jvm_get_long(
-    vm: &mut VM,
-    this: Option<ObjRef>,
-    _: Vec<Value>,
-) -> Result<Option<Value>> {
+fn jvm_get_long(vm: &mut VM, this: Option<ObjRef>, _: Vec<Value>) -> Result<Option<Value>> {
     todo!()
 }
 
-
-fn jvm_put_long(
-    vm: &mut VM,
-    this: Option<ObjRef>,
-    _: Vec<Value>,
-) -> Result<Option<Value>> {
+fn jvm_put_long(vm: &mut VM, this: Option<ObjRef>, _: Vec<Value>) -> Result<Option<Value>> {
     todo!()
 }
 
-fn jvm_get_float(
-    vm: &mut VM,
-    this: Option<ObjRef>,
-    _: Vec<Value>,
-) -> Result<Option<Value>> {
+fn jvm_get_float(vm: &mut VM, this: Option<ObjRef>, _: Vec<Value>) -> Result<Option<Value>> {
     todo!()
 }
 
-
-fn jvm_put_float(
-    vm: &mut VM,
-    this: Option<ObjRef>,
-    _: Vec<Value>,
-) -> Result<Option<Value>> {
+fn jvm_put_float(vm: &mut VM, this: Option<ObjRef>, _: Vec<Value>) -> Result<Option<Value>> {
     todo!()
 }
 
-fn jvm_get_double(
-    vm: &mut VM,
-    this: Option<ObjRef>,
-    _: Vec<Value>,
-) -> Result<Option<Value>> {
+fn jvm_get_double(vm: &mut VM, this: Option<ObjRef>, _: Vec<Value>) -> Result<Option<Value>> {
     todo!()
 }
 
-
-fn jvm_put_double(
-    vm: &mut VM,
-    this: Option<ObjRef>,
-    _: Vec<Value>,
-) -> Result<Option<Value>> {
+fn jvm_put_double(vm: &mut VM, this: Option<ObjRef>, _: Vec<Value>) -> Result<Option<Value>> {
     todo!()
 }
 
@@ -252,11 +173,7 @@ fn jvm_get_uncompressed_object(
     todo!()
 }
 
-fn jvm_write_back0(
-    vm: &mut VM,
-    this: Option<ObjRef>,
-    _: Vec<Value>,
-) -> Result<Option<Value>> {
+fn jvm_write_back0(vm: &mut VM, this: Option<ObjRef>, _: Vec<Value>) -> Result<Option<Value>> {
     todo!()
 }
 
@@ -276,11 +193,7 @@ fn jvm_write_back_post_sync0(
     todo!()
 }
 
-fn jvm_define_class0(
-    vm: &mut VM,
-    this: Option<ObjRef>,
-    _: Vec<Value>,
-) -> Result<Option<Value>> {
+fn jvm_define_class0(vm: &mut VM, this: Option<ObjRef>, _: Vec<Value>) -> Result<Option<Value>> {
     todo!()
 }
 
@@ -292,11 +205,7 @@ fn jvm_allocate_instance(
     todo!()
 }
 
-fn jvm_throw_exception(
-    vm: &mut VM,
-    this: Option<ObjRef>,
-    _: Vec<Value>,
-) -> Result<Option<Value>> {
+fn jvm_throw_exception(vm: &mut VM, this: Option<ObjRef>, _: Vec<Value>) -> Result<Option<Value>> {
     todo!()
 }
 
@@ -364,19 +273,11 @@ fn jvm_put_reference_volatile(
     todo!()
 }
 
-fn jvm_get_int_volatile(
-    vm: &mut VM,
-    this: Option<ObjRef>,
-    _: Vec<Value>,
-) -> Result<Option<Value>> {
+fn jvm_get_int_volatile(vm: &mut VM, this: Option<ObjRef>, _: Vec<Value>) -> Result<Option<Value>> {
     todo!()
 }
 
-fn jvm_put_int_volatile(
-    vm: &mut VM,
-    this: Option<ObjRef>,
-    _: Vec<Value>,
-) -> Result<Option<Value>> {
+fn jvm_put_int_volatile(vm: &mut VM, this: Option<ObjRef>, _: Vec<Value>) -> Result<Option<Value>> {
     todo!()
 }
 
@@ -492,35 +393,15 @@ fn jvm_put_double_volatile(
     todo!()
 }
 
-fn jvm_unpark(
-    vm: &mut VM,
-    this: Option<ObjRef>,
-    _: Vec<Value>,
-) -> Result<Option<Value>> {
+fn jvm_unpark(vm: &mut VM, this: Option<ObjRef>, _: Vec<Value>) -> Result<Option<Value>> { todo!() }
+
+fn jvm_park(vm: &mut VM, this: Option<ObjRef>, _: Vec<Value>) -> Result<Option<Value>> { todo!() }
+
+fn jvm_full_fence(vm: &mut VM, this: Option<ObjRef>, _: Vec<Value>) -> Result<Option<Value>> {
     todo!()
 }
 
-fn jvm_park(
-    vm: &mut VM,
-    this: Option<ObjRef>,
-    _: Vec<Value>,
-) -> Result<Option<Value>> {
-    todo!()
-}
-
-fn jvm_full_fence(
-    vm: &mut VM,
-    this: Option<ObjRef>,
-    _: Vec<Value>,
-) -> Result<Option<Value>> {
-    todo!()
-}
-
-fn jvm_allocate_memory0(
-    vm: &mut VM,
-    this: Option<ObjRef>,
-    _: Vec<Value>,
-) -> Result<Option<Value>> {
+fn jvm_allocate_memory0(vm: &mut VM, this: Option<ObjRef>, _: Vec<Value>) -> Result<Option<Value>> {
     todo!()
 }
 
@@ -532,28 +413,15 @@ fn jvm_reallocate_memory0(
     todo!()
 }
 
-fn jvm_free_memory0(
-    vm: &mut VM,
-    this: Option<ObjRef>,
-    _: Vec<Value>,
-) -> Result<Option<Value>> {
+fn jvm_free_memory0(vm: &mut VM, this: Option<ObjRef>, _: Vec<Value>) -> Result<Option<Value>> {
     todo!()
 }
 
-
-fn jvm_set_memory0(
-    vm: &mut VM,
-    this: Option<ObjRef>,
-    _: Vec<Value>,
-) -> Result<Option<Value>> {
+fn jvm_set_memory0(vm: &mut VM, this: Option<ObjRef>, _: Vec<Value>) -> Result<Option<Value>> {
     todo!()
 }
 
-fn jvm_copy_memory0(
-    vm: &mut VM,
-    this: Option<ObjRef>,
-    _: Vec<Value>,
-) -> Result<Option<Value>> {
+fn jvm_copy_memory0(vm: &mut VM, this: Option<ObjRef>, _: Vec<Value>) -> Result<Option<Value>> {
     todo!()
 }
 
@@ -628,7 +496,6 @@ fn jvm_array_index_scale0(
 ) -> Result<Option<Value>> {
     todo!()
 }
-
 
 fn jvm_get_load_average0(
     vm: &mut VM,
