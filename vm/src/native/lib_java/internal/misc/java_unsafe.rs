@@ -7,6 +7,7 @@ use crate::{
     },
     vm::VM,
 };
+use crate::native::lib_java::JDK_INTERNAL_MISC_UNSAFE;
 
 const NATIVES: [(&str, NativeMethod); 67] = [
     ("getInt(Ljava/lang/Object;J)I", jvm_get_int),
@@ -85,7 +86,7 @@ pub fn jvm_register_natives(
 ) -> Result<Option<Value>> {
     NATIVES.iter().for_each(|(name, method)| {
         vm.native_registry.register(
-            NativeIdentifier::new(JAVA_LANG_CLASS.to_string(), name.to_string()),
+            NativeIdentifier::new(JDK_INTERNAL_MISC_UNSAFE.to_string(), name.to_string()),
             *method,
         );
     });
