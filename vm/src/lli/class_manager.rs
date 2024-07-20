@@ -9,12 +9,12 @@ use anyhow::{bail, Result};
 use crate::{
     alloc::method_area::MethodArea,
     class::Class,
+    data_types::array::ArrayComp,
     lli::{
         app_loader::AppLoader, class_loader::BootstrapLoader, loader::ClassLoader,
         response::Response,
     },
 };
-
 //FIXME I don't like the Response API. Response::NotFound functions as an Err,
 // and Response::NotFound gets mapped to an Err. It all feels very redundant.
 // I should either be returning an Err or a Response.
@@ -43,12 +43,17 @@ impl ClassManager {
     }
 
     pub(crate) fn request(&mut self, name: &str, met_area: &mut MethodArea) -> Result<Response> {
-        let response = self.resolve_and_index(name, met_area)?;
-        if let Response::NotFound = response {
-            bail!("Class not found: {name}.");
+        let response = if name.starts_with("[") {
+            self.resolve_array_class(name, met_area)
         } else {
-            Ok(response)
+            self.resolve_and_index(name, met_area)
+        };
+
+        if let Ok(Response::NotFound) = response {
+            bail!("Class not found: {name}.");
         }
+
+        response
     }
 
     #[inline]
@@ -79,6 +84,37 @@ impl ClassManager {
         } else {
             Ok(Response::Ready(*self.by_name.get(name).unwrap()))
         }
+    }
+
+    pub(crate) fn resolve_array_class(
+        &mut self,
+        name: &str,
+        met_area: &mut MethodArea,
+    ) -> Result<Response> {
+        let array_comp = name.parse::<ArrayComp>()?;
+
+        if let ArrayComp::Class(class_name) = array_comp.root_comp() {
+            let response = self.resolve_and_index(&class_name, met_area)?;
+
+            let array_class_index = met_area.push(Class::array_class(array_comp))?;
+            let array_class = met_area.get_class(array_class_index)?;
+
+            return Ok(match response {
+                Response::InitReq(comp_class, comp_class_index) => Response::InitReqArray(
+                    array_class,
+                    array_class_index,
+                    Some((comp_class, comp_class_index)),
+                ),
+                Response::InitReqArray(_, _, _) => {
+                    panic!("Impossible condition while loading array_class.")
+                }
+                other => other,
+            });
+        }
+
+        let array_class = Class::array_class(array_comp);
+        let index = met_area.push(array_class)?;
+        Ok(Response::Ready(index))
     }
 
     #[inline]
