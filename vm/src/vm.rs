@@ -1424,7 +1424,7 @@ impl VM {
                     todo!("Implement error handling.");
                 };
                 // load class, just in case it is not loaded
-                let _ = self.load_class(class_name).unwrap();
+                let _ = self.load_class_immut(class_name).unwrap();
                 Value::new_object(self.heap.get_class_obj(class_name))
             }
             Constant::String(string_index) => {
@@ -1600,14 +1600,6 @@ impl VM {
         self.method_area
             .get_class(id)
             .unwrap_or_else(|err| panic!("VM::assume_load_id had and error: {err:?}"))
-    }
-
-    fn construct_comp(&mut self, class_name: &str) -> ArrayComp {
-        let len = class_name.len();
-        let class_name = class_name.trim_start_matches('[');
-        let array_size = len - class_name.len();
-        if array_size > 1 {}
-        todo!()
     }
 
     /// Create a java.lang.Class object from a `sumatra::Class` represented by
@@ -1948,6 +1940,17 @@ impl VM {
                 let fields = self.method_area.get_mut_fields(alloc_index)?;
                 Ok(StaticData::new(alloc_index, class, fields))
             }
+            Ok(Response::InitReqArray(array_class, array_class_index, comp_data)) => {
+                let _ = self.create_class_obj(array_class, array_class_index)?;
+                if let Some((comp_class, comp_index)) = comp_data {
+                    let _ = self.create_class_obj(comp_class, comp_index)?;
+                    self.init_class(comp_class)?;
+                }
+                // There are no static fields on an array class instance. This is just here
+                // because, this method requires returning a StaticData obj.
+                let fields = self.method_area.get_mut_fields(array_class_index)?;
+                Ok(StaticData::new(array_class_index, array_class, fields))
+            }
             Ok(Response::Ready(alloc_index)) => self.method_area.class_data(alloc_index),
             Err(e) => bail!(e),
             _ => panic!("Manager returned a not found!"),
@@ -1964,6 +1967,14 @@ impl VM {
                 let _ = self.create_class_obj(class, alloc_index)?;
                 self.init_class(class)?;
                 Ok(class)
+            }
+            Ok(Response::InitReqArray(array_class, array_class_index, comp_data)) => {
+                let _ = self.create_class_obj(array_class, array_class_index)?;
+                if let Some((comp_class, comp_index)) = comp_data {
+                    let _ = self.create_class_obj(comp_class, comp_index)?;
+                    self.init_class(comp_class)?;
+                }
+                Ok(array_class)
             }
             Ok(Response::Ready(alloc_index)) => self.method_area.get_class(alloc_index),
             Err(e) => bail!(e),
@@ -1983,7 +1994,7 @@ impl VM {
             class_id,
             class: primary,
             ..
-        } = self.load_class(name)?;
+        } = self.load_class(name)?; //TODO migrate this line to load_class_immut somehow.
         let mut class = primary;
         // Most classes have at least a handful of classes above them so 8 feels like
         // a prudent capacity that avoids reallocations but avoids a reallocations.
