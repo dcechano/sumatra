@@ -1,14 +1,16 @@
-use std::{
-    fmt::{Display, Formatter},
-    ptr,
-};
-
-use sumatra_parser::field::Field;
-
 use crate::{
     alloc::fields_table::FieldsTable,
     class::Class,
     data_types::{array::ArrayComp, value::Value},
+};
+use std::{
+    fmt::{Display, Formatter},
+    ptr,
+};
+use sumatra_parser::{
+    constant::Constant,
+    desc_types::{FieldType, Primitive},
+    field::Field,
 };
 
 const ARRAY_CLASS_NAME: &str = "java/lang/Object";
@@ -53,8 +55,35 @@ impl Header {
             // array being long enough for this add is also guaranteed by the
             // calling method.
             unsafe {
+                let value = if !matches!(fields[i].constant_value, Constant::Dummy) {
+                    match &fields[i].constant_value {
+                        Constant::Integer(int) => Value::Int(*int),
+                        Constant::Float(float) => Value::Float(*float),
+                        Constant::Long(long) => Value::Long(*long),
+                        Constant::Double(double) => Value::Double(*double),
+                        invalid => {
+                            panic!("Invalid constant_value while initialing obj: {invalid:?}")
+                        }
+                    }
+                } else {
+                    match &fields[i].parsed_descriptor.get_field_type() {
+                        FieldType::Base(primitive) => match primitive {
+                            Primitive::Byte => Value::Byte(0),
+                            Primitive::Char | Primitive::Int => Value::Int(0),
+                            Primitive::Double => Value::Double(0.0),
+                            Primitive::Float => Value::Float(0.0),
+                            Primitive::Long => Value::Long(0),
+                            Primitive::Short => Value::Short(0),
+                            Primitive::Boolean => Value::Int(0),
+                            Primitive::Invalid => panic!("Invalid primitive in field descriptor"),
+                        },
+                        FieldType::Invalid => panic!("Invalid field descriptor!"),
+                        _ => Value::Null,
+                    }
+                };
+
                 // write the default value to avoid uninitialized memory
-                ptr::write(ptr.add(i), Value::Null);
+                ptr::write(ptr.add(i), value);
             }
             self.fields.insert(name, i);
             i += 1;
