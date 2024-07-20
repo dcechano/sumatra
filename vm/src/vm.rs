@@ -1424,7 +1424,7 @@ impl VM {
                     todo!("Implement error handling.");
                 };
                 // load class, just in case it is not loaded
-                let _ = self.load_class(class_name);
+                let _ = self.load_class(class_name).unwrap();
                 Value::new_object(self.heap.get_class_obj(class_name))
             }
             Constant::String(string_index) => {
@@ -1610,7 +1610,7 @@ impl VM {
         todo!()
     }
 
-    /// Create a java.lang.Class object for a `sumatra::Class` represented by
+    /// Create a java.lang.Class object from a `sumatra::Class` represented by
     /// its ID.
     pub fn create_class_obj(
         &mut self,
