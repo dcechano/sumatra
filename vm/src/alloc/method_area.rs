@@ -137,16 +137,16 @@ impl Drop for MethodArea {
 mod tests {
     use std::{fs::File, io::Read, os::unix::fs::MetadataExt};
 
+    use crate::{alloc::method_area::MethodArea, class::Class};
     use sumatra_parser::{
         class_file::ClassFile,
         constant::Constant,
+        desc_types::FieldDescriptor,
         field::Field,
         flags::{FieldAccessFlags, MethodAccessFlags},
         instruction::Instruction,
         method::Method,
     };
-
-    use crate::{alloc::method_area::MethodArea, class::Class};
 
     const OBJECT_FILE: &'static str = "java/lang/Object.class";
     const JAR_PATH: &'static str = "../jdk/compiled/java.base/";
@@ -251,14 +251,17 @@ mod tests {
     #[inline]
     fn fields() -> [Field; 3] {
         let mut field1 = Field::default();
+        field1.parsed_descriptor = "Ljava/lang/Object;".parse().unwrap();
         field1.name = "foo".to_string();
         field1.access_flags = FieldAccessFlags::FINAL;
 
         let mut field2 = Field::default();
+        field2.parsed_descriptor = "Ljava/lang/Object;".parse().unwrap();
         field2.name = "bar".to_string();
         field2.access_flags = FieldAccessFlags::SYNTHETIC;
 
         let mut field3 = Field::default();
+        field3.parsed_descriptor = "Ljava/lang/Object;".parse().unwrap();
         field3.name = "baz".to_string();
         field3.access_flags = FieldAccessFlags::STATIC;
 
