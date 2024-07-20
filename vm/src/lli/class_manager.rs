@@ -91,13 +91,17 @@ impl ClassManager {
         name: &str,
         met_area: &mut MethodArea,
     ) -> Result<Response> {
+        if self.by_name.contains_key(name) {
+            return Ok(Response::Ready(*self.by_name.get(name).unwrap()));
+        }
+
         let array_comp = name.parse::<ArrayComp>()?;
 
         if let ArrayComp::Class(class_name) = array_comp.root_comp() {
             let response = self.resolve_and_index(&class_name, met_area)?;
 
-            let array_class_index = met_area.push(Class::array_class(array_comp))?;
-            let array_class = met_area.get_class(array_class_index)?;
+            let array_class = Class::array_class(array_comp);
+            let (array_class, array_class_index) = self.store_class(array_class, met_area)?;
 
             return Ok(match response {
                 Response::InitReq(comp_class, comp_class_index) => Response::InitReqArray(
@@ -108,13 +112,15 @@ impl ClassManager {
                 Response::InitReqArray(_, _, _) => {
                     panic!("Impossible condition while loading array_class.")
                 }
-                other => other,
+
+                Response::Ready(_) => Response::InitReqArray(array_class, array_class_index, None),
+                not_found => not_found,
             });
         }
 
         let array_class = Class::array_class(array_comp);
-        let index = met_area.push(array_class)?;
-        Ok(Response::Ready(index))
+        let (array_class, index) = self.store_class(array_class, met_area)?;
+        Ok(Response::InitReqArray(array_class, index, None))
     }
 
     #[inline]
