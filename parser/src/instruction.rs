@@ -100,7 +100,8 @@ pub enum Instruction {
     Dup,
     /// Duplicate the top operand stack value and insert two values down
     DupX1,
-    /// Duplicate the top operand stack value and insert two or three values down
+    /// Duplicate the top operand stack value and insert two or three values
+    /// down
     DupX2,
     Dup2,
     Dup2X1,
