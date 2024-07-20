@@ -6,7 +6,7 @@ use crate::{
     data_types::{object::ObjRef, value::Value},
     native::{
         lib_java::{
-            internal::java_system_props_raw,
+            internal::util::java_system_props_raw,
             lang::{java_class, java_object, java_string_utf16, java_system},
             JAVA_LANG_CLASS, JAVA_LANG_OBJECT, JAVA_LANG_STRING_UTF16, JAVA_LANG_SYSTEM,
             JDK_INTERNAL_SYSTEM_PROPS_RAW, REGISTER_NATIVES_SIG,
