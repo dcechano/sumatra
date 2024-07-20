@@ -15,6 +15,7 @@ use crate::{
 pub enum Instruction {
     /// Load reference from array
     AaLoad,
+    /// Store into reference array
     AaStore,
     /// Push null
     AConstNull,
@@ -97,7 +98,9 @@ pub enum Instruction {
     DSub,
     /// Duplicate the value at the top of the operand stack.
     Dup,
+    /// Duplicate the top operand stack value and insert two values down
     DupX1,
+    /// Duplicate the top operand stack value and insert two or three values down
     DupX2,
     Dup2,
     Dup2X1,
