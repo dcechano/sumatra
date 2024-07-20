@@ -72,6 +72,10 @@ impl Heap {
         } else {
             vec![java_lang_object]
         };
+        //TODO this line is wrong. The class_id param is not the class id for
+        // java_lang_class, as the method expects it to be. It is the class id
+        // for the instance_class param. I am not sure if this was an oversight
+        // or there is something I forgot. I will have to come back to this.
         let obj = ObjRef::new(InstanceData::new(java_lang_class, class_id, super_class));
         self.classes
             .insert(instance_class.get_name(), obj.get_inner() as *mut _);
