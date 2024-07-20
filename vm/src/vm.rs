@@ -225,8 +225,8 @@ impl VM {
                 Instruction::DStore3 => self.dstore_n(3)?,
                 Instruction::DSub => todo!(),
                 Instruction::Dup => self.dup()?,
-                Instruction::DupX1 => todo!(),
-                Instruction::DupX2 => todo!(),
+                Instruction::DupX1 => self.dup_x1()?,
+                Instruction::DupX2 => self.dup_x2()?,
                 Instruction::Dup2 => todo!(),
                 Instruction::Dup2X1 => todo!(),
                 Instruction::Dup2X2 => todo!(),
@@ -791,6 +791,31 @@ impl VM {
             frame.push(value.clone());
         }
         Ok(frame.push(value))
+    }
+
+    /// Executes the `Instruction::DupX1` instruction.
+    fn dup_x1(&mut self) -> Result<()> {
+        let frame = self.frame_mut();
+        let value = frame.clone_top();
+        if matches!(value, (Value::Double(_) | Value::Long(_))) {
+            bail!("value was not a catagory 1 computation type in dup_x1.");
+        }
+
+        Ok(frame.insert(1, value))
+    }
+
+    /// Executes the `Instruction::DupX2` instruction.
+    fn dup_x2(&mut self) -> Result<()> {
+        let frame = self.frame_mut();
+        let value = frame.clone_top();
+        match matches!(value, (Value::Double(_) | Value::Long(_))) {
+            true => {
+                frame.insert(1, value.clone());
+                frame.insert(1, value);
+            }
+            false => frame.insert(2, value),
+        };
+        Ok(())
     }
 
     /// Executes the `Instruction::F2D` instruction
