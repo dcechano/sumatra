@@ -2,8 +2,13 @@ use anyhow::{bail, Result};
 use std::{
     fmt::{Debug, Formatter},
     ptr,
+    str::FromStr,
 };
-use sumatra_parser::instruction::ArrayType;
+use sumatra_parser::{
+    desc_types,
+    desc_types::{FieldType, Primitive},
+    instruction::ArrayType,
+};
 
 use crate::{
     alloc::{alloc_type::NonStatic, oop::HeapAlloc},
@@ -147,6 +152,95 @@ pub enum ArrayComp {
     Array(Box<ArrayComp>),
 }
 
+impl ArrayComp {
+    pub fn dimension(&self) -> usize {
+        let mut dim = 1;
+        let mut comp = self;
+        while let ArrayComp::Array(inner) = comp {
+            dim += 1;
+            comp = inner;
+        }
+        dim
+    }
+
+    pub fn root_comp(&self) -> &ArrayComp {
+        let mut comp = self;
+        while let ArrayComp::Array(inner) = comp {
+            comp = inner;
+        }
+        comp
+    }
+
+    pub fn prim_array(dim: usize, prim: Primitive) -> Self {
+        if dim < 1 {
+            panic!("Cannot initialize an array without at least 1 dimension.");
+        }
+
+        if dim == 1 {
+            return ArrayComp::from(prim);
+        }
+
+        let mut temp = Box::new(ArrayComp::from(prim));
+        for _ in 0..dim - 1 {
+            temp = Box::new(ArrayComp::Array(temp));
+        }
+        *temp
+    }
+
+    pub fn class_array(dim: usize, name: String) -> Self {
+        if dim < 1 {
+            panic!("Cannot initialize an array without at least 1 dimension.");
+        }
+
+        if dim == 1 {
+            return ArrayComp::Class(name);
+        }
+
+        let mut temp = Box::new(ArrayComp::Class(name));
+        for _ in 0..dim - 1 {
+            temp = Box::new(ArrayComp::Array(temp));
+        }
+        *temp
+    }
+}
+
+impl FromStr for ArrayComp {
+    type Err = anyhow::Error;
+
+    fn from_str(array_desc: &str) -> Result<Self> {
+        // Field Descriptors and Array descriptors are explicitly the same thing.
+        // Thus, reusing code.
+        //https://docs.oracle.com/javase/specs/jvms/se21/html/jvms-4.html#jvms-FieldType
+        let field_type = array_desc.parse::<FieldType>()?;
+        let array_comp = match field_type {
+            FieldType::Base(primitive) => ArrayComp::from(primitive),
+            FieldType::Object(class) => ArrayComp::Class(class),
+            FieldType::Array(typ, dim) => match typ {
+                desc_types::ArrayType::Object(class) => ArrayComp::Class(class),
+                desc_types::ArrayType::Primitive(prim) => ArrayComp::from(prim),
+            },
+            FieldType::Invalid => panic!("Invalid primitive when parsing to ArrayComp."),
+        };
+        Ok(array_comp)
+    }
+}
+
+impl From<Primitive> for ArrayComp {
+    fn from(prim: Primitive) -> Self {
+        match prim {
+            Primitive::Byte => ArrayComp::Byte,
+            Primitive::Char => ArrayComp::Char,
+            Primitive::Double => ArrayComp::Double,
+            Primitive::Float => ArrayComp::Float,
+            Primitive::Int => ArrayComp::Int,
+            Primitive::Long => ArrayComp::Long,
+            Primitive::Short => ArrayComp::Short,
+            Primitive::Boolean => ArrayComp::Boolean,
+            Primitive::Invalid => panic!("Invalid primitive when parsing to ArrayComp."),
+        }
+    }
+}
+
 impl TryFrom<ArrayType> for ArrayComp {
     type Error = anyhow::Error;
 
@@ -169,6 +263,8 @@ impl TryFrom<ArrayType> for ArrayComp {
 
 #[cfg(test)]
 mod tests {
+    use crate::data_types::array::ArrayComp;
+    use sumatra_parser::desc_types::Primitive;
 
     #[test]
     #[cfg(miri)]
@@ -189,5 +285,54 @@ mod tests {
         unsafe {
             HeapAlloc::dealloc_test_obj(array.0);
         }
+    }
+
+    #[test]
+    fn test_array_comp_prim() {
+        let array = ArrayComp::prim_array(3, Primitive::Int);
+        assert_eq!(
+            array,
+            ArrayComp::Array(Box::new(ArrayComp::Array(Box::new(ArrayComp::Int))))
+        );
+
+        let array = ArrayComp::prim_array(1, Primitive::Int);
+        assert_eq!(array, ArrayComp::Int)
+    }
+
+    #[test]
+    fn test_array_comp_class() {
+        let array = ArrayComp::class_array(5, "java/lang/Object;".to_string());
+        assert_eq!(
+            array,
+            ArrayComp::Array(Box::new(ArrayComp::Array(Box::new(ArrayComp::Array(
+                Box::new(ArrayComp::Array(Box::new(ArrayComp::Class(
+                    "java/lang/Object;".to_string()
+                ))))
+            )))))
+        )
+    }
+
+    #[test]
+    fn test_array_dimension() {
+        let dim = ArrayComp::class_array(5, "java/lang/Object;".to_string()).dimension();
+        assert_eq!(dim, 5);
+
+        let dim = ArrayComp::prim_array(3, Primitive::Int).dimension();
+        assert_eq!(dim, 3);
+
+        let dim = ArrayComp::prim_array(1, Primitive::Int).dimension();
+        assert_eq!(dim, 1)
+    }
+
+    #[test]
+    fn test_root_comp() {
+        let array = ArrayComp::class_array(5, "java/lang/Object;".to_string());
+        assert_eq!(
+            array.root_comp(),
+            &ArrayComp::Class("java/lang/Object;".to_string())
+        );
+
+        let array = ArrayComp::prim_array(42, Primitive::Byte);
+        assert_eq!(array.root_comp(), &ArrayComp::Byte);
     }
 }
