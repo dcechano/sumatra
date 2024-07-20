@@ -216,8 +216,8 @@ impl FromStr for ArrayComp {
             FieldType::Base(primitive) => ArrayComp::from(primitive),
             FieldType::Object(class) => ArrayComp::Class(class),
             FieldType::Array(typ, dim) => match typ {
-                desc_types::ArrayType::Object(class) => ArrayComp::Class(class),
-                desc_types::ArrayType::Primitive(prim) => ArrayComp::from(prim),
+                desc_types::ArrayType::Object(class) => ArrayComp::class_array(dim, class),
+                desc_types::ArrayType::Primitive(prim) => ArrayComp::prim_array(dim, prim),
             },
             FieldType::Invalid => panic!("Invalid primitive when parsing to ArrayComp."),
         };
@@ -334,5 +334,17 @@ mod tests {
 
         let array = ArrayComp::prim_array(42, Primitive::Byte);
         assert_eq!(array.root_comp(), &ArrayComp::Byte);
+    }
+
+    #[test]
+    fn test_parse_array() {
+        let array = "[[[[I".parse::<ArrayComp>().unwrap();
+        assert_eq!(array, ArrayComp::prim_array(4, Primitive::Int));
+
+        let array = "[[[[[[[Ljava/lang/Object;".parse::<ArrayComp>().unwrap();
+        assert_eq!(
+            array,
+            ArrayComp::class_array(7, "java/lang/Object;".to_string())
+        );
     }
 }
