@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 
+use crate::data_types::array::ArrayComp;
 use sumatra_parser::{
     attribute::ClassFileAttributes, class_file::ClassFile, constant::Constant,
     constant_pool::ConstantPool, field::Field, flags::ClassAccessFlags, method::Method,
@@ -17,16 +18,39 @@ pub struct Class {
     pub fields: HashMap<String, Field>,
     pub methods: HashMap<String, Method>,
     pub attributes: ClassFileAttributes,
+    array_data: Option<ArrayComp>,
 }
 
 impl Class {
     pub fn get_name(&self) -> String {
+        if let Some(array_comp) = self.array_data.as_ref() {
+            let name = match array_comp.root_comp() {
+                ArrayComp::Byte => "B",
+                ArrayComp::Char => "C",
+                ArrayComp::Class(class) => class,
+                ArrayComp::Double => "D",
+                ArrayComp::Float => "F",
+                ArrayComp::Int => "I",
+                ArrayComp::Long => "J",
+                ArrayComp::Short => "S",
+                ArrayComp::Boolean => "Z",
+                _ => panic!("Invalid component creating name of array class."),
+            };
+            return format!("{}{name}", "[".repeat(array_comp.dimension()));
+        }
+
         let Constant::Class(index) = self.cp.get(self.this_class).unwrap() else {
             // Should not be possible if the class file is valid.
             panic!("Invalid class file format. this_class index did not point to a Class constant in the constant pool.");
         };
 
         self.cp.get_utf8(*index).unwrap().to_string()
+    }
+
+    pub fn array_class(comp: ArrayComp) -> Self {
+        let mut class = Self::default();
+        class.array_data = Some(comp);
+        class
     }
 
     /// Return true if the class is declared abstract.
@@ -65,7 +89,7 @@ impl Class {
         if super_index == 0 {
             panic!("No superclass on java/lang/Object");
         }
-        
+
         let Constant::Class(name_index) = self.cp.get(super_index).unwrap() else {
             panic!("Expected an Constant::Class at at superclass index.");
         };
@@ -85,6 +109,15 @@ impl Class {
             })
             .collect()
     }
+
+    pub fn is_array_class(&self) -> bool { self.array_data.is_some() }
+
+    pub fn array_class_dim(&self) -> usize {
+        if self.array_data.is_none() {
+            panic!("Class instance was not an array class.");
+        }
+        self.array_data.as_ref().unwrap().dimension()
+    }
 }
 
 impl From<&ClassFile> for Class {
@@ -100,6 +133,7 @@ impl From<&ClassFile> for Class {
             fields: fields_map(&class_file.fields),
             methods: methods_map(&class_file.methods.clone()),
             attributes: class_file.attributes.clone(),
+            array_data: None,
         }
     }
 }
