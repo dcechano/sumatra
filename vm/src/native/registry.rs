@@ -6,17 +6,17 @@ use crate::{
     data_types::{object::ObjRef, value::Value},
     native::{
         lib_java::{
-            internal::util::java_system_props_raw,
+            internal::{misc::java_unsafe, util::java_system_props_raw},
             lang::{java_class, java_object, java_string_utf16, java_system},
             JAVA_LANG_CLASS, JAVA_LANG_OBJECT, JAVA_LANG_STRING_UTF16, JAVA_LANG_SYSTEM,
-            JDK_INTERNAL_SYSTEM_PROPS_RAW, REGISTER_NATIVES_SIG,
+            JDK_INTERNAL_MISC_UNSAFE, JDK_INTERNAL_SYSTEM_PROPS_RAW, REGISTER_NATIVES_SIG,
         },
         native_identifier::NativeIdentifier,
     },
     vm::VM,
 };
 
-const INITIAL_NATIVE_METHODS: [(&str, &str, NativeMethod); 7] = [
+const INITIAL_NATIVE_METHODS: [(&str, &str, NativeMethod); 8] = [
     (
         JAVA_LANG_OBJECT,
         java_object::GET_CLASS_SIG,
@@ -46,6 +46,11 @@ const INITIAL_NATIVE_METHODS: [(&str, &str, NativeMethod); 7] = [
         JDK_INTERNAL_SYSTEM_PROPS_RAW,
         java_system_props_raw::VM_PROPS_SIG,
         java_system_props_raw::jvm_vm_properties,
+    ),
+    (
+        JDK_INTERNAL_MISC_UNSAFE,
+        REGISTER_NATIVES_SIG,
+        java_unsafe::jvm_register_natives,
     ),
     (
         JAVA_LANG_STRING_UTF16,
