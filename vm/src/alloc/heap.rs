@@ -78,8 +78,10 @@ impl Heap {
             vm::CLASS_CLASS_ID,
             super_class,
         ));
-        self.classes
-            .insert(instance_class.get_name(), obj.get_inner() as *mut _);
+
+        let class_name = instance_class.get_name();
+        debug_assert!(!self.classes.contains_key(&class_name));
+        self.classes.insert(class_name, obj.get_inner() as *mut _);
         obj
     }
 

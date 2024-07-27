@@ -91,36 +91,46 @@ impl ClassManager {
         name: &str,
         met_area: &mut MethodArea,
     ) -> Result<Response> {
-        if self.by_name.contains_key(name) {
-            return Ok(Response::Ready(*self.by_name.get(name).unwrap()));
-        }
-
         let array_comp = name.parse::<ArrayComp>()?;
 
-        if let ArrayComp::Class(class_name) = array_comp.root_comp() {
-            let response = self.resolve_and_index(&class_name, met_area)?;
-
-            let array_class = Class::array_class(array_comp);
-            let (array_class, array_class_index) = self.store_class(array_class, met_area)?;
-
-            return Ok(match response {
-                Response::InitReq(comp_class, comp_class_index) => Response::InitReqArray(
-                    array_class,
-                    array_class_index,
-                    Some((comp_class, comp_class_index)),
-                ),
-                Response::InitReqArray(_, _, _) => {
-                    panic!("Impossible condition while loading array_class.")
+        match array_comp.root_comp() {
+            ArrayComp::Class(class_name) => {
+                // use class_name here instead of name because name has a trailing ';'.
+                if self.by_name.contains_key(class_name) {
+                    return Ok(Response::Ready(*self.by_name.get(class_name).unwrap()));
                 }
 
-                Response::Ready(_) => Response::InitReqArray(array_class, array_class_index, None),
-                not_found => not_found,
-            });
-        }
+                let response = self.resolve_and_index(&class_name, met_area)?;
 
-        let array_class = Class::array_class(array_comp);
-        let (array_class, index) = self.store_class(array_class, met_area)?;
-        Ok(Response::InitReqArray(array_class, index, None))
+                let array_class = Class::array_class(array_comp);
+                let (array_class, array_class_index) = self.store_class(array_class, met_area)?;
+
+                return Ok(match response {
+                    Response::InitReq(comp_class, comp_class_index) => Response::InitReqArray(
+                        array_class,
+                        array_class_index,
+                        Some((comp_class, comp_class_index)),
+                    ),
+                    Response::InitReqArray(_, _, _) => {
+                        panic!("Impossible condition while loading array_class.")
+                    }
+
+                    Response::Ready(_) => {
+                        Response::InitReqArray(array_class, array_class_index, None)
+                    }
+                    not_found => not_found,
+                });
+            }
+            ArrayComp::Array(_) => panic!("Impossible component in resolve_array_class"),
+            _ => {
+                if self.by_name.contains_key(name) {
+                    return Ok(Response::Ready(*self.by_name.get(name).unwrap()));
+                }
+                let array_class = Class::array_class(array_comp);
+                let (array_class, index) = self.store_class(array_class, met_area)?;
+                Ok(Response::InitReqArray(array_class, index, None))
+            }
+        }
     }
 
     #[inline]
