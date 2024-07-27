@@ -487,12 +487,11 @@ fn jvm_array_base_offset0(_: &mut VM, _: Option<ObjRef>, _: Vec<Value>) -> Resul
     Ok(Some(Value::Int(size_of::<*mut Value>() as i32)))
 }
 
-fn jvm_array_index_scale0(
-    vm: &mut VM,
-    this: Option<ObjRef>,
-    _: Vec<Value>,
-) -> Result<Option<Value>> {
-    todo!()
+fn jvm_array_index_scale0(_: &mut VM, _: Option<ObjRef>, _: Vec<Value>) -> Result<Option<Value>> {
+    //TODO not sure if this is correct. Docs say something about a nuance with
+    // 'narrow' types. I'm not sure what that means.
+    // https://github.com/openjdk/jdk/blob/master/src/java.base/share/classes/jdk/internal/misc/Unsafe.java#L1230
+    Ok(Some(Value::Int(size_of::<*mut Value>() as i32)))
 }
 
 fn jvm_get_load_average0(
