@@ -301,12 +301,12 @@ mod tests {
 
     #[test]
     fn test_array_comp_class() {
-        let array = ArrayComp::class_array(5, "java/lang/Object;".to_string());
+        let array = ArrayComp::class_array(5, "java/lang/Object".to_string());
         assert_eq!(
             array,
             ArrayComp::Array(Box::new(ArrayComp::Array(Box::new(ArrayComp::Array(
                 Box::new(ArrayComp::Array(Box::new(ArrayComp::Class(
-                    "java/lang/Object;".to_string()
+                    "java/lang/Object".to_string()
                 ))))
             )))))
         )
@@ -314,7 +314,7 @@ mod tests {
 
     #[test]
     fn test_array_dimension() {
-        let dim = ArrayComp::class_array(5, "java/lang/Object;".to_string()).dimension();
+        let dim = ArrayComp::class_array(5, "java/lang/Object".to_string()).dimension();
         assert_eq!(dim, 5);
 
         let dim = ArrayComp::prim_array(3, Primitive::Int).dimension();
@@ -326,10 +326,10 @@ mod tests {
 
     #[test]
     fn test_root_comp() {
-        let array = ArrayComp::class_array(5, "java/lang/Object;".to_string());
+        let array = ArrayComp::class_array(5, "java/lang/Object".to_string());
         assert_eq!(
             array.root_comp(),
-            &ArrayComp::Class("java/lang/Object;".to_string())
+            &ArrayComp::Class("java/lang/Object".to_string())
         );
 
         let array = ArrayComp::prim_array(42, Primitive::Byte);
@@ -341,10 +341,14 @@ mod tests {
         let array = "[[[[I".parse::<ArrayComp>().unwrap();
         assert_eq!(array, ArrayComp::prim_array(4, Primitive::Int));
 
+        // The reason we leave a trailing ';' when parsing and not when creating the
+        // array directly with ArrayComp::class_array is that the class string
+        // will have a trailing ';' when loaded from the constant pool. The
+        // parse method expects this and will fill otherwise.
         let array = "[[[[[[[Ljava/lang/Object;".parse::<ArrayComp>().unwrap();
         assert_eq!(
             array,
-            ArrayComp::class_array(7, "java/lang/Object;".to_string())
+            ArrayComp::class_array(7, "java/lang/Object".to_string())
         );
     }
 }
