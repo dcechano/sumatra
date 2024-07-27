@@ -1,13 +1,14 @@
 use anyhow::Result;
+use std::mem;
 
 use crate::{
     data_types::{object::ObjRef, value::Value},
     native::{
-        lib_java::JAVA_LANG_CLASS, native_identifier::NativeIdentifier, registry::NativeMethod,
+        lib_java::JDK_INTERNAL_MISC_UNSAFE, native_identifier::NativeIdentifier,
+        registry::NativeMethod,
     },
     vm::VM,
 };
-use crate::native::lib_java::JDK_INTERNAL_MISC_UNSAFE;
 
 const NATIVES: [(&str, NativeMethod); 67] = [
     ("getInt(Ljava/lang/Object;J)I", jvm_get_int),
@@ -482,12 +483,8 @@ fn jvm_ensure_class_initialized0(
     todo!()
 }
 
-fn jvm_array_base_offset0(
-    vm: &mut VM,
-    this: Option<ObjRef>,
-    _: Vec<Value>,
-) -> Result<Option<Value>> {
-    todo!()
+fn jvm_array_base_offset0(_: &mut VM, _: Option<ObjRef>, _: Vec<Value>) -> Result<Option<Value>> {
+    Ok(Some(Value::Int(size_of::<*mut Value>() as i32)))
 }
 
 fn jvm_array_index_scale0(
