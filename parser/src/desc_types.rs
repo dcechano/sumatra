@@ -127,7 +127,7 @@ impl FieldType {
         match desc.find(';') {
             None => bail!("Invalid object descriptor: No terminating ';'."),
             Some(i) => {
-                let string = bytes[1..=i]
+                let string = bytes[1..i]
                     .iter()
                     .map(|byte| *byte as char)
                     .collect::<String>();
@@ -321,14 +321,14 @@ mod tests {
         FieldDescriptor, FieldType, MethodDescriptor, Params, Primitive, ReturnDescriptor,
     };
 
-    const STRING: &str = "java/lang/String;";
-    const OBJECT: &str = "java/lang/Object;";
-    const X509: &str = "javax/security/cert/X509Certificate;";
+    const STRING: &str = "java/lang/String";
+    const OBJECT: &str = "java/lang/Object";
+    const X509: &str = "javax/security/cert/X509Certificate";
 
     #[test]
     #[cfg(not(miri))]
     fn test_ftype_object() {
-        let desc = format!("{}{}", "L", STRING);
+        let desc = "Ljava/lang/String;";
         let f_type = desc.parse::<FieldType>().unwrap();
         assert_eq!(f_type, FieldType::Object(STRING.to_string()))
     }
