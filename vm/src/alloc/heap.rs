@@ -92,4 +92,14 @@ impl Heap {
         // as long as the pointer wasn't invalidated elsewhere.
         unsafe { ObjRef::from_raw(*self.classes.get(class_name).unwrap()) }
     }
+
+    /// Retrieves the name of the class associated with the passed in java ref.
+    pub(crate) fn class_name(&self, obj: ObjRef) -> String {
+        for (name, entry) in self.classes.iter() {
+            if obj.get_inner() == (*entry as *const _) {
+                return name.to_string();
+            }
+        }
+        panic!("No java.lang.Class instance found for obj in heap::class_name");
+    }
 }
