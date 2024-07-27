@@ -1,14 +1,10 @@
 use std::collections::HashMap;
 
-use crate::{
-    alloc::{alloc_type::NonStatic, oop::HeapAlloc},
-    class::Class,
-    data_types::{
-        array::{ArrayComp, ArrayRef},
-        instance_data::InstanceData,
-        object::ObjRef,
-    },
-};
+use crate::{alloc::{alloc_type::NonStatic, oop::HeapAlloc}, class::Class, data_types::{
+    array::{ArrayComp, ArrayRef},
+    instance_data::InstanceData,
+    object::ObjRef,
+}, vm};
 
 pub(crate) struct Heap {
     gen1: Vec<*mut HeapAlloc<NonStatic>>,
@@ -63,20 +59,16 @@ impl Heap {
     pub(crate) fn new_class_object(
         &mut self,
         instance_class: &'static Class,
-        class_id: usize,
         java_lang_class: &'static Class,
         java_lang_object: &'static Class,
     ) -> ObjRef {
-        let super_class = if class_id == 0 {
+        let super_class = if instance_class.super_class == 0 {
             vec![]
         } else {
             vec![java_lang_object]
         };
-        //TODO this line is wrong. The class_id param is not the class id for
-        // java_lang_class, as the method expects it to be. It is the class id
-        // for the instance_class param. I am not sure if this was an oversight
-        // or there is something I forgot. I will have to come back to this.
-        let obj = ObjRef::new(InstanceData::new(java_lang_class, class_id, super_class));
+        
+        let obj = ObjRef::new(InstanceData::new(java_lang_class, vm::CLASS_CLASS_ID, super_class));
         self.classes
             .insert(instance_class.get_name(), obj.get_inner() as *mut _);
         obj

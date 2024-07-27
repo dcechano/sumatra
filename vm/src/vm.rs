@@ -35,9 +35,9 @@ const CLASS: &str = "java/lang/Class";
 const SYSTEM: &str = "java/lang/System";
 const STRING: &str = "java/lang/String";
 
-const OBJECT_CLASS_ID: usize = 0;
-const SYSTEM_CLASS_ID: usize = 1;
-const CLASS_CLASS_ID: usize = 2;
+pub const OBJECT_CLASS_ID: usize = 0;
+pub const SYSTEM_CLASS_ID: usize = 1;
+pub const CLASS_CLASS_ID: usize = 2;
 
 const DEFAULT_VEC_SIZE: usize = 128;
 
