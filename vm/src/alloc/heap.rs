@@ -1,10 +1,15 @@
 use std::collections::HashMap;
 
-use crate::{alloc::{alloc_type::NonStatic, oop::HeapAlloc}, class::Class, data_types::{
-    array::{ArrayComp, ArrayRef},
-    instance_data::InstanceData,
-    object::ObjRef,
-}, vm};
+use crate::{
+    alloc::{alloc_type::NonStatic, oop::HeapAlloc},
+    class::Class,
+    data_types::{
+        array::{ArrayComp, ArrayRef},
+        instance_data::InstanceData,
+        object::ObjRef,
+    },
+    vm,
+};
 
 pub(crate) struct Heap {
     gen1: Vec<*mut HeapAlloc<NonStatic>>,
@@ -67,8 +72,12 @@ impl Heap {
         } else {
             vec![java_lang_object]
         };
-        
-        let obj = ObjRef::new(InstanceData::new(java_lang_class, vm::CLASS_CLASS_ID, super_class));
+
+        let obj = ObjRef::new(InstanceData::new(
+            java_lang_class,
+            vm::CLASS_CLASS_ID,
+            super_class,
+        ));
         self.classes
             .insert(instance_class.get_name(), obj.get_inner() as *mut _);
         obj
