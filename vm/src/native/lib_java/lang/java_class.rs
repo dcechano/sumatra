@@ -11,7 +11,7 @@ use crate::{
     vm::VM,
 };
 
-const NATIVES: [(&str, NativeMethod); 4] = [
+const NATIVES: [(&str, NativeMethod); 5] = [
     (
         "forName0(Ljava/lang/String;ZLjava/lang/ClassLoader;Ljava/lang/Class;)Ljava/lang/Class;",
         jvm_for_name0,
@@ -25,6 +25,7 @@ const NATIVES: [(&str, NativeMethod); 4] = [
         "getPrimitiveClass(Ljava/lang/String;)Ljava/lang/Class;",
         jvm_get_primitive_class,
     ),
+    ("initClassName()Ljava/lang/String;", jvm_init_class_name),
 ];
 
 pub fn jvm_register_natives(
@@ -76,7 +77,13 @@ fn jvm_is_primitive(vm: &mut VM, this: Option<ObjRef>, _: Vec<Value>) -> Result<
 }
 
 fn jvm_init_class_name(vm: &mut VM, this: Option<ObjRef>, _: Vec<Value>) -> Result<Option<Value>> {
-    todo!()
+    let mut this = this.unwrap();
+    let class_name = vm.heap().class_name(this);
+    let java_string = vm.create_java_string(&class_name, false);
+
+    let field = Value::new_object(java_string);
+    this.set_field("name", field.clone()).unwrap();
+    Ok(Some(field))
 }
 
 fn jvm_get_super_class(vm: &mut VM, this: Option<ObjRef>, _: Vec<Value>) -> Result<Option<Value>> {
