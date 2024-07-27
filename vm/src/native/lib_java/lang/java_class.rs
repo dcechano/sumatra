@@ -155,6 +155,7 @@ fn jvm_get_primitive_class(
         })
         .collect::<String>();
 
+    //TODO fix this. int.class does NOT return a java/lang.Integer.class!
     let class_name = match primitive_name.as_bytes() {
         b"boolean" => "java/lang/Boolean",
         b"byte" => "java/lang/Byte",
