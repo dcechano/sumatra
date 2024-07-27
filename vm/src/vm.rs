@@ -1424,8 +1424,11 @@ impl VM {
                     todo!("Implement error handling.");
                 };
                 // load class, just in case it is not loaded
-                let _ = self.load_class_immut(class_name).unwrap();
-                Value::new_object(self.heap.get_class_obj(class_name))
+                let class = self.load_class_immut(class_name).unwrap();
+                // Use class.get_name() here because in the case of array classes,
+                // class_name has a trailing ';' that is parsed out when loading the class by
+                // name.
+                Value::new_object(self.heap.get_class_obj(&class.get_name()))
             }
             Constant::String(string_index) => {
                 let string = cp.get_utf8(*string_index)?.into();
@@ -1611,12 +1614,9 @@ impl VM {
     ) -> Result<ObjRef> {
         let java_lang_class = self.method_area.get_class(CLASS_CLASS_ID)?;
         let java_lang_object = self.method_area.get_class(OBJECT_CLASS_ID)?;
-        Ok(self.heap.new_class_object(
-            instance_class,
-            instance_class_id,
-            java_lang_class,
-            java_lang_object,
-        ))
+        Ok(self
+            .heap
+            .new_class_object(instance_class, java_lang_class, java_lang_object))
     }
 
     /// Create an instance of java.lang.String manually from a Rust &str.
