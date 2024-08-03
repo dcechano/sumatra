@@ -201,14 +201,8 @@ impl VM {
                 Instruction::DaStore => todo!(),
                 Instruction::Dcmpg => todo!(),
                 Instruction::Dcmpl => todo!(),
-                Instruction::DConst0 => {
-                    self.frame_mut().push(Value::Double(0f64));
-                    self.frame_mut().push(Value::Double(0f64));
-                }
-                Instruction::DConst1 => {
-                    self.frame_mut().push(Value::Double(1f64));
-                    self.frame_mut().push(Value::Double(1f64));
-                }
+                Instruction::DConst0 => self.frame_mut().push(Value::Double(0f64)),
+                Instruction::DConst1 => self.frame_mut().push(Value::Double(1f64)),
                 Instruction::DDiv => todo!(),
                 Instruction::DLoad(local_index) => self.dload_n(*local_index)?,
                 Instruction::DLoad0 => self.dload_n(0)?,
@@ -376,25 +370,16 @@ impl VM {
                 Instruction::InvokeInterface(_, _, _) => todo!(),
                 Instruction::InvokeSpecial(method_index) => {
                     if let Some(value) = self.invoke_special(*method_index)? {
-                        if let Value::Double(_) | Value::Long(_) = value {
-                            self.frame_mut().stack.push(value.clone());
-                        }
                         self.frame_mut().stack.push(value);
                     }
                 }
                 Instruction::InvokeStatic(method_index) => {
                     if let Some(value) = self.invoke_static(*method_index)? {
-                        if let Value::Double(_) | Value::Long(_) = value {
-                            self.frame_mut().stack.push(value.clone());
-                        }
                         self.frame_mut().stack.push(value);
                     }
                 }
                 Instruction::InvokeVirtual(method_index) => {
                     if let Some(value) = self.invoke_virtual(*method_index)? {
-                        if let Value::Double(_) | Value::Long(_) = value {
-                            self.frame_mut().stack.push(value.clone());
-                        }
                         self.frame_mut().stack.push(value);
                     }
                 }
@@ -456,7 +441,7 @@ impl VM {
                     self.new_array(ArrayComp::try_from(*array_type)?)?
                 }
                 Instruction::Nop => todo!(),
-                Instruction::Pop => self.pop(),
+                Instruction::Pop => self.pop()?,
                 Instruction::Pop2 => self.pop2()?,
                 Instruction::PutField(field_index) => self.put_field(*field_index)?,
                 Instruction::PutStatic(field_index) => self.put_static(*field_index)?,
@@ -754,7 +739,6 @@ impl VM {
         };
 
         let sum = value2 + value1;
-        frame.push(Value::Double(sum));
         Ok(frame.push(Value::Double(sum)))
     }
 
@@ -767,7 +751,6 @@ impl VM {
             bail!("Expected double for value in dload_n");
         };
 
-        frame.push(Value::Double(value));
         Ok(frame.push(Value::Double(value)))
     }
 
@@ -788,9 +771,6 @@ impl VM {
     fn dup(&mut self) -> Result<()> {
         let frame = self.frame_mut();
         let value = frame.clone_top();
-        if matches!(value, (Value::Double(_) | Value::Long(_))) {
-            frame.push(value.clone());
-        }
         Ok(frame.push(value))
     }
 
@@ -998,7 +978,6 @@ impl VM {
         let Value::Int(int) = self.frame_mut().pop() else {
             bail!("Expected int in i2d.");
         };
-        self.frame_mut().push(Value::Double(int as f64));
         Ok(self.frame_mut().push(Value::Double(int as f64)))
     }
 
@@ -1016,7 +995,6 @@ impl VM {
         let Value::Int(int) = self.frame_mut().pop() else {
             bail!("Expected int in i2l.");
         };
-        self.frame_mut().push(Value::Long(int as i64));
         Ok(self.frame_mut().push(Value::Long(int as i64)))
     }
 
@@ -1088,6 +1066,7 @@ impl VM {
         let Value::Int(value1) = frame.pop() else {
             bail!("Expected int for value1 of idiv");
         };
+        //TODO clean this up to the wrapping_add method.
         let result = Wrapping::<i32>(value1) / Wrapping::<i32>(value2);
         Ok(frame.push(Value::Int(result.0)))
     }
@@ -1134,6 +1113,7 @@ impl VM {
     fn if_cond(&mut self, offset: usize, cmp: Compare) -> bool {
         let frame = self.frame_mut();
         let int = frame.pop();
+        //TODO clean this up to use a let else clause.
         if !matches!(int, Value::Int(_)) {
             panic!("Expected int for if_cond instruction.");
         }
@@ -1334,6 +1314,7 @@ impl VM {
     /// is the index of the local variable in the locals array.
     fn istore_n(&mut self, local_index: usize) -> Result<()> {
         let frame = self.frame_mut();
+        //TODO clean this up to use a let else clause.
         let int = frame.pop();
         if !matches!(int, Value::Int(_)) {
             bail!("Expected a int for istore instruction.");
@@ -1388,6 +1369,7 @@ impl VM {
         let frame = self.frame_mut();
         let value2 = frame.pop();
         let value1 = frame.pop();
+        //TODO Clean this up to use let else clauses.
         if let Value::Int(int1) = value1 {
             if let Value::Int(int2) = value2 {
                 if int2 == 0 {
@@ -1455,7 +1437,7 @@ impl VM {
         let Value::Long(value1) = frame.pop() else {
             bail!("Expected Value::Long for value1 in land.");
         };
-        
+
         Ok(frame.push(Value::Long(value2 & value1)))
     }
 
@@ -1599,18 +1581,24 @@ impl VM {
     }
 
     /// Executes the `Instruction::Pop` instruction. Nothing is returned.
-    fn pop(&mut self) { self.frame_mut().pop(); }
+    fn pop(&mut self) -> Result<()> {
+        let value = self.frame_mut().pop();
+        if matches!(value, (Value::Double(_) | Value::Long(_))) {
+            bail!("pop instruction cannot be executed on longs or doubles.");
+        };
+        Ok(())
+    }
 
     /// Executes the `Instruction::Pop2` instruction. Nothing is returned.
     fn pop2(&mut self) -> Result<()> {
         let frame = self.frame_mut();
         let value = frame.pop();
-        if let Value::Double(_) | Value::Long(_) = value {
-            frame.pop();
-            Ok(())
-        } else {
-            bail!("Expected double or long for pop2.");
+        if !matches!(value, (Value::Double(_) | Value::Long(_))) {
+            // pop2 stipulates that 2 values are popped if value is NOT a category 2
+            // computational type.
+            let _ = frame.pop();
         }
+        Ok(())
     }
 
     /// Executes the `Instruction::PutField` instruction.
@@ -1647,16 +1635,13 @@ impl VM {
         };
         let (f_name, mut data) = self.unpack_f_name(*class_index, *name_and_type_index)?;
 
-        let value = self.frame_mut().pop();
-        if matches!(value, (Value::Long(_) | Value::Double(_))) {
-            let _ = self.frame_mut().pop();
-        }
-        data.set_field(&f_name, value)?;
+        data.set_field(&f_name, self.frame_mut().pop())?;
         Ok(())
     }
 
     fn return_val(&mut self) -> Value {
         let value = self.frame_mut().pop();
+        println!("{:?}", self.frame_mut().stack);
         debug_assert!(self.frame().stack.is_empty());
         self.frames.pop();
         value

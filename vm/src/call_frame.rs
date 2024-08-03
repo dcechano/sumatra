@@ -74,6 +74,9 @@ impl CallFrame {
     }
 
     pub(crate) fn push(&mut self, value: Value) {
+        if matches!(value, (Value::Long(_) | Value::Double(_))) {
+            self.stack.push(value.clone());
+        }
         self.stack.push(value);
         let max_stack = self.method.code.max_stack as usize;
         if self.stack.len() > max_stack {
@@ -84,5 +87,14 @@ impl CallFrame {
         }
     }
 
-    pub(crate) fn pop(&mut self) -> Value { self.stack.pop().unwrap() }
+    pub(crate) fn pop(&mut self) -> Value {
+        let value = self.stack.pop().unwrap();
+        if matches!(value, (Value::Long(_) | Value::Double(_))) {
+            let _ = self
+                .stack
+                .pop()
+                .expect("There was not a second double or long on stack.");
+        }
+        value
+    }
 }
