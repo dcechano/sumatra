@@ -1040,8 +1040,8 @@ impl VM {
             bail!("Expected int for value1 of iadd");
         };
 
-        let result = Wrapping::<i32>(value1) + Wrapping::<i32>(value2);
-        Ok(frame.push(Value::Int(result.0)))
+        let result = value1.wrapping_add(value2);
+        Ok(frame.push(Value::Int(result)))
     }
 
     /// Executes the `Instruction::IAnd` instruction.
