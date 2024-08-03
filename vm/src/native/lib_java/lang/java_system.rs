@@ -1,7 +1,10 @@
-use anyhow::Result;
+use anyhow::{bail, Result};
 
 use crate::{
-    data_types::{object::ObjRef, value::Value},
+    data_types::{
+        object::ObjRef,
+        value::{RefType, Value},
+    },
     native::{
         lib_java::{register_natives, JAVA_LANG_SYSTEM},
         registry::NativeMethod,
@@ -9,7 +12,7 @@ use crate::{
     vm::VM,
 };
 
-const NATIVES: [(&str, NativeMethod); 8] = [
+const NATIVES: [(&str, NativeMethod); 9] = [
     ("setIn0(Ljava/io/InputStream;)V", jvm_set_in0),
     ("setIn0(Ljava/io/PrintStream;)V", jvm_set_out0),
     ("setErr0(Ljava/io/PrintStream;)V", jvm_set_err0),
@@ -26,6 +29,10 @@ const NATIVES: [(&str, NativeMethod); 8] = [
     (
         "mapLibraryName(Ljava/lang/String;)Ljava/lang/String;",
         jvm_map_library_name,
+    ),
+    (
+        "arraycopy(Ljava/lang/Object;ILjava/lang/Object;II)V",
+        jvm_arraycopy,
     ),
 ];
 
@@ -62,8 +69,36 @@ fn jvm_nano_time(vm: &mut VM, this: Option<ObjRef>, _: Vec<Value>) -> Result<Opt
     todo!()
 }
 
-fn jvm_arraycopy(vm: &mut VM, this: Option<ObjRef>, _: Vec<Value>) -> Result<Option<Value>> {
-    todo!()
+fn jvm_arraycopy(vm: &mut VM, this: Option<ObjRef>, args: Vec<Value>) -> Result<Option<Value>> {
+    debug_assert!(args.len() == 5);
+    let Value::Ref(RefType::Array(mut src)) = args[0] else {
+        bail!("Expected array as first arg in jvm_arraycopy");
+    };
+    let Value::Int(src_pos) = args[1] else {
+        bail!("Expected int for second arg in jvm_arraycopy");
+    };
+    let Value::Ref(RefType::Array(mut dest)) = args[2] else {
+        bail!("Expected array as third arg in jvm_arraycopy");
+    };
+    let Value::Int(dest_pos) = args[3] else {
+        bail!("Expected int for fourth arg in jvm_arraycopy");
+    };
+    let Value::Int(length) = args[4] else {
+        bail!("Expected int for fifth arg in jvm_arraycopy");
+    };
+
+    if src_pos < 0 || dest_pos < 0 {
+        todo!("Throw IndexOutOfBoundsException")
+    } else if src_pos + length > src.len() as i32 {
+        todo!("Throw IndexOutOfBoundsException")
+    } else if dest_pos + length > dest.len() as i32 {
+        todo!("Throw IndexOutOfBoundsException")
+    }
+
+    // Component type checking is done in the insert method of the dest array
+    let (src_pos, dest_pos, length) = (src_pos as usize, dest_pos as usize, length as usize);
+    (0..length).for_each(|i| dest.insert(dest_pos + i, src.get(src_pos + i)));
+    Ok(None)
 }
 
 fn jvm_identity_hash_code(
