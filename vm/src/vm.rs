@@ -54,6 +54,7 @@ impl VM {
     pub fn init(jdk: PathBuf, c_path: PathBuf) -> Self {
         let mut vm = VM::new(jdk, c_path);
         vm.bootstrap_classes();
+        panic!("Bootstrapping complete!");
         vm
     }
 
@@ -967,7 +968,7 @@ impl VM {
 
         let (name_index, _, alloc) = self.unpack(*class_index, *name_and_type_index)?;
         let field_val = alloc.get_field(self.frame().cp.get_utf8(name_index)?)?;
-        if let Value::Long(_) | Value::Double(_) = field_val {
+        if matches!(field_val, (Value::Double(_) | Value::Long(_))) {
             self.frame_mut().stack.push(field_val.clone());
         }
         self.frame_mut().stack.push(field_val.clone());
@@ -1591,7 +1592,12 @@ impl VM {
             bail!("Expected Constant::FieldRef for a put_static instruction.");
         };
         let (f_name, mut data) = self.unpack_f_name(*class_index, *name_and_type_index)?;
-        data.set_field(&f_name, self.frame_mut().pop())?;
+        
+        let value = self.frame_mut().pop();
+        if matches!(value, (Value::Long(_) | Value::Double(_))) {
+            let _ = self.frame_mut().pop();
+        }
+        data.set_field(&f_name, value)?;
         Ok(())
     }
 
