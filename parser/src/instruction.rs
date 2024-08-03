@@ -277,6 +277,7 @@ pub enum Instruction {
     /// Add long
     LAdd,
     LaLoad,
+    /// Boolean AND long
     LAnd,
     LaStore,
     Lcmp,

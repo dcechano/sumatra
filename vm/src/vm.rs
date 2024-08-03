@@ -418,7 +418,7 @@ impl VM {
                 Instruction::L2I => todo!(),
                 Instruction::LAdd => self.ladd()?,
                 Instruction::LaLoad => todo!(),
-                Instruction::LAnd => todo!(),
+                Instruction::LAnd => self.land()?,
                 Instruction::LaStore => todo!(),
                 Instruction::Lcmp => todo!(),
                 Instruction::LConst0 => todo!(),
@@ -1444,6 +1444,19 @@ impl VM {
         };
 
         Ok(frame.push(Value::Long(value2.wrapping_add(value1))))
+    }
+
+    /// Executes the `Instruction::LAnd` instruction.
+    fn land(&mut self) -> Result<()> {
+        let frame = self.frame_mut();
+        let Value::Long(value2) = frame.pop() else {
+            bail!("Expected Value::Long for value2 in land.");
+        };
+        let Value::Long(value1) = frame.pop() else {
+            bail!("Expected Value::Long for value1 in land.");
+        };
+        
+        Ok(frame.push(Value::Long(value2 & value1)))
     }
 
     /// Executes the `Instruction::Ldc`, and `Instruction::LdcW` instructions.
