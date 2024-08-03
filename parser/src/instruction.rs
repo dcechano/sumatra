@@ -304,7 +304,9 @@ pub enum Instruction {
     LRem,
     /// Return long from current java method.
     LReturn,
+    /// Shift left long
     LShL,
+    /// Shift right long
     LShR,
     LStore(usize),
     LStore0,

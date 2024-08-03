@@ -438,8 +438,8 @@ impl VM {
                 Instruction::LOr => todo!(),
                 Instruction::LRem => todo!(),
                 Instruction::LReturn => return Ok(Some(self.return_val())),
-                Instruction::LShL => todo!(),
-                Instruction::LShR => todo!(),
+                Instruction::LShL => self.lshl()?,
+                Instruction::LShR => self.lshr()?,
                 Instruction::LStore(_) => todo!(),
                 Instruction::LStore0 => todo!(),
                 Instruction::LStore1 => todo!(),
@@ -1513,6 +1513,34 @@ impl VM {
         };
         frame.stack.push(value.clone());
         Ok(frame.stack.push(value))
+    }
+
+    /// Executes the `Instruction::LShr` instruction.
+    fn lshl(&mut self) -> Result<()> {
+        let frame = self.frame_mut();
+
+        let Value::Int(value2) = frame.pop() else {
+            bail!("Expected Value::Int for value2 in lshl.");
+        };
+        let Value::Long(value1) = frame.pop() else {
+            bail!("Expected Value::Long for value1 in lshl.");
+        };
+        let value2 = value2 as i64;
+        Ok(frame.push(Value::Long(value1 << (value2 & 0x3f))))
+    }
+
+    /// Executes the `Instruction::LShl` instruction.
+    fn lshr(&mut self) -> Result<()> {
+        let frame = self.frame_mut();
+
+        let Value::Int(value2) = frame.pop() else {
+            bail!("Expected Value::Int for value2 in lshr.");
+        };
+        let Value::Long(value1) = frame.pop() else {
+            bail!("Expected Value::Long for value1 in lshr.");
+        };
+        let value2 = value2 as i64;
+        Ok(frame.push(Value::Long(value1 >> (value2 & 0x3f))))
     }
 
     /// Executes the `Instruction::MonitorEnter` instruction.
