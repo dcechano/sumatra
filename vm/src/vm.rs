@@ -400,8 +400,8 @@ impl VM {
                 Instruction::IOr => todo!(),
                 Instruction::IRem => self.irem()?,
                 Instruction::IReturn => return Ok(Some(self.return_val())),
-                Instruction::IShL => todo!(),
-                Instruction::IShR => todo!(),
+                Instruction::IShL => self.ishl()?,
+                Instruction::IShR => self.ishr()?,
                 Instruction::IStore(local_index) => self.istore_n(*local_index)?,
                 Instruction::IStore0 => self.istore_n(0)?,
                 Instruction::IStore1 => self.istore_n(1)?,
@@ -1353,6 +1353,32 @@ impl VM {
 
         let result = Wrapping::<i32>(value1) - Wrapping::<i32>(value2);
         Ok(frame.push(Value::Int(result.0)))
+    }
+
+    /// Executes the `Instruction::IShl` instruction.
+    fn ishl(&mut self) -> Result<()> {
+        let frame = self.frame_mut();
+        let Value::Int(value2) = frame.pop() else {
+            bail!("Expected int for value2 in ishr");
+        };
+        let Value::Int(value1) = frame.pop() else {
+            bail!("Expected int for value1 in ishr");
+        };
+
+        Ok(frame.push(Value::Int(value1 << (value2 & 0x1f))))
+    }
+
+    /// Executes the `Instruction::IShr` instruction.
+    fn ishr(&mut self) -> Result<()> {
+        let frame = self.frame_mut();
+        let Value::Int(value2) = frame.pop() else {
+            bail!("Expected int for value2 in ishr");
+        };
+        let Value::Int(value1) = frame.pop() else {
+            bail!("Expected int for value1 in ishr");
+        };
+
+        Ok(frame.push(Value::Int(value1 >> (value2 & 0x1f))))
     }
 
     /// Executes `Instruction::IRem` instruction and pushes

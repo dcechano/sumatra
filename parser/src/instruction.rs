@@ -249,7 +249,9 @@ pub enum Instruction {
     IRem,
     /// Return integer at the top of the operand stack.
     IReturn,
+    /// Arithmetic shift left int
     IShL,
+    /// Arithmetic shift right int
     IShR,
     /// Store int into local variable
     IStore(usize),
