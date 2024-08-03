@@ -370,17 +370,17 @@ impl VM {
                 Instruction::InvokeInterface(_, _, _) => todo!(),
                 Instruction::InvokeSpecial(method_index) => {
                     if let Some(value) = self.invoke_special(*method_index)? {
-                        self.frame_mut().stack.push(value);
+                        self.frame_mut().push(value);
                     }
                 }
                 Instruction::InvokeStatic(method_index) => {
                     if let Some(value) = self.invoke_static(*method_index)? {
-                        self.frame_mut().stack.push(value);
+                        self.frame_mut().push(value);
                     }
                 }
                 Instruction::InvokeVirtual(method_index) => {
                     if let Some(value) = self.invoke_virtual(*method_index)? {
-                        self.frame_mut().stack.push(value);
+                        self.frame_mut().push(value);
                     }
                 }
                 Instruction::IOr => todo!(),
@@ -1271,7 +1271,6 @@ impl VM {
         let (class, method) = self.to_method_class(name_index, desc_index, &alloc)?;
 
         debug_assert!(method.is_static());
-        // TODO implement native method calls.
         self.handle_invoke(class, method)
     }
 

@@ -1,4 +1,5 @@
 use anyhow::{bail, Result};
+use std::collections::VecDeque;
 
 use sumatra_parser::{constant_pool::ConstantPool, method::Method};
 
@@ -109,12 +110,12 @@ impl CallFrame {
     /// frame are stored on this call frame's operand stack. Longs and
     /// doubles are considered to be 2 parameters per the JVM spec.
     pub(crate) fn pop_params(&mut self, num_params: usize) -> Vec<Value> {
-        (0..num_params)
-            .map(|_| {
-                self.stack
-                    .pop()
-                    .expect("Not enough parameters in pop_params.")
-            })
-            .collect::<Vec<Value>>()
+        // Cant use .map() the rev() here because map is called lazily and calling rev()
+        // after map won't fix the order of the vec. So we do this...
+        let mut deque = VecDeque::with_capacity(num_params);
+        (0..num_params).for_each(|_| {
+            deque.push_front(self.stack.pop().expect("Not enough params in pop_params."))
+        });
+        deque.into()
     }
 }
