@@ -73,6 +73,9 @@ impl CallFrame {
         }
     }
 
+    /// Push value to the operand stack. If value is a double or long,
+    /// the value will be cloned and pushed twice since doubles and longs
+    /// take 2 spots on the operand stack.
     pub(crate) fn push(&mut self, value: Value) {
         if matches!(value, (Value::Long(_) | Value::Double(_))) {
             self.stack.push(value.clone());
@@ -87,6 +90,9 @@ impl CallFrame {
         }
     }
 
+    /// Pop the top value off the operand stack. If the value is a double or
+    /// long, 2 values will be popped since doubles and longs take 2 spots
+    /// on the stack.
     pub(crate) fn pop(&mut self) -> Value {
         let value = self.stack.pop().unwrap();
         if matches!(value, (Value::Long(_) | Value::Double(_))) {
@@ -96,5 +102,19 @@ impl CallFrame {
                 .expect("There was not a second double or long on stack.");
         }
         value
+    }
+
+    /// Pop `num_params` elements from the operand stack. This method is used to
+    /// construct a new call frame where the arguments for the new call
+    /// frame are stored on this call frame's operand stack. Longs and
+    /// doubles are considered to be 2 parameters per the JVM spec.
+    pub(crate) fn pop_params(&mut self, num_params: usize) -> Vec<Value> {
+        (0..num_params)
+            .map(|_| {
+                self.stack
+                    .pop()
+                    .expect("Not enough parameters in pop_params.")
+            })
+            .collect::<Vec<Value>>()
     }
 }

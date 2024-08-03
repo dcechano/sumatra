@@ -1890,13 +1890,9 @@ impl VM {
         };
 
         // We don't need to worry about the hidden "this" ref because if it was
-        // popped about if it was present.
+        // popped above if it was present.
         let num_params = method.parsed_descriptor.num_params();
-        let stack_size = self.frame().stack.len();
-        let arguments = Vec::from(&self.frame().stack[stack_size - num_params..stack_size]);
-        (0..num_params).for_each(|_| {
-            self.frame_mut().pop();
-        });
+        let arguments = self.frame_mut().pop_params(num_params);
         native(self, this, arguments)
     }
 
