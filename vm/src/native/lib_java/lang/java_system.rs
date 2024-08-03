@@ -70,7 +70,7 @@ fn jvm_nano_time(vm: &mut VM, this: Option<ObjRef>, _: Vec<Value>) -> Result<Opt
 }
 
 fn jvm_arraycopy(vm: &mut VM, this: Option<ObjRef>, args: Vec<Value>) -> Result<Option<Value>> {
-    debug_assert!(args.len() == 5);
+    assert_eq!(args.len(), 5);
     let Value::Ref(RefType::Array(mut src)) = args[0] else {
         bail!("Expected array as first arg in jvm_arraycopy");
     };
