@@ -78,7 +78,7 @@ impl CallFrame {
         let max_stack = self.method.code.max_stack as usize;
         if self.stack.len() > max_stack {
             panic!(
-                "Stack overflowed the max_stack value: {max_stack}, current stack size: {}",
+                "Stack overflowed. The max_stack value: {max_stack}, current stack size: {}",
                 self.stack.len()
             );
         }
