@@ -7,16 +7,19 @@ use crate::{
     native::{
         lib_java::{
             internal::{misc::java_unsafe, util::java_system_props_raw},
-            lang::{java_class, java_object, java_string_utf16, java_system},
-            JAVA_LANG_CLASS, JAVA_LANG_OBJECT, JAVA_LANG_STRING_UTF16, JAVA_LANG_SYSTEM,
-            JDK_INTERNAL_MISC_UNSAFE, JDK_INTERNAL_SYSTEM_PROPS_RAW, REGISTER_NATIVES_SIG,
+            lang::{
+                java_class, java_double, java_float, java_object, java_string_utf16, java_system,
+            },
+            JAVA_LANG_CLASS, JAVA_LANG_DOUBLE, JAVA_LANG_FLOAT, JAVA_LANG_OBJECT,
+            JAVA_LANG_STRING_UTF16, JAVA_LANG_SYSTEM, JDK_INTERNAL_MISC_UNSAFE,
+            JDK_INTERNAL_SYSTEM_PROPS_RAW, REGISTER_NATIVES_SIG,
         },
         native_identifier::NativeIdentifier,
     },
     vm::VM,
 };
 
-const INITIAL_NATIVE_METHODS: [(&str, &str, NativeMethod); 8] = [
+const INITIAL_NATIVE_METHODS: [(&str, &str, NativeMethod); 10] = [
     (
         JAVA_LANG_OBJECT,
         java_object::GET_CLASS_SIG,
@@ -38,6 +41,21 @@ const INITIAL_NATIVE_METHODS: [(&str, &str, NativeMethod); 8] = [
         java_system::jvm_register_natives,
     ),
     (
+        JAVA_LANG_STRING_UTF16,
+        java_string_utf16::IS_BIG_ENDIAN_SIG,
+        java_string_utf16::jvm_is_big_endian,
+    ),
+    (
+        JAVA_LANG_FLOAT,
+        java_float::FLOAT_TO_RAW_INT_BITS_SIG,
+        java_float::jvm_float_to_raw_int_bits,
+    ),
+    (
+        JAVA_LANG_DOUBLE,
+        java_double::DOUBLE_TO_RAW_LONG_BITS_SIG,
+        java_double::jvm_double_to_raw_long_bits,
+    ),
+    (
         JDK_INTERNAL_SYSTEM_PROPS_RAW,
         java_system_props_raw::PLATFORM_PROPS_SIG,
         java_system_props_raw::jvm_platform_properties,
@@ -51,11 +69,6 @@ const INITIAL_NATIVE_METHODS: [(&str, &str, NativeMethod); 8] = [
         JDK_INTERNAL_MISC_UNSAFE,
         REGISTER_NATIVES_SIG,
         java_unsafe::jvm_register_natives,
-    ),
-    (
-        JAVA_LANG_STRING_UTF16,
-        java_string_utf16::IS_BIG_ENDIAN_SIG,
-        java_string_utf16::jvm_is_big_endian,
     ),
 ];
 

@@ -10,6 +10,8 @@ pub(crate) const REGISTER_NATIVES_SIG: &str = "registerNatives()V";
 
 pub const JAVA_LANG_OBJECT: &str = "java/lang/Object";
 pub const JAVA_LANG_CLASS: &str = "java/lang/Class";
+pub const JAVA_LANG_FLOAT: &str = "java/lang/Float";
+pub const JAVA_LANG_DOUBLE: &str = "java/lang/Double";
 pub const JAVA_LANG_SYSTEM: &str = "java/lang/System";
 pub const JAVA_LANG_STRING_UTF16: &str = "java/lang/StringUTF16";
 
