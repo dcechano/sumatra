@@ -416,7 +416,7 @@ impl VM {
                 Instruction::L2D => todo!(),
                 Instruction::L2F => todo!(),
                 Instruction::L2I => todo!(),
-                Instruction::LAdd => todo!(),
+                Instruction::LAdd => self.ladd()?,
                 Instruction::LaLoad => todo!(),
                 Instruction::LAnd => todo!(),
                 Instruction::LaStore => todo!(),
@@ -1433,6 +1433,19 @@ impl VM {
         Ok(frame.push(Value::Int(value2 ^ value1)))
     }
 
+    fn ladd(&mut self) -> Result<()> {
+        let frame = self.frame_mut();
+        let Value::Long(value2) = frame.pop() else {
+            bail!("Expected Value::Long for value2 in ladd.");
+        };
+
+        let Value::Long(value1) = frame.pop() else {
+            bail!("Expected Value::Long for value1 in ladd.");
+        };
+
+        Ok(frame.push(Value::Long(value2.wrapping_add(value1))))
+    }
+
     /// Executes the `Instruction::Ldc`, and `Instruction::LdcW` instructions.
     /// `index` is the index of the constant in the runtime constant pool.
     fn load_const(&mut self, index: usize) -> Result<()> {
@@ -1592,7 +1605,7 @@ impl VM {
             bail!("Expected Constant::FieldRef for a put_static instruction.");
         };
         let (f_name, mut data) = self.unpack_f_name(*class_index, *name_and_type_index)?;
-        
+
         let value = self.frame_mut().pop();
         if matches!(value, (Value::Long(_) | Value::Double(_))) {
             let _ = self.frame_mut().pop();

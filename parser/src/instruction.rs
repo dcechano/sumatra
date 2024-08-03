@@ -274,6 +274,7 @@ pub enum Instruction {
     L2D,
     L2F,
     L2I,
+    /// Add long
     LAdd,
     LaLoad,
     LAnd,
