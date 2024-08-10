@@ -3,7 +3,10 @@ use std::collections::VecDeque;
 
 use sumatra_parser::{constant_pool::ConstantPool, method::Method};
 
-use crate::{class::Class, data_types::value::Value};
+use crate::{
+    class::Class,
+    data_types::{value, value::Value},
+};
 
 #[derive(Debug)]
 pub(crate) struct CallFrame {
@@ -109,7 +112,7 @@ impl CallFrame {
     /// construct a new call frame where the arguments for the new call
     /// frame are stored on this call frame's operand stack. Longs and
     /// doubles are considered to be 2 parameters per the JVM spec.
-    pub(crate) fn pop_params(&mut self, num_params: usize) -> Vec<Value> {
+    fn pop_params(&mut self, num_params: usize) -> Vec<Value> {
         // Cant use .map() the rev() here because map is called lazily and calling rev()
         // after map won't fix the order of the vec. So we do this...
         let mut deque = VecDeque::with_capacity(num_params);
@@ -117,5 +120,21 @@ impl CallFrame {
             deque.push_front(self.stack.pop().expect("Not enough params in pop_params."))
         });
         deque.into()
+    }
+
+    /// Populate the locals array using the array of initialized method
+    /// parameters. It is assumed that the `num_locals` is greater than or
+    /// equal to the `num_params` since the JVM spec considers method
+    /// parameters to be locals. In other words the `num_locals` includes the
+    /// `num_params`.
+    pub(crate) fn populate_locals(&mut self, num_locals: usize, num_params: usize) -> Vec<Value> {
+        if num_params > num_locals {
+            panic!("The number of locals cannot be the greater than the number of params.");
+        }
+
+        let mut locals = self.pop_params(num_params);
+        let num_dummies = num_locals - num_params;
+        locals.extend(vec![Value::Null; num_dummies]);
+        locals
     }
 }

@@ -40,15 +40,6 @@ impl Value {
     /// Allocates a new Java array and returns Value::Ref for the new array.
     pub(crate) fn new_array(array_ref: ArrayRef) -> Value { Value::Ref(RefType::Array(array_ref)) }
 
-    pub fn populate_locals(num_locals: usize, params: &mut Vec<Value>) {
-        if params.len() > num_locals {
-            panic!("The number of locals cannot be the greater than the number of params.");
-        }
-
-        let num_dummies = num_locals - params.len();
-        params.extend(vec![Value::Null; num_dummies]);
-    }
-
     pub(crate) fn is_same_variant(&self, other: &Value) -> bool {
         match self {
             Value::Null => matches!(other, Value::Null),

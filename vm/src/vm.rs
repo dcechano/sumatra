@@ -1640,7 +1640,6 @@ impl VM {
 
     fn return_val(&mut self) -> Value {
         let value = self.frame_mut().pop();
-        println!("{:?}", self.frame_mut().stack);
         debug_assert!(self.frame().stack.is_empty());
         self.frames.pop();
         value
@@ -1745,21 +1744,15 @@ impl VM {
     /// Construct the local variables array and return it. Assumes there is a
     /// call frame on the stack. If constructing the locals for `main` use
     /// `construct_main_locals`
-    fn construct_locals(&self, max_locals: usize, num_params: usize) -> Result<Vec<Value>> {
+    fn construct_locals(&mut self, max_locals: usize, num_params: usize) -> Result<Vec<Value>> {
         if num_params > max_locals {
             bail!("number of method parameters was larger than the max locals.");
         }
-        let stack_size = self.frame().stack.len();
 
         Ok(match (num_params, max_locals) {
             (0, 0) => vec![],
             (0, _) => Value::default_vec(max_locals),
-            _ => {
-                let mut locals =
-                    Vec::from(&self.frame().stack[stack_size - num_params..stack_size]);
-                Value::populate_locals(max_locals, &mut locals);
-                locals
-            }
+            _ => self.frame_mut().populate_locals(max_locals, num_params),
         })
     }
 
@@ -1863,9 +1856,6 @@ impl VM {
             &class.cp,
             self.construct_locals(max_locals, num_params)?,
         );
-        (0..num_params).for_each(|_| {
-            self.frame_mut().pop();
-        });
         self.frames.push(frame);
         self.execute_frame()
     }
@@ -1878,6 +1868,9 @@ impl VM {
     ) -> Result<Option<Value>> {
         let native = self.get_native(class, method)?;
 
+        let num_params = method.parsed_descriptor.num_params();
+        let arguments = self.construct_locals(num_params, num_params)?;
+
         let this = if method.is_static() {
             None
         } else {
@@ -1887,11 +1880,6 @@ impl VM {
             };
             Some(obj)
         };
-
-        // We don't need to worry about the hidden "this" ref because if it was
-        // popped above if it was present.
-        let num_params = method.parsed_descriptor.num_params();
-        let arguments = self.frame_mut().pop_params(num_params);
         native(self, this, arguments)
     }
 
