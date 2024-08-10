@@ -153,16 +153,16 @@ impl VM {
             self.frame().method.descriptor,
             self.frame().class.get_name()
         );
-        // println!(
-        //     "{}CURRENT STACK: {:?}",
-        //     "\t".repeat(indents + 1),
-        //     self.frame().stack
-        // );
-        // println!(
-        //     "{}CURRENT LOCALS: {:?}",
-        //     "\t".repeat(indents + 1),
-        //     self.frame().locals
-        // );
+        println!(
+            "{}CURRENT STACK: {:?}",
+            "\t".repeat(indents + 1),
+            self.frame().stack
+        );
+        println!(
+            "{}CURRENT LOCALS: {:?}",
+            "\t".repeat(indents + 1),
+            self.frame().locals
+        );
         // }
         while let Some(code) = op_code.get(self.frame().pc) {
             let name: &str = self.frame().method.name.as_ref();
@@ -406,17 +406,17 @@ impl VM {
                 Instruction::LAnd => self.land()?,
                 Instruction::LaStore => todo!(),
                 Instruction::Lcmp => todo!(),
-                Instruction::LConst0 => todo!(),
-                Instruction::LConst1 => todo!(),
+                Instruction::LConst0 => self.lconst_n(0)?,
+                Instruction::LConst1 => self.lconst_n(1)?,
                 Instruction::Ldc(index) => self.load_const(*index)?,
                 Instruction::LdcW(index) => self.load_const(*index)?,
                 Instruction::Ldc2W(index) => self.load_const2(*index)?,
                 Instruction::LDiv => todo!(),
-                Instruction::LLoad(_) => todo!(),
-                Instruction::LLoad0 => todo!(),
-                Instruction::LLoad1 => todo!(),
-                Instruction::LLoad2 => todo!(),
-                Instruction::LLoad3 => todo!(),
+                Instruction::LLoad(index) => self.lload(*index)?,
+                Instruction::LLoad0 => self.lload(0)?,
+                Instruction::LLoad1 => self.lload(1)?,
+                Instruction::LLoad2 => self.lload(2)?,
+                Instruction::LLoad3 => self.lload(3)?,
                 Instruction::LMul => todo!(),
                 Instruction::LNeg => todo!(),
                 Instruction::LookUpSwitch { .. } => todo!(),
@@ -425,11 +425,11 @@ impl VM {
                 Instruction::LReturn => return Ok(Some(self.return_val())),
                 Instruction::LShL => self.lshl()?,
                 Instruction::LShR => self.lshr()?,
-                Instruction::LStore(_) => todo!(),
-                Instruction::LStore0 => todo!(),
-                Instruction::LStore1 => todo!(),
-                Instruction::LStore2 => todo!(),
-                Instruction::LStore3 => todo!(),
+                Instruction::LStore(index) => self.lstore(*index)?,
+                Instruction::LStore0 => self.lstore(0)?,
+                Instruction::LStore1 => self.lstore(1)?,
+                Instruction::LStore2 => self.lstore(2)?,
+                Instruction::LStore3 => self.lstore(3)?,
                 Instruction::LSub => todo!(),
                 Instruction::LuShR => todo!(),
                 Instruction::LxOr => todo!(),
@@ -455,16 +455,16 @@ impl VM {
                 Instruction::Wide(winstr) => todo!(),
             }
             // if name != "<clinit>" && name != "<init>" {
-            // println!(
-            //     "{}Stack: {:?}",
-            //     "\t".repeat(indents + 1),
-            //     self.frame().stack
-            // );
-            // println!(
-            //     "{}Locals: {:?}",
-            //     "\t".repeat(indents + 1),
-            //     self.frame().locals
-            // );
+            println!(
+                "{}Stack: {:?}",
+                "\t".repeat(indents + 1),
+                self.frame().stack
+            );
+            println!(
+                "{}Locals: {:?}",
+                "\t".repeat(indents + 1),
+                self.frame().locals
+            );
             // }
             self.frame_mut().pc += 1;
         }
@@ -1427,6 +1427,9 @@ impl VM {
         Ok(frame.push(Value::Long(value2.wrapping_add(value1))))
     }
 
+    /// Executes the `Instruction::LConst<n>` instruction.
+    fn lconst_n(&mut self, long: i64) -> Result<()> { Ok(self.frame_mut().push(Value::Long(long))) }
+
     /// Executes the `Instruction::LAnd` instruction.
     fn land(&mut self) -> Result<()> {
         let frame = self.frame_mut();
@@ -1509,6 +1512,16 @@ impl VM {
         Ok(frame.stack.push(value))
     }
 
+    /// Executes the `Instruction::LLoad<n>` instruction.
+    fn lload(&mut self, index: usize) -> Result<()> {
+        let frame = self.frame_mut();
+        let Value::Long(long) = frame.load(index)? else {
+            bail!("Expected Value::Long for value in lload.");
+        };
+
+        Ok(frame.push(Value::Long(long)))
+    }
+
     /// Executes the `Instruction::LShr` instruction.
     fn lshl(&mut self) -> Result<()> {
         let frame = self.frame_mut();
@@ -1535,6 +1548,16 @@ impl VM {
         };
         let value2 = value2 as i64;
         Ok(frame.push(Value::Long(value1 >> (value2 & 0x3f))))
+    }
+
+    /// Executes the `Instruction::LStore<n>` instruction.
+    fn lstore(&mut self, index: usize) -> Result<()> {
+        let frame = self.frame_mut();
+        let Value::Long(long) = frame.pop() else {
+            bail!("Expected Value::Long at top of operand stack in lstore.");
+        };
+
+        frame.insert_local(index, Value::Long(long))
     }
 
     /// Executes the `Instruction::MonitorEnter` instruction.

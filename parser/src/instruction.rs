@@ -290,10 +290,15 @@ pub enum Instruction {
     /// Push long or double from run-time constant pool (wide index).
     Ldc2W(usize),
     LDiv,
+    ///Load long from local variable
     LLoad(usize),
+    ///Load long from local variable 0  
     LLoad0,
+    ///Load long from local variable 1
     LLoad1,
+    ///Load long from local variable 2
     LLoad2,
+    ///Load long from local variable 3
     LLoad3,
     LMul,
     LNeg,
@@ -309,10 +314,15 @@ pub enum Instruction {
     LShL,
     /// Shift right long
     LShR,
+    ///Store long into local variable
     LStore(usize),
+    ///Store long into local variable 0
     LStore0,
+    ///Store long into local variable 1
     LStore1,
+    ///Store long into local variable 2
     LStore2,
+    ///Store long into local variable 3
     LStore3,
     LSub,
     LuShR,

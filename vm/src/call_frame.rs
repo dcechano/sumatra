@@ -48,11 +48,20 @@ impl CallFrame {
     pub(crate) fn clone_top(&self) -> Value { self.stack.last().unwrap().clone() }
 
     pub(crate) fn insert_local(&mut self, index: usize, value: Value) -> Result<()> {
-        match self.locals.get_mut(index) {
-            None => bail!("Invalid index into the locals array."),
-            Some(local) => *local = value,
-        };
-        Ok(())
+        fn insert(frame: &mut CallFrame, index: usize, value: Value) -> Result<()> {
+            match frame.locals.get_mut(index) {
+                None => bail!("Invalid index into the locals array."),
+                Some(local) => {
+                    *local = value;
+                }
+            }
+            Ok(())
+        }
+
+        if matches!(value, Value::Long(_) | Value::Double(_)) {
+            insert(self, index + 1, value.clone())?
+        }
+        insert(self, index, value)
     }
 
     /// Returns a local variable for mutating.
