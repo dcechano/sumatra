@@ -400,7 +400,7 @@ impl VM {
                 Instruction::JsrW(_) => todo!(),
                 Instruction::L2D => todo!(),
                 Instruction::L2F => todo!(),
-                Instruction::L2I => todo!(),
+                Instruction::L2I => self.l2i()?,
                 Instruction::LAdd => self.ladd()?,
                 Instruction::LaLoad => todo!(),
                 Instruction::LAnd => self.land()?,
@@ -1412,6 +1412,16 @@ impl VM {
         };
 
         Ok(frame.push(Value::Int(value2 ^ value1)))
+    }
+
+    /// Executes the `Instruction::L2I` instruction.
+    fn l2i(&mut self) -> Result<()> {
+        let frame = self.frame_mut();
+        let Value::Long(long) = frame.pop() else {
+            bail!("Expected Value::Long at top of operand stack for l2i");
+        };
+
+        Ok(frame.push(Value::Int(long as i32)))
     }
 
     fn ladd(&mut self) -> Result<()> {

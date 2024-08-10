@@ -273,6 +273,7 @@ pub enum Instruction {
     JsrW(isize),
     L2D,
     L2F,
+    /// Convert long to int
     L2I,
     /// Add long
     LAdd,
