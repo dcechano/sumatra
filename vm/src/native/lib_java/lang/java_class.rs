@@ -11,7 +11,7 @@ use crate::{
     vm::VM,
 };
 
-const NATIVES: [(&str, NativeMethod); 5] = [
+const NATIVES: [(&str, NativeMethod); 6] = [
     (
         "forName0(Ljava/lang/String;ZLjava/lang/ClassLoader;Ljava/lang/Class;)Ljava/lang/Class;",
         jvm_for_name0,
@@ -26,6 +26,7 @@ const NATIVES: [(&str, NativeMethod); 5] = [
         jvm_get_primitive_class,
     ),
     ("initClassName()Ljava/lang/String;", jvm_init_class_name),
+    ("isPrimitive()Z", jvm_is_primitive),
 ];
 
 pub fn jvm_register_natives(
@@ -73,7 +74,10 @@ fn jvm_is_array(vm: &mut VM, this: Option<ObjRef>, _: Vec<Value>) -> Result<Opti
 }
 
 fn jvm_is_primitive(vm: &mut VM, this: Option<ObjRef>, _: Vec<Value>) -> Result<Option<Value>> {
-    todo!()
+    let class_id = this.unwrap().get_class_id();
+    let class = vm.assume_load_id(class_id);
+    let bool = if class.is_primitive_class() { 1 } else { 0 };
+    Ok(Some(Value::Int(bool)))
 }
 
 fn jvm_init_class_name(vm: &mut VM, this: Option<ObjRef>, _: Vec<Value>) -> Result<Option<Value>> {
