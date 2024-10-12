@@ -3,7 +3,8 @@ use std::collections::HashMap;
 use crate::data_types::array::ArrayComp;
 use sumatra_parser::{
     attribute::ClassFileAttributes, class_file::ClassFile, constant::Constant,
-    constant_pool::ConstantPool, field::Field, flags::ClassAccessFlags, method::Method,
+    constant_pool::ConstantPool, desc_types::Primitive, field::Field, flags::ClassAccessFlags,
+    method::Method,
 };
 
 #[derive(Debug, Default, Clone)]
@@ -19,6 +20,7 @@ pub struct Class {
     pub methods: HashMap<String, Method>,
     pub attributes: ClassFileAttributes,
     array_data: Option<ArrayComp>,
+    primitive_class: Option<Primitive>,
 }
 
 impl Class {
@@ -39,6 +41,21 @@ impl Class {
             return format!("{}{name}", "[".repeat(array_comp.dimension()));
         }
 
+        if let Some(prim) = self.primitive_class.as_ref() {
+            return match prim {
+                Primitive::Byte => "byte",
+                Primitive::Char => "char",
+                Primitive::Double => "double",
+                Primitive::Float => "float",
+                Primitive::Int => "int",
+                Primitive::Long => "long",
+                Primitive::Short => "short",
+                Primitive::Boolean => "boolean",
+                Primitive::Invalid => panic!("Invalid primitive variant."),
+            }
+            .to_string();
+        }
+
         let Constant::Class(index) = self.cp.get(self.this_class).unwrap() else {
             // Should not be possible if the class file is valid.
             panic!("Invalid class file format. this_class index did not point to a Class constant in the constant pool.");
@@ -50,6 +67,12 @@ impl Class {
     pub fn array_class(comp: ArrayComp) -> Self {
         let mut class = Self::default();
         class.array_data = Some(comp);
+        class
+    }
+
+    pub fn primitive_class(prim: Primitive) -> Self {
+        let mut class = Self::default();
+        class.primitive_class = Some(prim);
         class
     }
 
@@ -118,6 +141,8 @@ impl Class {
         }
         self.array_data.as_ref().unwrap().dimension()
     }
+
+    pub fn is_primitive_class(&self) -> bool { self.primitive_class.is_some() }
 }
 
 impl From<&ClassFile> for Class {
@@ -134,6 +159,7 @@ impl From<&ClassFile> for Class {
             methods: methods_map(&class_file.methods.clone()),
             attributes: class_file.attributes.clone(),
             array_data: None,
+            primitive_class: None,
         }
     }
 }
