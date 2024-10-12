@@ -35,9 +35,10 @@ const CLASS: &str = "java/lang/Class";
 const SYSTEM: &str = "java/lang/System";
 const STRING: &str = "java/lang/String";
 
-pub const OBJECT_CLASS_ID: usize = 0;
-pub const SYSTEM_CLASS_ID: usize = 1;
-pub const CLASS_CLASS_ID: usize = 2;
+const NUM_PRIMS: usize = 8;
+pub const OBJECT_CLASS_ID: usize = NUM_PRIMS + 0;
+pub const SYSTEM_CLASS_ID: usize = NUM_PRIMS + 1;
+pub const CLASS_CLASS_ID: usize = NUM_PRIMS + 2;
 
 const DEFAULT_VEC_SIZE: usize = 128;
 
@@ -53,6 +54,7 @@ impl VM {
     /// create the VM.
     pub fn init(jdk: PathBuf, c_path: PathBuf) -> Self {
         let mut vm = VM::new(jdk, c_path);
+
         vm.bootstrap_classes();
         panic!("Bootstrapping complete!");
         vm
@@ -73,7 +75,13 @@ impl VM {
     }
 
     fn bootstrap_classes(&mut self) {
-        // Load java/lang/Object so that its class_id is always 0.
+        // First we must load the primitive classes because the core
+        // classes (Object.class, Class.class, ect) may depenend on them.
+        // We DO NOT create their Class.class instance (int.class, ect.) yet
+        // because that would depend on Class.class being loaded.
+        let prim_classes = self.class_manager.init_prim_classes(&mut self.method_area);
+
+        // Load java/lang/Object so that its class_id is always 8.
         // This makes it easy to make sure all arrays have Object as its class
         // on the Heap.
         let (java_lang_obj, java_lang_obj_id) = self.bootstrap_load(OBJECT);
@@ -86,18 +94,16 @@ impl VM {
         debug_assert!(java_lang_class_id == CLASS_CLASS_ID);
 
         // NOW create the Class.java objects, since it is now safe.
-        let _ = self
-            .create_class_obj(java_lang_obj, java_lang_obj_id)
-            .unwrap();
-        let _ = self
-            .create_class_obj(java_lang_system, java_lang_system_id)
-            .unwrap();
-        let _ = self
-            .create_class_obj(java_lang_class, java_lang_class_id)
-            .unwrap();
-        let _ = self
-            .create_class_obj(java_lang_string, java_lang_string_id)
-            .unwrap();
+        let _ = self.create_class_obj(java_lang_obj).unwrap();
+        let _ = self.create_class_obj(java_lang_system).unwrap();
+        let _ = self.create_class_obj(java_lang_class).unwrap();
+        let _ = self.create_class_obj(java_lang_string).unwrap();
+
+        // NOW we create the Class.class instance.
+        prim_classes.into_iter().for_each(|class| {
+            let _ = self.create_class_obj(class).unwrap();
+        });
+
         // This calls the special initialization method in System.java that is used to
         // initialize the static final InputStream and OutputStream.
         let init_phase1 = java_lang_system.methods.get("initPhase1()V").unwrap();
@@ -1709,11 +1715,7 @@ impl VM {
 
     /// Create a java.lang.Class object from a `sumatra::Class` represented by
     /// its ID.
-    pub fn create_class_obj(
-        &mut self,
-        instance_class: &'static Class,
-        instance_class_id: usize,
-    ) -> Result<ObjRef> {
+    pub fn create_class_obj(&mut self, instance_class: &'static Class) -> Result<ObjRef> {
         let java_lang_class = self.method_area.get_class(CLASS_CLASS_ID)?;
         let java_lang_object = self.method_area.get_class(OBJECT_CLASS_ID)?;
         Ok(self
@@ -2020,7 +2022,7 @@ impl VM {
             Ok(Response::InitReq(class, alloc_index)) => {
                 // Class obj needs to be created before initializing the class
                 // so that class initializers can use the class obj if needed.
-                let _ = self.create_class_obj(class, alloc_index)?;
+                let _ = self.create_class_obj(class)?;
                 self.init_class(class)?;
                 // `self.method_area.class_data()` loads the class, which is
                 // unnecessary here, so we construct a `StaticData` manually.
@@ -2028,9 +2030,9 @@ impl VM {
                 Ok(StaticData::new(alloc_index, class, fields))
             }
             Ok(Response::InitReqArray(array_class, array_class_index, comp_data)) => {
-                let _ = self.create_class_obj(array_class, array_class_index)?;
-                if let Some((comp_class, comp_index)) = comp_data {
-                    let _ = self.create_class_obj(comp_class, comp_index)?;
+                let _ = self.create_class_obj(array_class)?;
+                if let Some((comp_class, _)) = comp_data {
+                    let _ = self.create_class_obj(comp_class)?;
                     self.init_class(comp_class)?;
                 }
                 // There are no static fields on an array class instance. This is just here
@@ -2048,17 +2050,17 @@ impl VM {
     /// without mutable access to its fields.
     pub(crate) fn load_class_immut(&mut self, name: &str) -> Result<&'static Class> {
         match self.class_manager.request(name, &mut self.method_area) {
-            Ok(Response::InitReq(class, alloc_index)) => {
+            Ok(Response::InitReq(class, _)) => {
                 // Class obj needs to be created before initializing the class
                 // so that class initializers can use the class obj if needed.
-                let _ = self.create_class_obj(class, alloc_index)?;
+                let _ = self.create_class_obj(class)?;
                 self.init_class(class)?;
                 Ok(class)
             }
             Ok(Response::InitReqArray(array_class, array_class_index, comp_data)) => {
-                let _ = self.create_class_obj(array_class, array_class_index)?;
-                if let Some((comp_class, comp_index)) = comp_data {
-                    let _ = self.create_class_obj(comp_class, comp_index)?;
+                let _ = self.create_class_obj(array_class)?;
+                if let Some((comp_class, _)) = comp_data {
+                    let _ = self.create_class_obj(comp_class)?;
                     self.init_class(comp_class)?;
                 }
                 Ok(array_class)

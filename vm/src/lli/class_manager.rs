@@ -42,6 +42,31 @@ impl ClassManager {
         }
     }
 
+    pub(crate) fn init_prim_classes(&mut self, met_area: &mut MethodArea) -> Vec<&'static Class> {
+        use sumatra_parser::desc_types::Primitive;
+
+        let prims = [
+            Primitive::Boolean,
+            Primitive::Byte,
+            Primitive::Char,
+            Primitive::Double,
+            Primitive::Float,
+            Primitive::Int,
+            Primitive::Long,
+            Primitive::Short,
+        ];
+
+        prims
+            .into_iter()
+            .map(|prim| {
+                let (class, _) = self
+                    .store_class(Class::primitive_class(prim), met_area)
+                    .unwrap();
+                class
+            })
+            .collect::<Vec<&'static Class>>()
+    }
+
     pub(crate) fn request(&mut self, name: &str, met_area: &mut MethodArea) -> Result<Response> {
         let response = if name.starts_with("[") {
             self.resolve_array_class(name, met_area)
@@ -141,6 +166,10 @@ impl ClassManager {
     ) -> Result<(&'static Class, usize)> {
         let name = class.get_name();
         let index = met_area.push(class)?;
+
+        //TODO these next two lines need to be fixed. If
+        //the thread is interupted between the lines, and id
+        //is modified the wrong number will be stored.
         let id = self.count.load(Ordering::SeqCst);
         self.count.store(id + 1, Ordering::SeqCst);
         self.by_id.insert(id, index);
