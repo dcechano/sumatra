@@ -88,7 +88,6 @@ impl Heap {
     /// Returns the java.lang.Class object for the class represented by
     /// `class_name`.
     pub(crate) fn get_class_obj(&self, class_name: &str) -> ObjRef {
-        println!("getting class_obj: {class_name}");
         // SAFETY: Since we manage the pointer ourselves, we know it is valid
         // as long as the pointer wasn't invalidated elsewhere.
         unsafe { ObjRef::from_raw(*self.classes.get(class_name).unwrap()) }
