@@ -159,7 +159,7 @@ impl VM {
             self.frame().method.descriptor,
             self.frame().class.get_name()
         );
-        println!(
+        /*println!(
             "{}CURRENT STACK: {:?}",
             "\t".repeat(indents + 1),
             self.frame().stack
@@ -168,8 +168,9 @@ impl VM {
             "{}CURRENT LOCALS: {:?}",
             "\t".repeat(indents + 1),
             self.frame().locals
-        );
-        // }
+         );
+        */
+ // }
         while let Some(code) = op_code.get(self.frame().pc) {
             let name: &str = self.frame().method.name.as_ref();
             // if name != "<clinit>" && name != "<init>" {
@@ -461,7 +462,7 @@ impl VM {
                 Instruction::Wide(winstr) => todo!(),
             }
             // if name != "<clinit>" && name != "<init>" {
-            println!(
+            /* println!(
                 "{}Stack: {:?}",
                 "\t".repeat(indents + 1),
                 self.frame().stack
@@ -471,7 +472,7 @@ impl VM {
                 "\t".repeat(indents + 1),
                 self.frame().locals
             );
-            // }
+            */ // }
             self.frame_mut().pc += 1;
         }
 
@@ -1294,6 +1295,7 @@ impl VM {
 
         let (name_index, desc_index, alloc) = self.unpack(*class_index, *name_and_type_index)?;
         let (class, method) = self.to_method_class(name_index, desc_index, &alloc)?;
+
         debug_assert!(!method.is_static());
         // Assert the object ref is nonnull
         let num_params = method.parsed_descriptor.num_params();
@@ -1847,11 +1849,6 @@ impl VM {
         method: &'static Method,
     ) -> Result<Option<Value>> {
         if method.is_native() {
-            println!(
-                "Inside class: {}, method '{}' was a native method.",
-                class.get_name(),
-                method.name
-            );
             self.invoke_native(class, method)
         } else {
             self.invoke(class, method)
