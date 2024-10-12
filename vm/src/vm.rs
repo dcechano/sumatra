@@ -170,7 +170,7 @@ impl VM {
             self.frame().locals
          );
         */
- // }
+        // }
         while let Some(code) = op_code.get(self.frame().pc) {
             let name: &str = self.frame().method.name.as_ref();
             // if name != "<clinit>" && name != "<init>" {
