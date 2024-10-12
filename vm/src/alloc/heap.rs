@@ -8,7 +8,7 @@ use crate::{
         instance_data::InstanceData,
         object::ObjRef,
     },
-    vm,
+    vm::{self, VM},
 };
 
 pub(crate) struct Heap {

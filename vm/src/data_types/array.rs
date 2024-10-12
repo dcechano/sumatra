@@ -269,11 +269,13 @@ mod tests {
     #[test]
     #[cfg(miri)]
     fn test_debug_no_ub() {
-        use crate::{alloc::oop::HeapAlloc, reference_types::ArrayRef, value::Value};
-        use sumatra_parser::instruction::ArrayType;
+        use crate::{
+            alloc::oop::HeapAlloc,
+            data_types::{array::ArrayRef, value::Value},
+        };
 
         const LENGTH: usize = 3;
-        const ARRAY_TYPE: ArrayType = ArrayType::Int;
+        const ARRAY_TYPE: ArrayComp = ArrayComp::Int;
 
         let mut array = ArrayRef::new(LENGTH, ARRAY_TYPE);
         array.insert(0, Value::Int(0));

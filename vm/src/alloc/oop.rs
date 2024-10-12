@@ -18,6 +18,7 @@ use crate::{
     },
     class::Class,
     data_types::{array::ArrayComp, value::Value},
+    vm::VM,
 };
 
 pub struct HeapAlloc<T: AllocType> {
@@ -29,54 +30,6 @@ pub struct HeapAlloc<T: AllocType> {
 }
 
 impl<T: AllocType> HeapAlloc<T> {
-    #[inline]
-    fn new_inner(
-        class: &Class,
-        class_id: usize,
-        super_classes: Vec<&'static Class>,
-    ) -> (Header, *mut Value) {
-        let fields = match T::is_static() {
-            true => class
-                .fields
-                .values()
-                .filter(|v| v.access_flags.contains(FieldAccessFlags::STATIC))
-                .collect::<Vec<&Field>>(),
-            false => {
-                let mut primary_fields = class
-                    .fields
-                    .values()
-                    .filter(|v| !v.access_flags.contains(FieldAccessFlags::STATIC))
-                    .collect::<Vec<&Field>>();
-                let ancestor_fields = super_classes.into_iter().flat_map(|class| {
-                    class
-                        .fields
-                        .values()
-                        .filter(|v| !v.access_flags.contains(FieldAccessFlags::STATIC))
-                });
-                primary_fields.extend(ancestor_fields);
-                primary_fields
-            }
-        };
-        let mut header = Header::new(class, class_id);
-        // ptr now allocated
-        let data = match !fields.is_empty() {
-            // SAFETY: since fields len is non 0, alloc is safe.
-            true => unsafe {
-                alloc::alloc(Layout::array::<Value>(fields.len()).unwrap()) as *mut Value
-            },
-            false => ptr::null_mut(),
-        };
-        // finish header by populating the offset table
-        if !data.is_null() {
-            // SAFETY: data is aligned by using Layout::array above where the length
-            // of the array is determined by the length of the fields.
-            unsafe {
-                header.populate_table(data, fields);
-            }
-        }
-        (header, data)
-    }
-
     /// Returns the class_id for the given `HeapAlloc`.
     /// SAFETY: raw pointer to `HeapAlloc` must be valid by all
     /// rules outlined here: https://doc.rust-lang.org/std/ptr/index.html#safety  
@@ -177,7 +130,7 @@ impl HeapAlloc<Static> {
     pub(super) fn new(class: &Class, class_id: usize) -> HeapAlloc<Static> {
         // A HeapAlloc<Static> does not need access to the instance fields of its
         // superclasses, hence the empty vec.
-        let (header, data) = Self::new_inner(class, class_id, vec![]);
+        let (header, data) = Header::new::<Static>(class, class_id, vec![]);
         HeapAlloc {
             header,
             fields: data,
@@ -204,7 +157,7 @@ impl HeapAlloc<NonStatic> {
             handle_alloc_error(Layout::new::<HeapAlloc<NonStatic>>())
         }
 
-        let (header, fields) = Self::new_inner(class, class_id, super_class);
+        let (header, fields) = Header::new::<NonStatic>(class, class_id, super_class);
         // SAFETY: ptr is valid for writes since we asserted nonnull above.
         unsafe {
             ptr::write(
@@ -329,18 +282,18 @@ mod test {
 
     //TODO fine for now but eventually this will have to removed and made to use
     // relative paths so that tests pass in any environment.
-    const CLASSES: [&str; 6] = [
-        "/home/dylan/Documents/RustProjects/jheap/java/target/production/java/Main.class",
-        "/home/dylan/Documents/RustProjects/jheap/java/target/production/java/Interface.class",
-        "/home/dylan/Documents/RustProjects/jheap/java/target/production/java/Import.class",
-        "/home/dylan/Documents/RustProjects/jheap/java/target/production/java/Simple.class",
-        "/home/dylan/Documents/RustProjects/jheap/java/target/production/java/Taco.class",
-        "/home/dylan/Documents/RustProjects/jheap/java/target/production/java/Fields.class",
+    const CLASSES: [&str; 5] = [
+        "/home/dylan/Documents/RustProjects/sumatra/java/out/production/sumatra/files/Main.class",
+        "/home/dylan/Documents/RustProjects/sumatra/java/out/production/sumatra/files/Interface.class",
+        "/home/dylan/Documents/RustProjects/sumatra/java/out/production/sumatra/files/Import.class",
+        "/home/dylan/Documents/RustProjects/sumatra/java/out/production/sumatra/files/Simple.class",
+        "/home/dylan/Documents/RustProjects/sumatra/java/out/production/sumatra/files/Taco.class",
     ];
 
     #[test]
     fn alloc() {
         for class in CLASSES {
+            eprintln!("{class}");
             let class_file = ClassFile::parse_class(class).unwrap();
             let ptr = HeapAlloc::<NonStatic>::new(&Class::from(&class_file), 0, vec![]);
             unsafe {
@@ -360,7 +313,7 @@ mod test {
     #[cfg(miri)]
     fn no_leak_array() {
         unsafe {
-            let ptr = HeapAlloc::new_array(10, ArrayType::Int);
+            let ptr = HeapAlloc::new_array(10, ArrayComp::Int);
             HeapAlloc::deallocate(ptr)
         }
     }
