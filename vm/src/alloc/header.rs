@@ -26,6 +26,7 @@ pub(crate) struct Header {
 impl Header {
     #[inline]
     pub(crate) fn new(class: &Class, class_id: usize) -> Self {
+        println!("Allocating for {}", class.get_name());
         Self {
             class_id,
             name: class.get_name(),
@@ -61,6 +62,10 @@ impl Header {
                         Constant::Float(float) => Value::Float(*float),
                         Constant::Long(long) => Value::Long(*long),
                         Constant::Double(double) => Value::Double(*double),
+                        Constant::String(index) => {
+                            println!("field name: {}", name);
+                            todo!()
+                        }
                         invalid => {
                             panic!("Invalid constant_value while initialing obj: {invalid:?}")
                         }
