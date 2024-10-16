@@ -9,17 +9,18 @@ use crate::{
             internal::{misc::java_unsafe, util::java_system_props_raw},
             lang::{
                 java_class, java_double, java_float, java_object, java_string_utf16, java_system,
+                java_throwable,
             },
             JAVA_LANG_CLASS, JAVA_LANG_DOUBLE, JAVA_LANG_FLOAT, JAVA_LANG_OBJECT,
-            JAVA_LANG_STRING_UTF16, JAVA_LANG_SYSTEM, JDK_INTERNAL_MISC_UNSAFE,
-            JDK_INTERNAL_SYSTEM_PROPS_RAW, REGISTER_NATIVES_SIG,
+            JAVA_LANG_STRING_UTF16, JAVA_LANG_SYSTEM, JAVA_LANG_THROWABLE,
+            JDK_INTERNAL_MISC_UNSAFE, JDK_INTERNAL_SYSTEM_PROPS_RAW, REGISTER_NATIVES_SIG,
         },
         native_identifier::NativeIdentifier,
     },
     vm::VM,
 };
 
-const INITIAL_NATIVE_METHODS: [(&str, &str, NativeMethod); 11] = [
+const INITIAL_NATIVE_METHODS: [(&str, &str, NativeMethod); 12] = [
     (
         JAVA_LANG_OBJECT,
         java_object::GET_CLASS_SIG,
@@ -59,6 +60,11 @@ const INITIAL_NATIVE_METHODS: [(&str, &str, NativeMethod); 11] = [
         JAVA_LANG_DOUBLE,
         java_double::LONG_BITS_TO_DOUBLE_SIG,
         java_double::jvm_long_bits_to_double,
+    ),
+    (
+        JAVA_LANG_THROWABLE,
+        java_throwable::FILL_IN_STACK_TRACE,
+        java_throwable::jvm_fill_in_stack_trace,
     ),
     (
         JDK_INTERNAL_SYSTEM_PROPS_RAW,
