@@ -1769,6 +1769,71 @@ impl VM {
         java_string
     }
 
+    /// Create a java array of java.lang.Stacktrace elements. This
+    /// array represents the stack trace of the current thread.
+    pub fn create_stack_trace(&mut self) -> Result<ArrayRef> {
+        const STACK_TRACE_ELEMENT: &str = "java/lang/StackTraceElement";
+        const CONSTRUCTOR: &str = "<init>(Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;I)V";
+
+        let len = self.frames.len();
+        // create the underlying array
+        let mut array = ArrayRef::new(len, ArrayComp::Class(STACK_TRACE_ELEMENT.to_string()));
+
+        // load StackTraceElement.class and Object.class
+        let StaticData {
+            class_id: ste_class_id,
+            class: ste_class,
+            ..
+        } = self.load_class(STACK_TRACE_ELEMENT).unwrap();
+        let object_class = self.method_area.get_class(OBJECT_CLASS_ID).unwrap();
+
+        // Get constructor StackTraceElement.
+        let constructor = ste_class.methods.get(CONSTRUCTOR).unwrap();
+
+        // create constructor argumnents.
+        let declr_class = self.frame().class.get_name();
+        let declr_class_jstring = self.create_java_string(&declr_class, false);
+
+        let method_name = &self.frame().method.name;
+        let method_name_jstring = self.create_java_string(method_name, false);
+
+        //TODO implement a way to get the file name.
+        let file_name_jstring = self.create_java_string("DUMMY_FILE_NAME", false);
+        let line_num = -1;
+
+        // call constructor for each element of the array.
+        for i in 0..len {
+            // create StackTraceElement instance for constructor.
+            let ste_obj = self.heap.new_object(InstanceData::new(
+                ste_class,
+                ste_class_id,
+                vec![object_class],
+            ));
+
+            // Call the constructor.
+            let frame = CallFrame::new(
+                ste_class,
+                constructor,
+                &ste_class.cp,
+                vec![
+                    Value::new_object(ste_obj),
+                    Value::new_object(declr_class_jstring),
+                    Value::new_object(method_name_jstring),
+                    Value::new_object(file_name_jstring),
+                    Value::Int(line_num),
+                ],
+            );
+
+            self.frames.push(frame);
+            self.execute_frame().unwrap();
+
+            // Insert the newly initialized java object into the array.
+            array.insert(i, Value::new_object(ste_obj));
+        }
+        // Finally, return the array.
+        Ok(array)
+    }
+
     /// Create a java.lang.Class object for the given `ObjRef`.
     pub fn get_class_obj(&self, obj: ObjRef) -> Result<ObjRef> {
         let instance_class_id = obj.get_class_id();
