@@ -97,7 +97,6 @@ impl FieldsTable {
     ) -> Vec<(&'f Class, &'f Field)> {
         match T::is_static() {
             true => {
-                let class = class;
                 class
                     .fields
                     .values()
@@ -106,7 +105,6 @@ impl FieldsTable {
                     .collect::<Vec<(&'f Class, &'f Field)>>()
             }
             false => {
-                let class = class;
                 let mut primary_fields = class
                     .fields
                     .values()
