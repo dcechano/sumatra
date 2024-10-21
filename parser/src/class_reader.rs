@@ -13,12 +13,12 @@ use byteorder::{BigEndian, ReadBytesExt};
 
 use crate::{
     annotation::{
-        Annotation, ElementPairs, ElementValue,
-        ElementValue::{AnnotationValue, Array, ClassIndex, ConstIndex},
+        Annotation, ElementPairs,
+        ElementValue::{self, AnnotationValue, Array, ClassIndex, ConstIndex},
         LocalVarTargetTable, LocalVarTargetTableEntry, ParameterAnnotation, TypeAnnotation,
-        TypePath, TypePathEntry, TypeTarget,
+        TypePath, TypePathEntry,
         TypeTarget::{
-            Catch, Empty, FormalParameter, LocalVar, Offset, SuperType, Throws, TypeArgument,
+            self, Catch, Empty, FormalParameter, LocalVar, Offset, SuperType, Throws, TypeArgument,
             TypeParameter, TypeParameterBound,
         },
     },
@@ -27,54 +27,43 @@ use crate::{
         attr_constants::{
             ANNOTATION_DEFAULT, BOOTSTRAP_METHODS, CODE, CONSTANT_VALUE, DEPRECATED,
             ENCLOSING_METHOD, EXCEPTIONS, INNER_CLASSES, LINE_NUMBER_TABLE, LOCAL_VARIABLE_TABLE,
-            LOCAL_VARIABLE_TYPE_TABLE, MODULE, MODULE_MAIN_CLASS, MODULE_PACKAGES, NEST_HOST,
-            NEST_MEMBERS, PERMITTED_SUBCLASSES, RECORD, RUNTIME_INVISIBLE_ANNOTATIONS,
-            RUNTIME_INVISIBLE_PARAMETER_ANNOTATIONS, RUNTIME_INVISIBLE_TYPE_ANNOTATIONS,
-            RUNTIME_VISIBLE_ANNOTATIONS, RUNTIME_VISIBLE_PARAMETER_ANNOTATIONS,
-            RUNTIME_VISIBLE_TYPE_ANNOTATIONS, SIGNATURE, SOURCE_DEBUG_EXTENSION, SOURCE_FILE,
-            STACK_MAP_TABLE, SYNTHETIC,
+            LOCAL_VARIABLE_TYPE_TABLE, METHOD_PARAMETERS, MODULE, MODULE_MAIN_CLASS,
+            MODULE_PACKAGES, NEST_HOST, NEST_MEMBERS, PERMITTED_SUBCLASSES, RECORD,
+            RUNTIME_INVISIBLE_ANNOTATIONS, RUNTIME_INVISIBLE_PARAMETER_ANNOTATIONS,
+            RUNTIME_INVISIBLE_TYPE_ANNOTATIONS, RUNTIME_VISIBLE_ANNOTATIONS,
+            RUNTIME_VISIBLE_PARAMETER_ANNOTATIONS, RUNTIME_VISIBLE_TYPE_ANNOTATIONS, SIGNATURE,
+            SOURCE_DEBUG_EXTENSION, SOURCE_FILE, STACK_MAP_TABLE, SYNTHETIC,
         },
         BootstrapMethod, BootstrapMethods, ClassFileAttributes, Code, EnclosingMethod, Exception,
         Exceptions, Exports, InnerClassInfo, InnerClasses, LineNumberTable, LineNumberTableEntry,
         LocalVarTableEntry, LocalVarTypeEntry, LocalVariableTable, LocalVariableTypeTable,
-        ModuleMainClass, ModulePackages, NestHost, NestMembers, Opens, PermittedSubclasses,
-        Provides, Record, RecordComponent, Requires, RuntimeAnnotation,
+        MethodParameters, ModuleMainClass, ModulePackages, NestHost, NestMembers, Opens,
+        PermittedSubclasses, Provides, Record, RecordComponent, Requires,
         RuntimeAnnotation::{
-            AnnotationDefault, RuntimeInvisibleAnnotations, RuntimeInvisibleParameterAnnotations,
-            RuntimeInvisibleTypeAnnotations, RuntimeVisibleAnnotations,
-            RuntimeVisibleParameterAnnotations, RuntimeVisibleTypeAnnotations,
+            self, AnnotationDefault, RuntimeInvisibleAnnotations,
+            RuntimeInvisibleParameterAnnotations, RuntimeInvisibleTypeAnnotations,
+            RuntimeVisibleAnnotations, RuntimeVisibleParameterAnnotations,
+            RuntimeVisibleTypeAnnotations,
         },
         SourceDebugExtension, SourceFile, StackMapFrame, StackMapTable,
     },
-    constant::{
-        Constant,
-        Constant::{
-            Class, Double, Dummy, Dynamic, FieldRef, Float, Integer, InterfaceMethodRef,
-            InvokeDynamic, Long, MethodHandle, MethodRef, MethodType, Module, NameAndType, Package,
-            UnRecCharSet, UTF8,
-        },
+    constant::Constant::{
+        self, Class, Double, Dummy, Dynamic, FieldRef, Float, Integer, InterfaceMethodRef,
+        InvokeDynamic, Long, MethodHandle, MethodRef, MethodType, Module, NameAndType, Package,
+        UnRecCharSet, UTF8,
     },
     constant_pool::ConstantPool,
     desc_types::{FieldDescriptor, MethodDescriptor},
     field::Field,
     flags::{
-        ExportFlags, FieldAccessFlags, InnerClassAccessFlags, MethodAccessFlags, ModuleFlags,
-        OpenFlags, RequiresFlags,
+        ExportFlags, FieldAccessFlags, InnerClassAccessFlags, MethodAccessFlags,
+        MethodParamAccessFlags, ModuleFlags, OpenFlags, RequiresFlags,
     },
     instruction::Instruction,
     method::Method,
     type_verification::VType,
 };
 
-/*TODO The following attributes have not been implemented yet:
-    - Class Attributes
-        Deprecated
-    - Method Attributes
-        RuntimeInvisibleParameterAnnotations
-        AnnotationDefault
-        MethodParameters
-
-*/
 const CLASS_EXT: &[u8] = b"class";
 pub(crate) struct ClassReader(Cursor<Vec<u8>>);
 
@@ -278,6 +267,25 @@ impl ClassReader {
                     sig_present = true;
                     let signature = cp.get_utf8(self.read_u16()? as usize)?;
                     method.signature = signature.to_string();
+                }
+                METHOD_PARAMETERS => {
+                    let params_count = self.read_u8()? as usize;
+                    method.method_params = (0..params_count)
+                        .map(|_| {
+                            let name_index = self.read_u16()? as usize;
+                            Self::verify_utf8(
+                                cp,
+                                name_index,
+                                "Failed to validate the name index of a MethodParameter.",
+                            );
+                            let access_flags = MethodParamAccessFlags::from_bits(self.read_u16()?)
+                                .context("Failed to parse MethodParamAccessFlags.")?;
+                            Ok(MethodParameters {
+                                name_index,
+                                access_flags,
+                            })
+                        })
+                        .collect::<Result<Vec<MethodParameters>>>()?;
                 }
                 DEPRECATED => {
                     if attr_len != 0 {

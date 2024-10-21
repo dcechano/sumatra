@@ -1,5 +1,5 @@
 use crate::{
-    attribute::{Attribute, Code, Exceptions, RuntimeAnnotation},
+    attribute::{Attribute, Code, Exceptions, MethodParameters, RuntimeAnnotation},
     desc_types::MethodDescriptor,
     flags::MethodAccessFlags,
 };
@@ -12,6 +12,7 @@ pub struct Method {
     pub parsed_descriptor: MethodDescriptor,
     pub signature: String,
     pub code: Code,
+    pub method_params: Vec<MethodParameters>,
     pub exceptions: Exceptions,
     pub synthetic: bool,
     pub deprecated: bool,

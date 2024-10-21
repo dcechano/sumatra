@@ -43,6 +43,18 @@ bitflags! {
 
 bitflags! {
     #[doc = r"The value of the access_flags item is a mask of flags used to denote access permission
+            to and properties of this method parameter. The interpretation of each flag, when set, is specified in
+            https://docs.oracle.com/javase/specs/jvms/se21/html/jvms-4.html#jvms-4.7.24"
+    ]
+    #[derive(Debug, Default, Eq, PartialEq, Hash, Clone)]
+    pub struct MethodParamAccessFlags: u16 {
+        const FINAL = 0x0010;
+        const SYNCHRONIZED = 0x1000;
+        const MANDATED = 0x8000;
+    }
+}
+bitflags! {
+    #[doc = r"The value of the access_flags item is a mask of flags used to denote access permission
             to and properties of this method. The interpretation of each flag, when set, is specified in
             https://docs.oracle.com/javase/specs/jvms/se21/html/jvms-4.html#jvms-4.5-200-A.1"
     ]

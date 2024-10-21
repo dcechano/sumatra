@@ -2,7 +2,7 @@ use anyhow::bail;
 
 use crate::{
     annotation::{Annotation, ElementPairs, ParameterAnnotation, TypeAnnotation},
-    flags::{ExportFlags, InnerClassAccessFlags, ModuleFlags, OpenFlags, RequiresFlags},
+    flags::{ExportFlags, InnerClassAccessFlags, MethodParamAccessFlags, ModuleFlags, OpenFlags, RequiresFlags},
     instruction::Instruction,
     type_verification::VType,
 };
@@ -115,8 +115,8 @@ pub struct AnnotationDefault {
 pub struct BootstrapMethods(pub Vec<BootstrapMethod>);
 #[derive(Debug, Default, Eq, PartialEq, Hash, Clone)]
 pub struct MethodParameters {
-    pub attribute_name_index: usize,
-    pub attributes: Vec<Attribute>,
+    pub name_index: usize,
+    pub access_flags: MethodParamAccessFlags,
 }
 #[derive(Debug, Default, Eq, PartialEq, Hash, Clone)]
 pub struct Module {
