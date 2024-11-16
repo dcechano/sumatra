@@ -7,6 +7,8 @@ use crate::data_types::{
     object::ObjRef,
 };
 
+use super::exception::Exception;
+
 #[derive(Default, Debug, Clone)]
 pub enum Value {
     #[default]
@@ -17,6 +19,7 @@ pub enum Value {
         bootstrap_method_attr_index: usize,
         name_and_type_index: usize,
     },
+    Exception(Exception),
     Float(f32),
     Int(i32),
     Long(i64),
@@ -46,6 +49,7 @@ impl Value {
             Value::Byte(_) => matches!(other, Value::Byte(_)),
             Value::Double(_) => matches!(other, Value::Double(_)),
             Value::Dynamic { .. } => matches!(other, Value::Dynamic { .. }),
+            Value::Exception(_) => matches!(other, Value::Exception(_)),
             Value::Float(_) => matches!(other, Value::Float(_)),
             Value::Int(_) => matches!(other, Value::Int(_)),
             Value::Long(_) => matches!(other, Value::Long(_)),
