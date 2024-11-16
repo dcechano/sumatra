@@ -2,7 +2,10 @@ use anyhow::bail;
 
 use crate::{
     annotation::{Annotation, ElementPairs, ParameterAnnotation, TypeAnnotation},
-    flags::{ExportFlags, InnerClassAccessFlags, MethodParamAccessFlags, ModuleFlags, OpenFlags, RequiresFlags},
+    flags::{
+        ExportFlags, InnerClassAccessFlags, MethodParamAccessFlags, ModuleFlags, OpenFlags,
+        RequiresFlags,
+    },
     instruction::Instruction,
     type_verification::VType,
 };
