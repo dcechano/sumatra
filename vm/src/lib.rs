@@ -12,6 +12,7 @@ mod compare;
 mod data_types;
 mod lli;
 mod native;
+pub mod result;
 pub mod vm;
 
 /// Checks if `superclass` is the superclass of `child_class`.
