@@ -606,6 +606,22 @@ impl VM {
         }
     }
 
+    /// Executes the `Instruction::ALoad` instruction. `local_index`  
+    /// is the index of the local variable in the currently
+    /// executing frame's local variable array.
+    fn a_load(&mut self, local_index: usize) -> Result<()> {
+        let frame = self.frame_mut();
+        let object = frame.load(local_index)?;
+        if !matches!(
+            object,
+            (Value::Ref(_) | Value::StringConst(_) | Value::Null)
+        ) {
+            bail!("Expected ref type for a_load instruction. Received: {object:?}");
+        }
+
+        Ok(frame.push(object))
+    }
+
     /// Executes the `Instruction::AStore` instruction.`local_index`  
     /// is the index of the local variable in the currently
     /// executing frame's local variable array.
@@ -628,21 +644,7 @@ impl VM {
         Ok(())
     }
 
-    /// Executes the `Instruction::ALoad` instruction. `local_index`  
-    /// is the index of the local variable in the currently
-    /// executing frame's local variable array.
-    fn a_load(&mut self, local_index: usize) -> Result<()> {
-        let frame = self.frame_mut();
-        let object = frame.load(local_index)?;
-        if !matches!(
-            object,
-            (Value::Ref(_) | Value::StringConst(_) | Value::Null)
-        ) {
-            bail!("Expected ref type for a_load instruction. Received: {object:?}");
-        }
-
-        Ok(frame.push(object))
-    }
+    fn a_throw(&mut self) -> Result<()> { todo!() }
 
     /// Executes the `Instruction::BaStore` instruction.
     fn bastore(&mut self) -> Result<()> {
