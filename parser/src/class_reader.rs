@@ -257,8 +257,20 @@ impl ClassReader {
                     }
                     exc_present = true;
                     let exc_len = self.read_u16()? as usize;
-                    let exc_index_table = self.read_u16s(exc_len)?;
-                    method.exceptions = Exceptions(exc_index_table);
+                    let names = self
+                        .read_u16s(exc_len)?
+                        .iter()
+                        .map(|index| {
+                            let Some(Constant::Class(name_index)) = cp.get(*index as usize) else {
+                                bail!("Expected Constant::Class while parsing Exception table.");
+                            };
+
+                            let name = cp.get_utf8(*name_index)?;
+                            Ok(name.to_string())
+                        })
+                        .collect::<Result<Vec<String>>>()?;
+
+                    method.exceptions = Exceptions(names);
                 }
                 SIGNATURE => {
                     if sig_present {
