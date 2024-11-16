@@ -96,14 +96,12 @@ impl FieldsTable {
         super_classes: Vec<&'static Class>,
     ) -> Vec<(&'f Class, &'f Field)> {
         match T::is_static() {
-            true => {
-                class
-                    .fields
-                    .values()
-                    .filter(|v| v.access_flags.contains(FieldAccessFlags::STATIC))
-                    .map(|f| (class, f))
-                    .collect::<Vec<(&'f Class, &'f Field)>>()
-            }
+            true => class
+                .fields
+                .values()
+                .filter(|v| v.access_flags.contains(FieldAccessFlags::STATIC))
+                .map(|f| (class, f))
+                .collect::<Vec<(&'f Class, &'f Field)>>(),
             false => {
                 let mut primary_fields = class
                     .fields
