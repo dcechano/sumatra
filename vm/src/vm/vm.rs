@@ -424,7 +424,7 @@ impl VM {
                 Instruction::LStore1 => self.lstore(1)?,
                 Instruction::LStore2 => self.lstore(2)?,
                 Instruction::LStore3 => self.lstore(3)?,
-                Instruction::LSub => todo!(),
+                Instruction::LSub => self.lsub()?,
                 Instruction::LuShR => todo!(),
                 Instruction::LxOr => todo!(),
                 Instruction::MonitorEnter => self.monitor_enter()?,
@@ -1631,6 +1631,21 @@ impl VM {
         };
 
         frame.insert_local(index, Value::Long(long))
+    }
+
+    /// Executes the `Instruction::LSub` instruction.
+    fn lsub(&mut self) -> Result<()> {
+        let frame = self.frame_mut();
+        let Value::Long(value2) = frame.pop() else {
+            bail!("Expected long for value2 in isub.");
+        };
+
+        let Value::Long(value1) = frame.pop() else {
+            bail!("Expected long for value1 in isub.");
+        };
+
+        let result = Wrapping::<i64>(value1) - Wrapping::<i64>(value2);
+        Ok(frame.push(Value::Long(result.0)))
     }
 
     /// Executes the `Instruction::MonitorEnter` instruction.
