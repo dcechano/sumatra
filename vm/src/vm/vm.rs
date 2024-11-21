@@ -68,7 +68,6 @@ impl VM {
         // We DO NOT create their Class.class instance (int.class, ect.) yet
         // because that would depend on Class.class being loaded.
         let prim_classes = self.class_manager.init_prim_classes(&mut self.method_area);
-
         // Load java/lang/Object so that its class_id is always 8.
         // This makes it easy to make sure all arrays have Object as its class
         // on the Heap.
@@ -147,17 +146,17 @@ impl VM {
             self.frame().method.descriptor,
             self.frame().class.get_name()
         );
-        /*println!(
-            "{}CURRENT STACK: {:?}",
-            "\t".repeat(indents + 1),
-            self.frame().stack
-        );
-        println!(
-            "{}CURRENT LOCALS: {:?}",
-            "\t".repeat(indents + 1),
-            self.frame().locals
-         );
-        */
+        //println!(
+        //    "{}CURRENT STACK: {:?}",
+        //    "\t".repeat(indents + 1),
+        //    self.frame().stack
+        //);
+        //println!(
+        //    "{}CURRENT LOCALS: {:?}",
+        //    "\t".repeat(indents + 1),
+        //    self.frame().locals
+        // );
+
         // }
         while let Some(code) = op_code.get(self.frame().pc) {
             let name: &str = self.frame().method.name.as_ref();
@@ -181,7 +180,7 @@ impl VM {
                 Instruction::AStore1 => self.a_store_n(1)?,
                 Instruction::AStore2 => self.a_store_n(2)?,
                 Instruction::AStore3 => self.a_store_n(3)?,
-                Instruction::AThrow => todo!(),
+                Instruction::AThrow => self.a_throw()?,
                 Instruction::BaLoad => todo!(),
                 Instruction::BaStore => self.bastore()?,
                 Instruction::BiPush(byte) => self.frame_mut().stack.push(Value::Int(*byte as i32)),
@@ -450,17 +449,17 @@ impl VM {
                 Instruction::Wide(winstr) => todo!(),
             }
             // if name != "<clinit>" && name != "<init>" {
-            /* println!(
-                "{}Stack: {:?}",
-                "\t".repeat(indents + 1),
-                self.frame().stack
-            );
-            println!(
-                "{}Locals: {:?}",
-                "\t".repeat(indents + 1),
-                self.frame().locals
-            );
-            */ // }
+            //println!(
+            //    "{}Stack: {:?}",
+            //    "\t".repeat(indents + 1),
+            //    self.frame().stack
+            //);
+            //println!(
+            //    "{}Locals: {:?}",
+            //    "\t".repeat(indents + 1),
+            //    self.frame().locals
+            //);
+            // }
             self.frame_mut().pc += 1;
         }
 
@@ -535,10 +534,24 @@ impl VM {
 
         match value {
             Value::Null => return Ok(array.insert(index as usize, Value::Null)),
-            Value::Ref(RefType::Object(obj)) => handle_obj(self, obj, array, index as usize),
-            Value::Exception(exc) => {
-                let obj = exc.inner();
-                handle_obj(self, obj, array, index as usize)
+            Value::Ref(RefType::Object(obj)) => {
+                let class_id = obj.get_class_id();
+                let obj_class = self.method_area.get_class(class_id)?;
+
+                let ArrayComp::Class(comp_class) = array.array_comp() else {
+                    todo!("Do something when comp_class is not a class type. IDK.");
+                };
+
+                let comp_class = self.assume_load(comp_class);
+                if comp_class.is_interface() && self.is_interface_of(obj_class, comp_class) {
+                    todo!("Implement Interface inserting")
+                }
+
+                if !self.is_instance_of(obj_class, comp_class) {
+                    todo!("Do something here! (Shouldn't happen)");
+                }
+
+                Ok(array.insert(index as usize, Value::Ref(RefType::Object(obj))))
             }
             Value::Ref(RefType::Array(operand_array)) => {
                 match array.array_comp() {
@@ -644,7 +657,34 @@ impl VM {
         Ok(())
     }
 
-    fn a_throw(&mut self) -> Result<()> { todo!() }
+    /// Executes the `Instruction::AThrow` instruction.
+    fn a_throw(&mut self) -> Result<()> {
+        let frame = self.frame_mut();
+        println!("CLASS: {}", frame.class.get_name());
+        println!("METHOD: {}", frame.method.name);
+        let Value::Ref(RefType::Object(obj)) = frame.pop() else {
+            bail!("Expected Exception on the stack.");
+        };
+        let Value::Ref(RefType::Object(jstring)) = obj.get_field("detailMessage").unwrap() else {
+            panic!();
+        };
+        let Value::Ref(RefType::Array(bytes)) = jstring.get_field("value").unwrap() else {
+            panic!();
+        };
+        let bytes = bytes.get_all();
+        let msg = bytes
+            .iter()
+            .map(|byte| {
+                let Value::Byte(byte) = byte else {
+                    panic!("Maybe it was a Value::Byte. {byte:?}");
+                };
+                *byte as u8
+            })
+            .collect::<Vec<u8>>();
+        let msg = String::from_utf8(msg).unwrap();
+        println!("MSG: {msg}");
+        todo!()
+    }
 
     /// Executes the `Instruction::BaStore` instruction.
     fn bastore(&mut self) -> Result<()> {
@@ -704,22 +744,42 @@ impl VM {
     fn check_cast(&mut self, index: usize) -> Result<()> {
         let frame = self.frame_mut();
         let obj = frame.pop();
+
+        if let Value::Null = obj {
+            return Ok(frame.push(Value::Null));
+        }
+
+        let Constant::Class(name_index) = self.frame_mut().cp.get(index).unwrap() else {
+            bail!("Expected Constant::Class for provided index in check_cast.");
+        };
+        let class_name = self.frame_mut().cp.get_utf8(*name_index)?;
+        let test_class = self.load_class(class_name)?.class;
+
         match obj {
-            Value::Null => {
-                return Ok(frame.push(Value::Null));
-            }
-            Value::Ref(RefType::Array(_)) => {
-                todo!();
+            Value::Ref(RefType::Array(array)) => {
+                if class_name == OBJECT {
+                    return Ok(self.frame_mut().push(obj));
+                }
+                if test_class.is_interface() {
+                    todo!();
+                }
+                if !test_class.is_array_class() {
+                    todo!("Return ClassCastException");
+                }
+
+                let array_comp = array.array_comp();
+                if let ArrayComp::Class(array_class) = array_comp {
+                    todo!()
+                }
+
+                if &class_name.parse::<ArrayComp>()? == array_comp {
+                    return Ok(self.frame_mut().push(obj));
+                }
+                todo!()
             }
             Value::Ref(RefType::Object(obj_ref)) => {
                 let class_id = obj_ref.get_class_id();
                 let instance_class = self.method_area.get_class(class_id)?;
-
-                let Constant::Class(name_index) = self.frame_mut().cp.get(index).unwrap() else {
-                    bail!("Expected Constant::Class for provided index in check_cast.");
-                };
-                let class_name = self.frame_mut().cp.get_utf8(*name_index)?;
-                let test_class = self.load_class(class_name)?.class;
 
                 if !self.is_instance_of(instance_class, test_class) {
                     todo!("Throw ClassCastException.");
