@@ -326,6 +326,7 @@ pub enum Instruction {
     LStore2,
     ///Store long into local variable 3
     LStore3,
+    ///Subtract long
     LSub,
     LuShR,
     LxOr,
