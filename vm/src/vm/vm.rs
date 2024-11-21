@@ -95,9 +95,8 @@ impl VM {
         // initialize the static final InputStream and OutputStream.
         let init_phase1 = java_lang_system.methods.get("initPhase1()V").unwrap();
         let frame = CallFrame::new(java_lang_system, init_phase1, &java_lang_system.cp, vec![]);
-        self.frames.push(frame);
         // TODO perhaps do not unwrap but return a VMError when implemented
-        self.execute_frame().unwrap();
+        self.invoke(java_lang_system, init_phase1).unwrap();
     }
 
     /*
@@ -647,7 +646,7 @@ impl VM {
             | Value::Ref(_)
             | Value::StringConst(_)
             | Value::Null) => {
-                *frame.locals.get_mut(local_index).unwrap() = value;
+                *frame.locals.get_mut(dbg!(local_index)).unwrap() = value;
             }
             _ => panic!(
                 "Expected a Reference type or Value::ReturnAddress for the operand \
