@@ -138,13 +138,13 @@ impl VM {
         let name: &str = self.frame().method.name.as_ref();
         let indents = self.frames.len();
         // if name != "<clinit>" && name != "<init>" {
-        println!(
-            "\n{}Executing method: {}{} in class: {}",
-            "\t".repeat(indents),
-            self.frame().method.name,
-            self.frame().method.descriptor,
-            self.frame().class.get_name()
-        );
+        //println!(
+        //    "\n{}Executing method: {}{} in class: {}",
+        //    "\t".repeat(indents),
+        //    self.frame().method.name,
+        //    self.frame().method.descriptor,
+        //    self.frame().class.get_name()
+        //);
         //println!(
         //    "{}CURRENT STACK: {:?}",
         //    "\t".repeat(indents + 1),
@@ -180,7 +180,7 @@ impl VM {
                 Instruction::AStore2 => self.a_store_n(2)?,
                 Instruction::AStore3 => self.a_store_n(3)?,
                 Instruction::AThrow => self.a_throw()?,
-                Instruction::BaLoad => todo!(),
+                Instruction::BaLoad => self.baload()?,
                 Instruction::BaStore => self.bastore()?,
                 Instruction::BiPush(byte) => self.frame_mut().stack.push(Value::Int(*byte as i32)),
                 Instruction::CaLoad => self.caload()?,
@@ -683,6 +683,35 @@ impl VM {
         let msg = String::from_utf8(msg).unwrap();
         println!("MSG: {msg}");
         todo!()
+    }
+
+    /// Executes the `Instruction::BaLoad` instruction.
+    fn baload(&mut self) -> Result<()> {
+        let frame = self.frame_mut();
+        let index = frame.pop();
+        let Value::Int(index) = index else {
+            bail!("Expected int for index in baload.");
+        };
+
+        let value = frame.pop();
+        let value = match value {
+            Value::Ref(RefType::Array(array)) => {
+                let array_comp = array.array_comp();
+                if !matches!(array_comp, (ArrayComp::Byte | ArrayComp::Boolean)) {
+                    bail!("Array must have type byte or boolean in baload.");
+                }
+
+                let Value::Byte(num) = array.get(index as usize) else {
+                    bail!("Expected byte for array type in baload.");
+                };
+
+                num as i32
+            }
+            Value::Int(boolean @ (0 | 1)) => boolean,
+            invalid => bail!("Received invalid: {invalid:?} in baload."),
+        };
+
+        Ok(frame.push(Value::Int(value)))
     }
 
     /// Executes the `Instruction::BaStore` instruction.
