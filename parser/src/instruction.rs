@@ -282,6 +282,7 @@ pub enum Instruction {
     /// Boolean AND long
     LAnd,
     LaStore,
+    /// Compare long
     Lcmp,
     LConst0,
     LConst1,
