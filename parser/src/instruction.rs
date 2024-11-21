@@ -47,6 +47,7 @@ pub enum Instruction {
     AStore3,
     /// Throw exception or error
     AThrow,
+    /// Load byte of boolean from array
     BaLoad,
     BaStore,
     /// The immediate byte is sign-extended to an int value. That value is
