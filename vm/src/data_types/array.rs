@@ -12,7 +12,7 @@ use sumatra_parser::{
 
 use crate::{
     alloc::{alloc_type::NonStatic, oop::HeapAlloc},
-    data_types::{hash, value::Value},
+    data_types::value::Value,
 };
 
 #[derive(Copy, Clone, Eq, PartialEq, Ord, PartialOrd)]
@@ -81,9 +81,11 @@ impl ArrayRef {
     /// this return type should NOT be modified except by the GC.
     pub fn get_inner(&self) -> *const HeapAlloc<NonStatic> { self.0 }
 
-    /// Calculate the hash for the ptr backing this array instance
+    /// Calculate the hash for the ptr backing this object instance
     pub fn hash_code(&self) -> i32 {
-        hash(unsafe { std::mem::transmute::<&Self, *const u8>(self) })
+        let ptr = self.0 as usize;
+        let u_32 = (ptr & u32::MAX as usize) as u32;
+        unsafe { std::mem::transmute::<u32, i32>(u_32) }
     }
 
     /// Returns the length of the `ArrayRef` instance.

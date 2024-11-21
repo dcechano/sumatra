@@ -1,6 +1,6 @@
 use crate::{
     alloc::{alloc_type::NonStatic, oop::HeapAlloc},
-    data_types::{hash, instance_data::InstanceData, value::Value},
+    data_types::{instance_data::InstanceData, value::Value},
 };
 use std::fmt::{Debug, Formatter};
 
@@ -29,7 +29,9 @@ impl ObjRef {
 
     /// Calculate the hash for the ptr backing this object instance
     pub fn hash_code(&self) -> i32 {
-        hash(unsafe { std::mem::transmute::<&Self, *const u8>(self) })
+        let ptr = self.0 as usize;
+        let u_32 = (ptr & u32::MAX as usize) as u32;
+        unsafe { std::mem::transmute::<u32, i32>(u_32) }
     }
 
     pub fn set_field(&mut self, name: &str, value: Value) -> anyhow::Result<()> {

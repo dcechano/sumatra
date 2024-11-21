@@ -85,7 +85,7 @@ pub struct ClassFileAttributes {
 #[derive(Debug, Default, Eq, PartialEq, Hash, Clone)]
 pub struct StackMapTable(pub Vec<StackMapFrame>);
 #[derive(Debug, Default, Eq, PartialEq, Hash, Clone)]
-pub struct Exceptions(pub Vec<u16>);
+pub struct Exceptions(pub Vec<String>);
 #[derive(Debug, Default, Eq, PartialEq, Hash, Clone)]
 pub struct InnerClasses(pub Vec<InnerClassInfo>);
 #[derive(Debug, Default, Eq, PartialEq, Hash, Clone)]

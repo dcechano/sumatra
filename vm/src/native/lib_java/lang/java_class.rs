@@ -5,6 +5,7 @@ use crate::{
         object::ObjRef,
         value::{RefType, Value},
     },
+    lli::class_loader,
     native::{
         lib_java::JAVA_LANG_CLASS, native_identifier::NativeIdentifier, registry::NativeMethod,
     },
@@ -74,10 +75,15 @@ fn jvm_is_array(vm: &mut VM, this: Option<ObjRef>, _: Vec<Value>) -> Result<Opti
 }
 
 fn jvm_is_primitive(vm: &mut VM, this: Option<ObjRef>, _: Vec<Value>) -> Result<Option<Value>> {
-    let class_id = this.unwrap().get_class_id();
-    let class = vm.assume_load_id(class_id);
-    let bool = if class.is_primitive_class() { 1 } else { 0 };
-    Ok(Some(Value::Int(bool)))
+    const PRIMS: [&str; 8] = [
+        "boolean", "byte", "char", "double", "float", "int", "long", "short",
+    ];
+
+    let name = vm.heap().class_name(this.unwrap());
+    if PRIMS.contains(&name.as_str()) {
+        return Ok(Some(Value::Int(1)));
+    }
+    Ok(Some(Value::Int(0)))
 }
 
 fn jvm_init_class_name(vm: &mut VM, this: Option<ObjRef>, _: Vec<Value>) -> Result<Option<Value>> {

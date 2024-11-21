@@ -45,6 +45,7 @@ pub enum Instruction {
     AStore2,
     /// Store reference into local variable
     AStore3,
+    /// Throw exception or error
     AThrow,
     BaLoad,
     BaStore,
