@@ -399,7 +399,7 @@ impl VM {
                 Instruction::LaLoad => todo!(),
                 Instruction::LAnd => self.land()?,
                 Instruction::LaStore => todo!(),
-                Instruction::Lcmp => todo!(),
+                Instruction::Lcmp => self.lcmp()?,
                 Instruction::LConst0 => self.lconst_n(0)?,
                 Instruction::LConst1 => self.lconst_n(1)?,
                 Instruction::Ldc(index) => self.load_const(*index)?,
@@ -906,11 +906,11 @@ impl VM {
     fn fcmp(&mut self, compare: Compare) -> Result<()> {
         let frame = self.frame_mut();
         let Value::Float(value2) = frame.pop() else {
-            bail!("Expected int for value2 in fcmp.");
+            bail!("Expected float for value2 in fcmp.");
         };
 
         let Value::Float(value1) = frame.pop() else {
-            bail!("Expected int for value1 in fcmp.");
+            bail!("Expected float for value1 in fcmp.");
         };
 
         if value2.is_nan() || value1.is_nan() {
@@ -1498,6 +1498,26 @@ impl VM {
         };
 
         Ok(frame.push(Value::Long(value2.wrapping_add(value1))))
+    }
+
+    /// Executes the `Instruction::Lcmp` instruction.
+    fn lcmp(&mut self) -> Result<()> {
+        let frame = self.frame_mut();
+        let Value::Long(value2) = frame.pop() else {
+            bail!("Expected long for value2 in lcmp.");
+        };
+
+        let Value::Long(value1) = frame.pop() else {
+            bail!("Expected long for value1 in lcmp.");
+        };
+
+        return if value1 > value2 {
+            Ok(frame.push(Value::Int(1)))
+        } else if value2 == value1 {
+            Ok(frame.push(Value::Int(0)))
+        } else {
+            Ok(frame.push(Value::Int(-1)))
+        };
     }
 
     /// Executes the `Instruction::LConst<n>` instruction.
