@@ -235,7 +235,8 @@ pub enum Instruction {
     /// Determine a reference is of a given type.
     InstanceOf(usize),
     InvokeDynamic(usize, u8, u8), // last 2 bytes are always 0
-    InvokeInterface(usize, u8, u8),
+    /// Invoke interface method.
+    InvokeInterface(usize, u8),
     /// Invoke instance method; direct invocation of instance initialization
     /// methods and methods of the current class and its supertypes
     InvokeSpecial(usize),
@@ -650,11 +651,15 @@ impl Instruction {
                     cursor.read_u8()?,
                     cursor.read_u8()?,
                 ),
-                185 => InvokeInterface(
-                    cursor.read_u16()? as usize,
-                    cursor.read_u8()?,
-                    cursor.read_u8()?,
-                ),
+                185 => {
+                    let index = cursor.read_u16()? as usize;
+                    let count = cursor.read_u8()?;
+                    let zero = cursor.read_u8()?;
+                    if zero != 0 {
+                        bail!("ParseError while parsing InvokeInterface instruction.");
+                    }
+                    InvokeInterface(index, count)
+                }
                 183 => InvokeSpecial(cursor.read_u16()? as usize),
                 184 => InvokeStatic(cursor.read_u16()? as usize),
                 182 => InvokeVirtual(cursor.read_u16()? as usize),
