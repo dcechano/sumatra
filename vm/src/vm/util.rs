@@ -399,9 +399,10 @@ impl VM {
             curr_class = self.load_class(crate_class_name).unwrap().class;
         }
     }
+
     /// Helper function to determine if the target of a
     /// `Instruction::InvokeSpecial` instruction is defined in the
-    /// crateclass of the current class.
+    /// superclass of the current class.
     pub(crate) fn superclass_method(
         &mut self,
         class_index: usize,
@@ -411,15 +412,15 @@ impl VM {
         // There are RuntimeExceptions to be returned if the class method is static,
         // ect.
         let frame = self.frame();
-        let crate_index = frame.class.super_class;
+        let super_index = frame.class.super_class;
 
         // check if the class named by the method symbolically referenced is the
-        // crateclass of the current class.
-        if !(class_index == crate_index) {
+        // superclass of the current class.
+        if !(class_index == super_index) {
             return Ok(false);
         }
 
-        // from this point on the class named by the method is the crateclass of the
+        // from this point on the class named by the method is the superclass of the
         // current class. There are other factors to check before returning
         // true.
         if !frame.class.is_super() {
@@ -556,6 +557,39 @@ impl VM {
         let met_name = self.construct_m_name(name_index, desc_index)?;
         let method = class.methods.get(&met_name).unwrap();
         Ok((class, method))
+    }
+
+    // Looks for a method in the superclass of the given class.
+    // Does not call the method. Particulary useful for resolving
+    // interface calls.
+    pub(crate) fn resolve_method_from_superclass(
+        &mut self,
+        mut class: &'static Class,
+        name_index: usize,
+        desc_index: usize,
+    ) -> Result<(&'static Class, &'static Method)> {
+        let method_name = self.construct_m_name(name_index, desc_index)?;
+        loop {
+            match class.methods.get(&method_name) {
+                None => {
+                    let super_index = class.super_class;
+                    if super_index == 0 {
+                        bail!("Index of superclass should not be 0 in invoke_special");
+                    }
+                    let Constant::Class(super_class) = class.cp.get(super_index).unwrap() else {
+                        bail!("Expected class while executing invokespecial.");
+                    };
+                    let super_name = class.cp.get_utf8(*super_class).unwrap();
+                    class = self.load_class(super_name).unwrap().class;
+                }
+                Some(method) => {
+                    if method.is_static() {
+                        todo!("check for method in superclass of this class")
+                    }
+                    return Ok((class, method));
+                }
+            }
+        }
     }
 
     /// Takes in constant pool indices for the `Constant::Class(class_name)` and

@@ -1,7 +1,6 @@
-use core::panic;
 use std::{num::Wrapping, path::PathBuf, result};
 
-use anyhow::{bail, Result};
+use anyhow::{anyhow, bail, Result};
 
 use sumatra_parser::{
     constant::Constant,
@@ -362,7 +361,11 @@ impl VM {
                 Instruction::INeg => todo!(),
                 Instruction::InstanceOf(index) => self.instance_of(*index)?,
                 Instruction::InvokeDynamic(index, _, _) => todo!(),
-                Instruction::InvokeInterface(_, _, _) => todo!(),
+                Instruction::InvokeInterface(method_index, n_args) => {
+                    if let Some(value) = self.invoke_interface(*method_index, *n_args)? {
+                        self.frame_mut().push(value);
+                    }
+                }
                 Instruction::InvokeSpecial(method_index) => {
                     if let Some(value) = self.invoke_special(*method_index)? {
                         self.frame_mut().push(value);
@@ -1263,6 +1266,44 @@ impl VM {
             }
             ref_type => panic!("Invalid reference type {ref_type:?}."),
         }
+    }
+
+    /// Executes the `Instruction::InvokeInterface` instruction.
+    fn invoke_interface(&mut self, method_index: usize, n_args: u8) -> Result<Option<Value>> {
+        let frame = self.frame_mut();
+        let len = frame.stack.len();
+        let Value::Ref(RefType::Object(instance_obj)) = frame
+            .stack
+            .get(len - n_args as usize)
+            .ok_or(anyhow!("Could not get the obj_ref in invoke_interface."))?
+        else {
+            bail!("Failed to match Value::Ref(ObjRef) in invoke_interface.");
+        };
+
+        let class_id = instance_obj.get_class_id();
+        let instance_class = self.assume_load_id(class_id);
+
+        let method_ref = self
+            .frame()
+            .cp
+            .get(method_index)
+            .ok_or(anyhow!("There was no entry in cp in invoke_interface."))?;
+
+        let Constant::InterfaceMethodRef {
+            class_index,
+            name_and_type_index,
+        } = method_ref
+        else {
+            bail!("Expected InterfaceMethodRef in invoke_interface but found: {method_ref:?}");
+        };
+
+        let (name_index, desc_index, static_data) =
+            self.unpack(*class_index, *name_and_type_index)?;
+        let (resolved_class, method) =
+            self.resolve_method_from_superclass(instance_class, name_index, desc_index)?;
+
+        let value = self.handle_invoke(resolved_class, method).unwrap();
+        Ok(value)
     }
 
     /// Executed the `Instruction::InvokeSpecial` instruction. `method_index` is
