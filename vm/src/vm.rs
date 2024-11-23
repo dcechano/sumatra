@@ -18,3 +18,19 @@ pub const SYSTEM_CLASS_ID: usize = NUM_PRIMS + 1;
 pub const CLASS_CLASS_ID: usize = NUM_PRIMS + 2;
 
 const DEFAULT_VEC_SIZE: usize = 128;
+
+impl Drop for VM {
+    fn drop(&mut self) {
+        if !self.frames.is_empty() {
+            println!("============== PRINTING STACKFRAMES ==============");
+            for (num, frame) in self.frames.iter().enumerate() {
+                println!(
+                    "[frame {num}] {}::{}{}",
+                    frame.class.get_name(),
+                    frame.method.name,
+                    frame.method.descriptor
+                );
+            }
+        }
+    }
+}
