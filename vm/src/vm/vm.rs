@@ -1,4 +1,5 @@
-use std::{num::Wrapping, path::PathBuf};
+use core::panic;
+use std::{num::Wrapping, path::PathBuf, result};
 
 use anyhow::{bail, Result};
 
@@ -25,6 +26,7 @@ use crate::{
         native_identifier::NativeIdentifier,
         registry::{NativeMethod, NativeRegistry},
     },
+    result::Error,
     vm::{CLASS, CLASS_CLASS_ID, OBJECT, OBJECT_CLASS_ID, STRING, SYSTEM, SYSTEM_CLASS_ID},
     vm_error,
 };
@@ -646,7 +648,7 @@ impl VM {
             | Value::Ref(_)
             | Value::StringConst(_)
             | Value::Null) => {
-                *frame.locals.get_mut(dbg!(local_index)).unwrap() = value;
+                *frame.locals.get_mut(local_index).unwrap() = value;
             }
             _ => panic!(
                 "Expected a Reference type or Value::ReturnAddress for the operand \
@@ -1590,7 +1592,7 @@ impl VM {
             }
             Constant::String(string_index) => {
                 let string = cp.get_utf8(*string_index)?.into();
-                let string_obj = match self.heap.interned_string(string) {
+                let string_obj = match self.heap.get_interned_str(string) {
                     None => self.create_java_string(string, true),
                     Some(string_obj) => string_obj,
                 };

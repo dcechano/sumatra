@@ -1,5 +1,7 @@
 use std::collections::HashMap;
 
+use anyhow::{bail, Result};
+
 use crate::{
     alloc::{alloc_type::NonStatic, oop::HeapAlloc},
     class::Class,
@@ -8,7 +10,7 @@ use crate::{
         instance_data::InstanceData,
         object::ObjRef,
     },
-    vm::{self, VM},
+    vm::{self, STRING, VM},
 };
 
 pub(crate) struct Heap {
@@ -16,7 +18,7 @@ pub(crate) struct Heap {
     gen2: Vec<*mut HeapAlloc<NonStatic>>,
     tenured: Vec<*mut HeapAlloc<NonStatic>>,
     classes: HashMap<String, *mut HeapAlloc<NonStatic>>,
-    strings: HashMap<String, *mut HeapAlloc<NonStatic>>,
+    strings: HashMap<String, *const HeapAlloc<NonStatic>>,
 }
 
 impl Heap {
@@ -48,15 +50,27 @@ impl Heap {
         obj
     }
 
-    pub(crate) fn interned_string(&mut self, string: &str) -> Option<ObjRef> {
+    pub(crate) fn get_interned_str(&mut self, string: &str) -> Option<ObjRef> {
         match self.strings.get(string) {
             Some(obj) => {
                 // SAFETY: Since we manage the pointer ourselves, we know it is valid
                 // as long as the pointer wasn't invalidated elsewhere.
-                Some(unsafe { ObjRef::from_raw(*obj) })
+                Some(unsafe { ObjRef::from_raw(*obj as *mut _) })
             }
             None => None,
         }
+    }
+
+    pub(crate) fn intern_string(&mut self, rust_string: &str, java_string: ObjRef) -> Result<()> {
+        if self.strings.contains_key(rust_string) {
+            //TODO feels weird to error on an attempt to
+            //intern a string. The angle is that the caller probably didn't mean to?
+            bail!("Attempt to intern a string that already exists.");
+        }
+
+        self.strings
+            .insert(rust_string.to_string(), java_string.get_inner());
+        Ok(())
     }
 
     pub(crate) fn is_interned(&self, string: &str) -> bool { self.strings.contains_key(string) }
