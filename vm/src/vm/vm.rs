@@ -1348,33 +1348,9 @@ impl VM {
                 else {
                     bail!("Expected NameAndType while executing invokespecial.");
                 };
-                let method_name = self.construct_m_name(*name_index, *descriptor_index)?;
-                loop {
-                    match class.methods.get(&method_name) {
-                        None => {
-                            let super_index = class.super_class;
-                            if super_index == 0 {
-                                bail!("Index of superclass should not be 0 in invoke_special");
-                            }
-                            let Constant::Class(super_class) = class.cp.get(super_index).unwrap()
-                            else {
-                                bail!("Expected class while executing invokespecial.");
-                            };
-                            let super_name = class.cp.get_utf8(*super_class).unwrap();
-                            class = self.load_class(super_name).unwrap().class;
-                        }
-                        Some(method) => {
-                            if method.is_static() {
-                                todo!("check for method in superclass of this class")
-                            }
-                            //TODO spec requires unfound native methods to be ignored.
-                            // Additionally, the program should fail if the object
-                            // that is being used to call this function is null. handle_invoke()
-                            // does not handle this case.
-                            return self.handle_invoke(class, method);
-                        }
-                    }
-                }
+                let (class, method) =
+                    self.resolve_method_from_superclass(class, *name_index, *descriptor_index)?;
+                self.handle_invoke(class, method)
             }
             Constant::InterfaceMethodRef {
                 class_index,
