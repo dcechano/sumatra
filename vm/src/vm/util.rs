@@ -65,13 +65,6 @@ impl VM {
     /// This method works by calling the java.lang.String constructor with a
     /// char array as an argument.
     pub(crate) fn create_java_string(&mut self, string: &str, intern: bool) -> ObjRef {
-        let mut char_array = ArrayRef::new(string.len(), ArrayComp::Char);
-        string
-            .encode_utf16()
-            .enumerate()
-            .for_each(|(index, byte)| char_array.insert(index, Value::Byte(byte as i8)));
-        let char_array = Value::new_array(char_array);
-
         let StaticData {
             class_id: string_id,
             class: string_class,
@@ -79,19 +72,38 @@ impl VM {
         } = self.load_class(STRING).unwrap();
         let object_class = self.method_area.get_class(OBJECT_CLASS_ID).unwrap();
 
-        let java_string = if intern {
-            self.heap.new_tenured_obj(InstanceData::new(
-                string_class,
-                string_id,
-                vec![object_class],
-            ))
-        } else {
-            self.heap.new_object(InstanceData::new(
-                string_class,
-                string_id,
-                vec![object_class],
-            ))
-        };
+        let mut java_string = self.heap.new_object(InstanceData::new(
+            string_class,
+            string_id,
+            vec![object_class],
+        ));
+
+        // The internal private constructor, <init>([CIILjava/lang/Void;)V,
+        // reference the empty string literal "". This leads to infite
+        // recursion if we try to create the string using the <init>([C)V,
+        // constructor, so in this case we just create the object and
+        // init fields by hand. Strings undergo compression in the
+        // private internal constructor that eventually gets called
+        // so we can't do this for non-empty strings.
+        if string.is_empty() {
+            const VALUE_FIELD: &str = "value";
+            const CODER_FIELD: &str = "coder";
+
+            let value_bytes = ArrayRef::new(0, ArrayComp::Byte);
+            java_string.set_field(VALUE_FIELD, Value::new_array(value_bytes));
+            java_string.set_field(CODER_FIELD, Value::Int(0));
+            if intern {
+                self.heap().intern_string(string, java_string);
+            }
+            return java_string;
+        }
+
+        let mut char_array = ArrayRef::new(string.len(), ArrayComp::Char);
+        string
+            .encode_utf16()
+            .enumerate()
+            .for_each(|(index, byte)| char_array.insert(index, Value::Byte(byte as i8)));
+        let char_array = Value::new_array(char_array);
 
         let constructor = string_class.methods.get("<init>([C)V").unwrap();
         let frame = CallFrame::new(
@@ -102,6 +114,9 @@ impl VM {
         );
         self.frames.push(frame);
         let _ = self.execute_frame().unwrap();
+        if intern {
+            self.heap().intern_string(string, java_string);
+        }
         java_string
     }
 
