@@ -6,7 +6,6 @@ use crate::{
     data_types::{object::ObjRef, value::Value},
     native::{
         lib_java::{
-            internal::{misc::java_unsafe, util::java_system_props_raw},
             lang::{
                 java_class, java_double, java_float, java_object, java_string_utf16, java_system,
                 java_throwable,
@@ -15,6 +14,7 @@ use crate::{
             JAVA_LANG_STRING_UTF16, JAVA_LANG_SYSTEM, JAVA_LANG_THROWABLE,
             JDK_INTERNAL_MISC_UNSAFE, JDK_INTERNAL_SYSTEM_PROPS_RAW, REGISTER_NATIVES_SIG,
         },
+        lib_jdk::internal::{misc::java_unsafe, util::java_system_props_raw},
         native_identifier::NativeIdentifier,
     },
     vm::VM,

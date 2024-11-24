@@ -3,7 +3,6 @@ use crate::{
     vm::VM,
 };
 
-pub mod internal;
 pub mod lang;
 
 pub(crate) const REGISTER_NATIVES_SIG: &str = "registerNatives()V";
