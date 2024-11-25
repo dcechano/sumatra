@@ -1,2 +1,2 @@
 pub mod java_unsafe;
-pub mod vm;
+pub mod java_vm;

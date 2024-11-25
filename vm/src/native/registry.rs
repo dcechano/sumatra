@@ -11,16 +11,23 @@ use crate::{
                 java_throwable,
             },
             JAVA_LANG_CLASS, JAVA_LANG_DOUBLE, JAVA_LANG_FLOAT, JAVA_LANG_OBJECT,
-            JAVA_LANG_STRING_UTF16, JAVA_LANG_SYSTEM, JAVA_LANG_THROWABLE,
-            JDK_INTERNAL_MISC_UNSAFE, JDK_INTERNAL_SYSTEM_PROPS_RAW, REGISTER_NATIVES_SIG,
+            JAVA_LANG_STRING_UTF16, JAVA_LANG_SYSTEM, JAVA_LANG_THROWABLE, REGISTER_NATIVES_SIG,
         },
-        lib_jdk::internal::{misc::java_unsafe, util::java_system_props_raw},
+        lib_jdk::{
+            internal::{misc::java_unsafe, util::java_system_props_raw},
+            JDK_INTERNAL_MISC_UNSAFE, JDK_INTERNAL_SYSTEM_PROPS_RAW,
+        },
         native_identifier::NativeIdentifier,
     },
     vm::VM,
 };
 
-const INITIAL_NATIVE_METHODS: [(&str, &str, NativeMethod); 12] = [
+use super::lib_jdk::{
+    internal::misc::{java_vm, java_vm::INITIALIZE_SIG},
+    JDK_INTERNAL_MISC_VM,
+};
+
+const INITIAL_NATIVE_METHODS: [(&str, &str, NativeMethod); 13] = [
     (
         JAVA_LANG_OBJECT,
         java_object::GET_CLASS_SIG,
@@ -80,6 +87,11 @@ const INITIAL_NATIVE_METHODS: [(&str, &str, NativeMethod); 12] = [
         JDK_INTERNAL_MISC_UNSAFE,
         REGISTER_NATIVES_SIG,
         java_unsafe::jvm_register_natives,
+    ),
+    (
+        JDK_INTERNAL_MISC_VM,
+        INITIALIZE_SIG,
+        java_vm::jvm_initialize,
     ),
 ];
 

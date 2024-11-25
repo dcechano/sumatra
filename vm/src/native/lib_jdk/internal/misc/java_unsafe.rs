@@ -4,7 +4,7 @@ use std::mem;
 use crate::{
     data_types::{object::ObjRef, value::Value},
     native::{
-        lib_java::JDK_INTERNAL_MISC_UNSAFE, native_identifier::NativeIdentifier,
+        lib_jdk::JDK_INTERNAL_MISC_UNSAFE, native_identifier::NativeIdentifier,
         registry::NativeMethod,
     },
     vm::VM,
