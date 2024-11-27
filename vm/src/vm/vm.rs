@@ -1,4 +1,5 @@
-use std::{num::Wrapping, path::PathBuf, result};
+use core::panic;
+use std::{num::Wrapping, path::PathBuf, result, usize};
 
 use anyhow::{anyhow, bail, Result};
 
@@ -418,7 +419,13 @@ impl VM {
                 Instruction::LLoad3 => self.lload(3)?,
                 Instruction::LMul => todo!(),
                 Instruction::LNeg => todo!(),
-                Instruction::LookUpSwitch { .. } => todo!(),
+                Instruction::LookUpSwitch {
+                    default_index,
+                    jump_table,
+                } => {
+                    let _ = self.lookupswitch(*default_index, &jump_table)?;
+                    continue;
+                }
                 Instruction::LOr => todo!(),
                 Instruction::LRem => todo!(),
                 Instruction::LReturn => return Ok(Some(self.return_val())),
@@ -450,7 +457,15 @@ impl VM {
                 Instruction::SaStore => todo!(),
                 Instruction::SiPush(byte) => self.sipush(*byte)?,
                 Instruction::Swap => todo!(),
-                Instruction::TableSwitch { .. } => todo!(),
+                Instruction::TableSwitch {
+                    default_index,
+                    low,
+                    high,
+                    jump_offsets,
+                } => {
+                    let _ = self.tableswitch(*default_index, *low, *high, &jump_offsets)?;
+                    continue;
+                }
                 Instruction::Wide(winstr) => todo!(),
             }
             // if name != "<clinit>" && name != "<init>" {
@@ -1675,6 +1690,31 @@ impl VM {
         Ok(frame.push(Value::Long(long)))
     }
 
+    /// Executes the `Instruction::LookUpSwitch` instruction.
+    fn lookupswitch(&mut self, default_index: i32, jump_table: &[(i32, i32)]) -> Result<()> {
+        let frame = self.frame_mut();
+        let Value::Int(key) = frame.pop() else {
+            bail!("Expected Int for key in lookupswitch");
+        };
+
+        if !jump_table.is_sorted_by(|(m0, _), (m1, _)| m0 < m1) {
+            bail!("lookupswitch table not sorted!");
+        }
+
+        let instr = 'instr: {
+            for (match_, instr) in jump_table {
+                if key == *match_ {
+                    break 'instr *instr;
+                }
+            }
+
+            default_index
+        };
+
+        frame.pc = instr as usize;
+        Ok(())
+    }
+
     /// Executes the `Instruction::LShr` instruction.
     fn lshl(&mut self) -> Result<()> {
         let frame = self.frame_mut();
@@ -1840,5 +1880,29 @@ impl VM {
     fn sipush(&mut self, short: i16) -> Result<()> {
         // per the spec, the short is sign-extended to a Java int.
         Ok(self.frame_mut().push(Value::Int(short as i32)))
+    }
+
+    /// Executes the `Instruction::TableSwitch` instruction.
+    fn tableswitch(
+        &mut self,
+        default_index: i32,
+        low: i32,
+        high: i32,
+        jump_offsets: &[i32],
+    ) -> Result<()> {
+        let frame = self.frame_mut();
+        let Value::Int(index) = frame.pop() else {
+            bail!("Expected int for index in tableswitch");
+        };
+
+        let pc = if index < low || index > high {
+            default_index
+        } else {
+            let index = *jump_offsets.get((index - low) as usize).unwrap();
+            index
+        } as usize;
+
+        frame.pc = pc;
+        Ok(())
     }
 }

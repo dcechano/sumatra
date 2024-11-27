@@ -307,6 +307,7 @@ pub enum Instruction {
     LLoad3,
     LMul,
     LNeg,
+    /// Access jump table by key match and jump.
     LookUpSwitch {
         default_index: i32,
         jump_table: Vec<(i32, i32)>,
@@ -362,6 +363,7 @@ pub enum Instruction {
     /// Push short to operand stack.
     SiPush(i16),
     Swap,
+    /// Acccess jump table by index and jump.
     TableSwitch {
         default_index: i32,
         low: i32,
@@ -496,14 +498,14 @@ impl Instruction {
                 167 => {
                     jmp_registry.push((
                         instructions.len(),
-                        (cursor.position() - 1) as i16 + cursor.read_i16()?,
+                        (cursor.position() - 1) as i32 + cursor.read_i16()? as i32,
                     ));
                     GoTo(0)
                 }
                 200 => {
                     jmp_registry.push((
                         instructions.len(),
-                        (cursor.position() - 1) as i16 + cursor.read_i16()?,
+                        (cursor.position() - 1) as i32 + cursor.read_i16()? as i32,
                     ));
                     GoToW(0)
                 }
@@ -528,112 +530,112 @@ impl Instruction {
                 165 => {
                     jmp_registry.push((
                         instructions.len(),
-                        (cursor.position() - 1) as i16 + cursor.read_i16()?,
+                        (cursor.position() - 1) as i32 + cursor.read_i16()? as i32,
                     ));
                     IfAcmpeq(0)
                 }
                 166 => {
                     jmp_registry.push((
                         instructions.len(),
-                        (cursor.position() - 1) as i16 + cursor.read_i16()?,
+                        (cursor.position() - 1) as i32 + cursor.read_i16()? as i32,
                     ));
                     IfAcmpne(0)
                 }
                 159 => {
                     jmp_registry.push((
                         instructions.len(),
-                        (cursor.position() - 1) as i16 + cursor.read_i16()?,
+                        (cursor.position() - 1) as i32 + cursor.read_i16()? as i32,
                     ));
                     IfIcmpeq(0)
                 }
                 160 => {
                     jmp_registry.push((
                         instructions.len(),
-                        (cursor.position() - 1) as i16 + cursor.read_i16()?,
+                        (cursor.position() - 1) as i32 + cursor.read_i16()? as i32,
                     ));
                     IfIcmpne(0)
                 }
                 161 => {
                     jmp_registry.push((
                         instructions.len(),
-                        (cursor.position() - 1) as i16 + cursor.read_i16()?,
+                        (cursor.position() - 1) as i32 + cursor.read_i16()? as i32,
                     ));
                     IfIcmplt(0)
                 }
                 162 => {
                     jmp_registry.push((
                         instructions.len(),
-                        (cursor.position() - 1) as i16 + cursor.read_i16()?,
+                        (cursor.position() - 1) as i32 + cursor.read_i16()? as i32,
                     ));
                     IfIcmpge(0)
                 }
                 163 => {
                     jmp_registry.push((
                         instructions.len(),
-                        (cursor.position() - 1) as i16 + cursor.read_i16()?,
+                        (cursor.position() - 1) as i32 + cursor.read_i16()? as i32,
                     ));
                     IfIcmpgt(0)
                 }
                 164 => {
                     jmp_registry.push((
                         instructions.len(),
-                        (cursor.position() - 1) as i16 + cursor.read_i16()?,
+                        (cursor.position() - 1) as i32 + cursor.read_i16()? as i32,
                     ));
                     IfIcmple(0)
                 }
                 153 => {
                     jmp_registry.push((
                         instructions.len(),
-                        (cursor.position() - 1) as i16 + cursor.read_i16()?,
+                        (cursor.position() - 1) as i32 + cursor.read_i16()? as i32,
                     ));
                     Ifeq(0)
                 }
                 154 => {
                     jmp_registry.push((
                         instructions.len(),
-                        (cursor.position() - 1) as i16 + cursor.read_i16()?,
+                        (cursor.position() - 1) as i32 + cursor.read_i16()? as i32,
                     ));
                     Ifne(0)
                 }
                 155 => {
                     jmp_registry.push((
                         instructions.len(),
-                        (cursor.position() - 1) as i16 + cursor.read_i16()?,
+                        (cursor.position() - 1) as i32 + cursor.read_i16()? as i32,
                     ));
                     Iflt(0)
                 }
                 156 => {
                     jmp_registry.push((
                         instructions.len(),
-                        (cursor.position() - 1) as i16 + cursor.read_i16()?,
+                        (cursor.position() - 1) as i32 + cursor.read_i16()? as i32,
                     ));
                     Ifge(0)
                 }
                 157 => {
                     jmp_registry.push((
                         instructions.len(),
-                        (cursor.position() - 1) as i16 + cursor.read_i16()?,
+                        (cursor.position() - 1) as i32 + cursor.read_i16()? as i32,
                     ));
                     Ifgt(0)
                 }
                 158 => {
                     jmp_registry.push((
                         instructions.len(),
-                        (cursor.position() - 1) as i16 + cursor.read_i16()?,
+                        (cursor.position() - 1) as i32 + cursor.read_i16()? as i32,
                     ));
                     Ifle(0)
                 }
                 199 => {
                     jmp_registry.push((
                         instructions.len(),
-                        (cursor.position() - 1) as i16 + cursor.read_i16()?,
+                        (cursor.position() - 1) as i32 + cursor.read_i16()? as i32,
                     ));
                     IfNonNull(0)
                 }
                 198 => {
                     jmp_registry.push((
                         instructions.len(),
-                        (cursor.position() - 1) as i16 + cursor.read_i16()?,
+                        (cursor.position() - 1) as i32 + cursor.read_i16()? as i32,
                     ));
                     IfNull(0)
                 }
@@ -700,6 +702,8 @@ impl Instruction {
                 105 => LMul,
                 117 => LNeg,
                 171 => {
+                    let this_index = cursor.position() as i32 - 1;
+
                     let pad_len = if cursor.position() % 4 == 0 {
                         0
                     } else {
@@ -708,7 +712,9 @@ impl Instruction {
                     (0..pad_len)
                         .map(|_| cursor.read_u8())
                         .collect::<Result<Vec<u8>>>()?;
+
                     let default_index = cursor.read_i32()?;
+                    jmp_registry.push((instructions.len(), this_index + default_index));
 
                     let pairs = {
                         let pair_len = cursor.read_i32()?;
@@ -717,7 +723,7 @@ impl Instruction {
                         }
                         let mut pairs = Vec::with_capacity(pair_len as usize);
                         for _ in 0..pair_len {
-                            pairs.push((cursor.read_i32()?, cursor.read_i32()?));
+                            pairs.push((cursor.read_i32()?, this_index + cursor.read_i32()?));
                         }
                         pairs
                     };
@@ -756,6 +762,7 @@ impl Instruction {
                 17 => SiPush(cursor.read_i16()?),
                 95 => Swap,
                 170 => {
+                    let this_index = cursor.position() as i32 - 1;
                     let pad_len = if cursor.position() % 4 == 0 {
                         0
                     } else {
@@ -764,14 +771,17 @@ impl Instruction {
                     (0..pad_len)
                         .map(|_| cursor.read_u8())
                         .collect::<Result<Vec<u8>>>()?;
+
                     let default_index = cursor.read_i32()?;
+                    jmp_registry.push((instructions.len(), this_index + default_index));
+
                     let low = cursor.read_i32()?;
                     let high = cursor.read_i32()?;
                     if low > high {
                         bail!("TableSwitch low > high invariant violated.");
                     }
                     let jump_offsets = (0..(high - low + 1))
-                        .map(|_| cursor.read_i32())
+                        .map(|_| Ok(this_index + cursor.read_i32()?))
                         .collect::<Result<Vec<i32>>>()?;
 
                     TableSwitch {
@@ -818,7 +828,7 @@ impl Instruction {
         Ok(opcode)
     }
 
-    fn fix_jmps(registry: Vec<(usize, i16)>, byte_to_instr: &[usize], instrs: &mut [Instruction]) {
+    fn fix_jmps(registry: Vec<(usize, i32)>, byte_to_instr: &[usize], instrs: &mut [Instruction]) {
         /*
             1. Get jmp_instr_index and jmp_byte from registry.
             2. Use jmp_instr_index to get the jmp instruction to be modified via instrs slice.
@@ -846,6 +856,34 @@ impl Instruction {
                 IfNull(ind) => *ind = byte_to_instr[jmp_byte as usize],
                 GoTo(ind) => *ind = byte_to_instr[jmp_byte as usize],
                 GoToW(ind) => *ind = byte_to_instr[jmp_byte as usize],
+                LookUpSwitch {
+                    default_index,
+                    jump_table,
+                } => {
+                    // The jmp_byte here can only be used for the default_index.
+                    // We had to do something different because there is more
+                    // jmp bytes that the vec has spots for. Here the instr value
+                    // is the byte we need to jump to.
+                    *default_index = byte_to_instr[jmp_byte as usize] as i32;
+                    for (_, instr) in jump_table.iter_mut() {
+                        *instr = byte_to_instr[*instr as usize] as i32;
+                    }
+                }
+                TableSwitch {
+                    default_index,
+                    low,
+                    high,
+                    jump_offsets,
+                } => {
+                    // The jmp_byte here can only be used for the default_index.
+                    // We had to do something different because there is more
+                    // jmp bytes that the vec has spots for. Here the instr value
+                    // is the byte we need to jump to.
+                    *default_index = byte_to_instr[jmp_byte as usize] as i32;
+                    for instr in jump_offsets.iter_mut() {
+                        *instr = byte_to_instr[*instr as usize] as i32;
+                    }
+                }
                 _ => unreachable!(),
             }
         }
