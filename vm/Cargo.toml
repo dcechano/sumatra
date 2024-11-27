@@ -7,3 +7,4 @@ edition = "2021"
 sumatra_parser = { path = "../parser" }
 anyhow = "1.0.81"
 zip = "0.6.6"
+num_cpus = "1.16.0"
