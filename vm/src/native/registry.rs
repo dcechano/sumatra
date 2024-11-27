@@ -22,12 +22,12 @@ use crate::{
     vm::VM,
 };
 
-use super::lib_jdk::{
-    internal::misc::{java_vm, java_vm::INITIALIZE_SIG},
+use super::{lib_java::{lang::java_runtime::{self, AVAILABLE_PROCESSORS_SIG, FREE_MEMORY_SIG, GC_SIG, MAX_MEMORY_SIG, TOTAL_MEMORY_SIG}, JAVA_LANG_RUNTIME}, lib_jdk::{
+    internal::misc::java_vm::{self, INITIALIZE_SIG},
     JDK_INTERNAL_MISC_VM,
-};
+}};
 
-const INITIAL_NATIVE_METHODS: [(&str, &str, NativeMethod); 13] = [
+const INITIAL_NATIVE_METHODS: [(&str, &str, NativeMethod); 18] = [
     (
         JAVA_LANG_OBJECT,
         java_object::GET_CLASS_SIG,
@@ -42,11 +42,6 @@ const INITIAL_NATIVE_METHODS: [(&str, &str, NativeMethod); 13] = [
         JAVA_LANG_CLASS,
         REGISTER_NATIVES_SIG,
         java_class::jvm_register_natives,
-    ),
-    (
-        JAVA_LANG_SYSTEM,
-        REGISTER_NATIVES_SIG,
-        java_system::jvm_register_natives,
     ),
     (
         JAVA_LANG_STRING_UTF16,
@@ -72,6 +67,36 @@ const INITIAL_NATIVE_METHODS: [(&str, &str, NativeMethod); 13] = [
         JAVA_LANG_THROWABLE,
         java_throwable::FILL_IN_STACK_TRACE,
         java_throwable::jvm_fill_in_stack_trace,
+    ),
+    (
+        JAVA_LANG_RUNTIME,
+        AVAILABLE_PROCESSORS_SIG,
+        java_runtime::jvm_available_processors,
+    ),
+    (
+        JAVA_LANG_RUNTIME,
+        FREE_MEMORY_SIG,
+        java_runtime::jvm_free_memory,
+    ),
+    (
+        JAVA_LANG_RUNTIME,
+        TOTAL_MEMORY_SIG,
+        java_runtime::jvm_total_memory,
+    ),
+    (
+        JAVA_LANG_RUNTIME,
+        MAX_MEMORY_SIG,
+        java_runtime::jvm_max_memory,
+    ),
+    (
+        JAVA_LANG_RUNTIME,
+        GC_SIG,
+        java_runtime::jvm_gc,
+    ),
+    (
+        JAVA_LANG_SYSTEM,
+        REGISTER_NATIVES_SIG,
+        java_system::jvm_register_natives,
     ),
     (
         JDK_INTERNAL_SYSTEM_PROPS_RAW,
