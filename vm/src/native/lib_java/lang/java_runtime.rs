@@ -1,3 +1,5 @@
+use std::usize;
+
 use anyhow::Result;
 
 use crate::{
@@ -21,7 +23,9 @@ pub fn jvm_available_processors(
     this: Option<ObjRef>,
     _: Vec<Value>,
 ) -> Result<Option<Value>> {
-    todo!()
+    //TODO: I am not sure I like importing a crate just for this one call.
+    let num_procs = num_cpus::get_physical();
+    Ok(Some(Value::Int(num_procs as i32)))
 }
 
 pub fn jvm_free_memory(vm: &mut VM, this: Option<ObjRef>, _: Vec<Value>) -> Result<Option<Value>> {
