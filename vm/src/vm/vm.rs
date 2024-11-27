@@ -360,7 +360,7 @@ impl VM {
                 Instruction::ILoad2 => self.iload_n(2)?,
                 Instruction::ILoad3 => self.iload_n(3)?,
                 Instruction::IMul => self.imul()?,
-                Instruction::INeg => todo!(),
+                Instruction::INeg => self.ineg()?,
                 Instruction::InstanceOf(index) => self.instance_of(*index)?,
                 Instruction::InvokeDynamic(index, _, _) => todo!(),
                 Instruction::InvokeInterface(method_index, n_args) => {
@@ -1450,6 +1450,18 @@ impl VM {
         };
 
         let (result, _) = value2.overflowing_mul(value1);
+        frame.push(Value::Int(result));
+        Ok(())
+    }
+
+    /// Executes the `Instruction::IMul` instrcution.
+    fn ineg(&mut self) -> Result<()> {
+        let frame = self.frame_mut();
+
+        let Value::Int(int) = frame.pop() else {
+            bail!("Expected int in ineg.");
+        };
+        let (result, _) = int.overflowing_mul(-1);
         frame.push(Value::Int(result));
         Ok(())
     }
