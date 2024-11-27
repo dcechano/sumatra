@@ -6,10 +6,7 @@ use crate::{
         value::{RefType, Value},
     },
     lli::class_loader,
-    native::{
-        native_identifier::NativeIdentifier,
-        registry::NativeMethod,
-    },
+    native::{native_identifier::NativeIdentifier, registry::NativeMethod},
     vm::VM,
 };
 

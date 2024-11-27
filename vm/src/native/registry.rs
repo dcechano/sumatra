@@ -22,10 +22,19 @@ use crate::{
     vm::VM,
 };
 
-use super::{lib_java::{lang::java_runtime::{self, AVAILABLE_PROCESSORS_SIG, FREE_MEMORY_SIG, GC_SIG, MAX_MEMORY_SIG, TOTAL_MEMORY_SIG}, JAVA_LANG_RUNTIME}, lib_jdk::{
-    internal::misc::java_vm::{self, INITIALIZE_SIG},
-    JDK_INTERNAL_MISC_VM,
-}};
+use super::{
+    lib_java::{
+        lang::java_runtime::{
+            self, AVAILABLE_PROCESSORS_SIG, FREE_MEMORY_SIG, GC_SIG, MAX_MEMORY_SIG,
+            TOTAL_MEMORY_SIG,
+        },
+        JAVA_LANG_RUNTIME,
+    },
+    lib_jdk::{
+        internal::misc::java_vm::{self, INITIALIZE_SIG},
+        JDK_INTERNAL_MISC_VM,
+    },
+};
 
 const INITIAL_NATIVE_METHODS: [(&str, &str, NativeMethod); 18] = [
     (
@@ -88,11 +97,7 @@ const INITIAL_NATIVE_METHODS: [(&str, &str, NativeMethod); 18] = [
         MAX_MEMORY_SIG,
         java_runtime::jvm_max_memory,
     ),
-    (
-        JAVA_LANG_RUNTIME,
-        GC_SIG,
-        java_runtime::jvm_gc,
-    ),
+    (JAVA_LANG_RUNTIME, GC_SIG, java_runtime::jvm_gc),
     (
         JAVA_LANG_SYSTEM,
         REGISTER_NATIVES_SIG,
