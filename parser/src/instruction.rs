@@ -232,6 +232,7 @@ pub enum Instruction {
     ILoad3,
     /// Multiply int.
     IMul,
+    /// Negate int.
     INeg,
     /// Determine a reference is of a given type.
     InstanceOf(usize),
