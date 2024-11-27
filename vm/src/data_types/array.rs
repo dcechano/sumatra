@@ -254,7 +254,7 @@ impl TryFrom<ArrayType> for ArrayComp {
             ArrayType::Double => ArrayComp::Double,
             ArrayType::Byte => ArrayComp::Byte,
             ArrayType::Short => ArrayComp::Short,
-            ArrayType::Int => ArrayComp::Short,
+            ArrayType::Int => ArrayComp::Int,
             ArrayType::Long => ArrayComp::Long,
             ArrayType::Dummy => bail!("Tried to convert from ArrayType::Dummy to ArrayComp"),
             ArrayType::Ref => bail!("Tried to convert from ArrayType::Ref to ArrayComp::Array(_) or ArrayComp::Class(_)"),
