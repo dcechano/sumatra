@@ -4,6 +4,7 @@ use anyhow::{anyhow, bail, Result};
 
 use sumatra_parser::{
     constant::Constant,
+    desc_types::MethodDescriptor,
     instruction::{ArrayType, Instruction},
     method::Method,
 };
@@ -1139,7 +1140,7 @@ impl VM {
         match frame.pop() {
             Value::Ref(RefType::Array(mut array)) => {
                 if *array.array_comp() != ArrayComp::Int {
-                    bail!("Expected ArrayType::Int for iastore instruction.");
+                    bail!("Expected ArrayType::Int for iastore instruction");
                 }
                 Ok(array.insert(index as usize, value))
             }
@@ -1396,16 +1397,28 @@ impl VM {
         };
 
         let (name_index, desc_index, alloc) = self.unpack(*class_index, *name_and_type_index)?;
-        let (class, method) = self.to_method_class(name_index, desc_index, &alloc)?;
+        let method_desc = self.frame().cp.get_utf8(desc_index)?;
+        let method_desc: MethodDescriptor = method_desc.parse()?;
+
+        let num_params = method_desc.num_params();
+        let stack_len = self.frame().stack.len();
+        let obj_value = self.frame().stack.get(stack_len - 1 - num_params).unwrap();
+
+        let (class, method) = match obj_value {
+            Value::Null => todo!("Throw NullPointerException!"),
+            Value::Ref(RefType::Object(obj)) => {
+                // Make sure to grab the method from the obj's class not
+                // the class pointed to by Constant::MethodRef.
+                // This is because it could be overridden.
+                let class_id = obj.get_class_id();
+                let this_class = self.assume_load_id(class_id);
+                self.resolve_method_from_superclass(this_class, name_index, desc_index)?
+            }
+            Value::Ref(RefType::Array(array)) => todo!(),
+            _ => panic!("Unexpected condition in invoke_virtual."),
+        };
 
         debug_assert!(!method.is_static());
-        // Assert the object ref is nonnull
-        let num_params = method.parsed_descriptor.num_params();
-        let stack_len = self.frame().stack.len();
-        let obj_ref = self.frame().stack.get(stack_len - 1 - num_params).unwrap();
-        if let Value::Null = obj_ref {
-            todo!("Throw NullPointerException!")
-        }
         self.handle_invoke(class, method)
     }
 

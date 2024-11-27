@@ -24,11 +24,13 @@ impl Drop for VM {
         if !self.frames.is_empty() {
             println!("============== PRINTING STACKFRAMES ==============");
             for (num, frame) in self.frames.iter().enumerate() {
+                let pc = frame.pc;
                 println!(
-                    "[frame {num}] {}::{}{}",
+                    "[frame {num}] {}::{}{} - {:?}",
                     frame.class.get_name(),
                     frame.method.name,
-                    frame.method.descriptor
+                    frame.method.descriptor,
+                    frame.method.code.op_code.get(pc).unwrap()
                 );
             }
         }

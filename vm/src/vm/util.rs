@@ -204,7 +204,7 @@ impl VM {
         num_params: usize,
     ) -> Result<Vec<Value>> {
         if num_params > max_locals {
-            bail!("number of method parameters was larger than the max locals.");
+            bail!("number of method parameters ({num_params}) was larger than the max locals {max_locals}.");
         }
 
         Ok(match (num_params, max_locals) {
