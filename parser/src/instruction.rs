@@ -230,6 +230,7 @@ pub enum Instruction {
     ILoad2,
     /// load local int variable at index 3 and push to operand stack.
     ILoad3,
+    /// Multiply int.
     IMul,
     INeg,
     /// Determine a reference is of a given type.
