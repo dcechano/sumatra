@@ -359,7 +359,7 @@ impl VM {
                 Instruction::ILoad1 => self.iload_n(1)?,
                 Instruction::ILoad2 => self.iload_n(2)?,
                 Instruction::ILoad3 => self.iload_n(3)?,
-                Instruction::IMul => todo!(),
+                Instruction::IMul => self.imul()?,
                 Instruction::INeg => todo!(),
                 Instruction::InstanceOf(index) => self.instance_of(*index)?,
                 Instruction::InvokeDynamic(index, _, _) => todo!(),
@@ -1435,6 +1435,23 @@ impl VM {
 
         debug_assert!(!method.is_static());
         self.handle_invoke(class, method)
+    }
+
+    /// Executes the `Instruction::IMul` instrcution.
+    fn imul(&mut self) -> Result<()> {
+        let frame = self.frame_mut();
+
+        let Value::Int(value2) = frame.pop() else {
+            bail!("Expected int for value2 in mul.");
+        };
+
+        let Value::Int(value1) = frame.pop() else {
+            bail!("Expected int for value1 in mul.");
+        };
+
+        let (result, _) = value2.overflowing_mul(value1);
+        frame.push(Value::Int(result));
+        Ok(())
     }
 
     /// Executes the `Instruction::ILoad` instruction.
