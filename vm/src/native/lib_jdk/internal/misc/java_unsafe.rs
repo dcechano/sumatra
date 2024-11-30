@@ -70,7 +70,7 @@ const NATIVES: [(&str, NativeMethod); 67] = [
     ("copyMemory0(Ljava/lang/Object;JLjava/lang/Object;JJ)V", jvm_copy_memory0),
     ("copySwapMemory(Ljava/lang/Object;JLjava/lang/Object;JJJ)V", jvm_copy_swap_memory0),
     ("objectFieldOffset0(Ljava/lang/Field;)J", jvm_object_field_offset0),
-    ("objectFieldOffset1(Ljava/lang/Class;Ljava/lang/String)J", jvm_object_field_offset1),
+    ("objectFieldOffset1(Ljava/lang/Class;Ljava/lang/String;)J", jvm_object_field_offset1),
     ("staticFieldOffset0(Ljava/lang/Field)J", jvm_static_field_offset0),
     ("staticFieldBase1(Ljava/lang/Field)Ljava/lang/Object;", jvm_static_field_base0),
     ("shouldBeInitialized0(Ljava/lang/Class;)Z", jvm_should_be_initialized0),
@@ -400,7 +400,8 @@ fn jvm_unpark(vm: &mut VM, this: Option<ObjRef>, _: Vec<Value>) -> Result<Option
 fn jvm_park(vm: &mut VM, this: Option<ObjRef>, _: Vec<Value>) -> Result<Option<Value>> { todo!() }
 
 fn jvm_full_fence(vm: &mut VM, this: Option<ObjRef>, _: Vec<Value>) -> Result<Option<Value>> {
-    todo!()
+    //TODO may need to be fixed when we implement multithreading
+    Ok(None)
 }
 
 fn jvm_allocate_memory0(vm: &mut VM, this: Option<ObjRef>, _: Vec<Value>) -> Result<Option<Value>> {
