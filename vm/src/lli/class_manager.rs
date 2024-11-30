@@ -119,15 +119,23 @@ impl ClassManager {
         let array_comp = name.parse::<ArrayComp>()?;
 
         match array_comp.root_comp() {
-            ArrayComp::Class(class_name) => {
+            ArrayComp::Class(root_class_name) => {
+                // We use ArrayComp::parse to remove the Ljava/.. and the ';'.
+                // now reconstruct the class so it is consistent with Class::get_name().
+                let sanitized_class =
+                    format!("{}{root_class_name}", "[".repeat(array_comp.dimension()));
+
                 // use class_name here instead of name because name has a trailing ';'.
-                if self.by_name.contains_key(class_name) {
-                    return Ok(Response::Ready(*self.by_name.get(class_name).unwrap()));
+                if self.by_name.contains_key(&sanitized_class) {
+                    return Ok(Response::Ready(
+                        *self.by_name.get(&sanitized_class).unwrap(),
+                    ));
                 }
 
-                let response = self.resolve_and_index(&class_name, met_area)?;
+                let response = self.resolve_and_index(&root_class_name, met_area)?;
 
                 let array_class = Class::array_class(array_comp);
+                assert_eq!(sanitized_class, array_class.get_name());
                 let (array_class, array_class_index) = self.store_class(array_class, met_area)?;
 
                 return Ok(match response {
