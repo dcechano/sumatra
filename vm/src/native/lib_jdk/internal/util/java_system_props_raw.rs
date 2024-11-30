@@ -52,11 +52,16 @@ const SUN_OS_PATCH_LEVEL_NDX: usize = SUN_JNU_ENCODING_NDX + 1;
 const USER_DIR_NDX: usize = SUN_OS_PATCH_LEVEL_NDX + 1;
 const USER_HOME_NDX: usize = USER_DIR_NDX + 1;
 const USER_NAME_NDX: usize = USER_HOME_NDX + 1;
-const FIXED_LENGTH: usize = 1 + USER_NAME_NDX;
+
+// unlisted in SystemProps.java but very important. See
+// SystemProps.initProperties. Used in jvm_vm_properties
+const JAVA_HOME_NDX: usize = USER_NAME_NDX + 1;
+const FIXED_LENGTH: usize = JAVA_HOME_NDX + 1;
 
 // The number of static fields in jdk.internal.util.SystemProps.Raw.java
 // https://github.com/openjdk/jdk/blob/jdk-21%2B35/src/java.base/share/classes/jdk/internal/util/SystemProps.java#L214
 const NUM_PLATFORM_PROPS: usize = 40;
+const NUM_VM_PROPS: usize = NUM_PLATFORM_PROPS + 1;
 
 pub(crate) const PLATFORM_PROPS_SIG: &str = "platformProperties()[Ljava/lang/String;";
 pub(crate) const VM_PROPS_SIG: &str = "vmProperties()[Ljava/lang/String;";
@@ -132,10 +137,9 @@ pub fn jvm_platform_properties(
 }
 
 pub fn jvm_vm_properties(vm: &mut VM, _: Option<ObjRef>, _: Vec<Value>) -> Result<Option<Value>> {
-    let mut string_array = vm.heap().new_array(
-        NUM_PLATFORM_PROPS * 2,
-        ArrayComp::Class(STRING_CLASS.to_string()),
-    );
+    let mut string_array = vm
+        .heap()
+        .new_array(NUM_VM_PROPS * 2, ArrayComp::Class(STRING_CLASS.to_string()));
 
     let mut prop = |s| {
         let obj = vm.create_java_string(s, true);
@@ -234,6 +238,8 @@ pub fn jvm_vm_properties(vm: &mut VM, _: Option<ObjRef>, _: Vec<Value>) -> Resul
     string_array.insert(USER_HOME_NDX * 2 + 1, prop("/home/dylan"));
     string_array.insert(USER_NAME_NDX * 2, prop("user.name"));
     string_array.insert(USER_NAME_NDX * 2 + 1, prop("dylan"));
+    string_array.insert(JAVA_HOME_NDX * 2, prop("java.home"));
+    string_array.insert(JAVA_HOME_NDX * 2 + 1, prop(""));
 
     Ok(Some(Value::new_array(string_array)))
 }
