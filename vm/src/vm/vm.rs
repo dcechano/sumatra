@@ -67,7 +67,7 @@ impl VM {
 
     fn bootstrap_classes(&mut self) {
         // First we must load the primitive classes because the core
-        // classes (Object.class, Class.class, ect) may depenend on them.
+        // classes (Object.class, Class.class, ect) may depend on them.
         // We DO NOT create their Class.class instance (int.class, ect.) yet
         // because that would depend on Class.class being loaded.
         let prim_classes = self.class_manager.init_prim_classes(&mut self.method_area);
@@ -137,7 +137,6 @@ impl VM {
     pub(super) fn execute_frame(&mut self) -> Result<Option<Value>> {
         let code = &self.frame().method.code;
         let op_code = &code.op_code;
-        let name: &str = self.frame().method.name.as_ref();
         let indents = self.frames.len();
         // if name != "<clinit>" && name != "<init>" {
         //println!(
@@ -160,9 +159,19 @@ impl VM {
 
         // }
         while let Some(code) = op_code.get(self.frame().pc) {
-            let name: &str = self.frame().method.name.as_ref();
+            //let name: &str = self.frame().method.name.as_ref();
             // if name != "<clinit>" && name != "<init>" {
-            println!("{}{code:?}", "\t".repeat(indents),);
+            let mut class_name = self.frame().class.get_name();
+            if self.frame().method.is_native() {
+                class_name = format!("[native] {}", class_name);
+            }
+            println!(
+                "{}{code:?}\t\t{}::{}{}",
+                "\t".repeat(indents),
+                class_name,
+                self.frame().method.name,
+                self.frame().method.descriptor
+            );
             // }
             match code {
                 Instruction::AaLoad => self.aaload()?,
@@ -483,13 +492,13 @@ impl VM {
         }
 
         // if name != "<clinit>" && name != "<init>" {
-        println!(
-            "\n{}Exiting method: {}{} in class: {}",
-            "\t".repeat(indents),
-            self.frame().method.name,
-            self.frame().method.descriptor,
-            self.frame().class.get_name()
-        );
+        //println!(
+        //    "\n{}Exiting method: {}::{}{}",
+        //    "\t".repeat(indents),
+        //    self.frame().class.get_name(),
+        //    self.frame().method.name,
+        //    self.frame().method.descriptor
+        //);
         // }
         self.frames.pop();
         Ok(None)
@@ -801,8 +810,7 @@ impl VM {
             bail!("Expected Constant::Class for provided index in check_cast.");
         };
         let class_name = self.frame_mut().cp.get_utf8(*name_index)?;
-        let test_class = self.load_class(class_name)?.class;
-
+        let test_class = self.load_class_immut(class_name)?;
         match obj {
             Value::Ref(RefType::Array(array)) => {
                 if class_name == OBJECT {
@@ -812,17 +820,33 @@ impl VM {
                     todo!();
                 }
                 if !test_class.is_array_class() {
-                    todo!("Return ClassCastException");
+                    todo!(
+                        "Attempted to cast {} as {:?}: \
+                        Throw ClassCastException:",
+                        class_name,
+                        array.array_comp()
+                    );
                 }
 
                 let array_comp = array.array_comp();
-                if let ArrayComp::Class(array_class) = array_comp {
-                    todo!()
-                }
-
                 if &class_name.parse::<ArrayComp>()? == array_comp {
                     return Ok(self.frame_mut().push(obj));
                 }
+
+                if let ArrayComp::Class(array_class) = array_comp {
+                    let comp_class = self.load_class_immut(array_class)?;
+
+                    if self.is_subclass_of(comp_class, test_class) {
+                        return Ok(self.frame_mut().push(obj));
+                    }
+
+                    bail!(
+                        "Could not cast {} to {}",
+                        comp_class.get_name(),
+                        test_class.get_name()
+                    );
+                }
+
                 todo!()
             }
             Value::Ref(RefType::Object(obj_ref)) => {
