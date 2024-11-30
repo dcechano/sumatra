@@ -235,11 +235,9 @@ pub enum RefType {
 impl From<ArrayComp> for Value {
     fn from(array_comp: ArrayComp) -> Self {
         match array_comp {
-            ArrayComp::Boolean
-            | ArrayComp::Char
-            | ArrayComp::Short
-            | ArrayComp::Byte
-            | ArrayComp::Int => Value::Int(0),
+            ArrayComp::Short => Value::Short(0),
+            ArrayComp::Byte | ArrayComp::Char => Value::Byte(0),
+            ArrayComp::Boolean | ArrayComp::Int => Value::Int(0),
             ArrayComp::Float => Value::Float(0.0),
             ArrayComp::Double => Value::Double(0.0),
             ArrayComp::Long => Value::Long(0),
