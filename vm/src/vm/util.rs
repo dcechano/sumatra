@@ -286,10 +286,7 @@ impl VM {
             None => return Ok(None),
             Some(clint) => clint,
         };
-        // clinit always takes 0 arguments
-        let frame = CallFrame::new(class, clinit, &class.cp, vec![]);
-        self.frames.push(frame);
-        self.execute_frame()
+        self.invoke(class, clinit)
     }
 
     /// Helper function to construct a `CallFrame` and invoke a non-native
@@ -350,7 +347,7 @@ impl VM {
         if instance.get_name() == test_class.get_name() {
             return true;
         }
-        if instance.is_interface() {
+        if test_class.is_interface() {
             return self.is_interface_of(instance, test_class);
         }
         self.is_subclass_of(instance, test_class)
@@ -363,7 +360,17 @@ impl VM {
         instance: &'static Class,
         test_class: &'static Class,
     ) -> bool {
-        todo!()
+        //TODO needs to check if a superclass implements the
+        //interface too.
+        debug_assert!(test_class.is_interface());
+        let test_int = test_class.get_name();
+        let interfaces = instance.interfaces();
+        for interface in interfaces {
+            if interface == test_int {
+                return true;
+            }
+        }
+        false
     }
 
     /// Helper function to check if the class `instance` is a subclass of

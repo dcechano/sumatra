@@ -97,7 +97,6 @@ impl VM {
         // This calls the special initialization method in System.java that is used to
         // initialize the static final InputStream and OutputStream.
         let init_phase1 = java_lang_system.methods.get("initPhase1()V").unwrap();
-        let frame = CallFrame::new(java_lang_system, init_phase1, &java_lang_system.cp, vec![]);
         // TODO perhaps do not unwrap but return a VMError when implemented
         self.invoke(java_lang_system, init_phase1).unwrap();
     }
@@ -831,7 +830,11 @@ impl VM {
                 let instance_class = self.method_area.get_class(class_id)?;
 
                 if !self.is_instance_of(instance_class, test_class) {
-                    todo!("Throw ClassCastException.");
+                    todo!(
+                        "Throw ClassCastException {} - {}.",
+                        instance_class.get_name(),
+                        test_class.get_name()
+                    );
                 }
                 Ok(self.frame_mut().push(obj))
             }
