@@ -6,37 +6,38 @@ use crate::{
     data_types::{object::ObjRef, value::Value},
     native::{
         lib_java::{
-            lang::{
-                java_class, java_double, java_float, java_object, java_string_utf16, java_system,
-                java_throwable,
+            io::java_file_input_stream::{
+                self, AVAILABLE_0_SIG, INIT_IDS_SIG, IS_REGULAR_FILE_0_SIG, LENGTH_0_SIG,
+                OPEN_0_SIG, POSITION_0_SIG, READ_0_SIG, READ_BYTES_SIG, SKIP_0_SIG,
             },
-            JAVA_LANG_CLASS, JAVA_LANG_DOUBLE, JAVA_LANG_FLOAT, JAVA_LANG_OBJECT,
-            JAVA_LANG_STRING_UTF16, JAVA_LANG_SYSTEM, JAVA_LANG_THROWABLE, REGISTER_NATIVES_SIG,
+            lang::{
+                java_class, java_double, java_float, java_object,
+                java_runtime::{
+                    self, AVAILABLE_PROCESSORS_SIG, FREE_MEMORY_SIG, GC_SIG, MAX_MEMORY_SIG,
+                    TOTAL_MEMORY_SIG,
+                },
+                java_string_utf16, java_system, java_throwable,
+            },
+            JAVA_IO_FILE_INPUT_STREAM, JAVA_LANG_CLASS, JAVA_LANG_DOUBLE, JAVA_LANG_FLOAT,
+            JAVA_LANG_OBJECT, JAVA_LANG_RUNTIME, JAVA_LANG_STRING_UTF16, JAVA_LANG_SYSTEM,
+            JAVA_LANG_THROWABLE, REGISTER_NATIVES_SIG,
         },
         lib_jdk::{
-            internal::{misc::java_unsafe, util::java_system_props_raw},
-            JDK_INTERNAL_MISC_UNSAFE, JDK_INTERNAL_SYSTEM_PROPS_RAW,
+            internal::{
+                misc::{
+                    java_unsafe,
+                    java_vm::{self, INITIALIZE_SIG},
+                },
+                util::java_system_props_raw,
+            },
+            JDK_INTERNAL_MISC_UNSAFE, JDK_INTERNAL_MISC_VM, JDK_INTERNAL_SYSTEM_PROPS_RAW,
         },
         native_identifier::NativeIdentifier,
     },
     vm::VM,
 };
 
-use super::{
-    lib_java::{
-        lang::java_runtime::{
-            self, AVAILABLE_PROCESSORS_SIG, FREE_MEMORY_SIG, GC_SIG, MAX_MEMORY_SIG,
-            TOTAL_MEMORY_SIG,
-        },
-        JAVA_LANG_RUNTIME,
-    },
-    lib_jdk::{
-        internal::misc::java_vm::{self, INITIALIZE_SIG},
-        JDK_INTERNAL_MISC_VM,
-    },
-};
-
-const INITIAL_NATIVE_METHODS: [(&str, &str, NativeMethod); 18] = [
+const INITIAL_NATIVE_METHODS: [(&str, &str, NativeMethod); 27] = [
     (
         JAVA_LANG_OBJECT,
         java_object::GET_CLASS_SIG,
@@ -102,6 +103,51 @@ const INITIAL_NATIVE_METHODS: [(&str, &str, NativeMethod); 18] = [
         JAVA_LANG_SYSTEM,
         REGISTER_NATIVES_SIG,
         java_system::jvm_register_natives,
+    ),
+    (
+        JAVA_IO_FILE_INPUT_STREAM,
+        OPEN_0_SIG,
+        java_file_input_stream::jvm_open0,
+    ),
+    (
+        JAVA_IO_FILE_INPUT_STREAM,
+        READ_0_SIG,
+        java_file_input_stream::jvm_read0,
+    ),
+    (
+        JAVA_IO_FILE_INPUT_STREAM,
+        READ_BYTES_SIG,
+        java_file_input_stream::jvm_read_bytes,
+    ),
+    (
+        JAVA_IO_FILE_INPUT_STREAM,
+        LENGTH_0_SIG,
+        java_file_input_stream::jvm_length0,
+    ),
+    (
+        JAVA_IO_FILE_INPUT_STREAM,
+        POSITION_0_SIG,
+        java_file_input_stream::jvm_position0,
+    ),
+    (
+        JAVA_IO_FILE_INPUT_STREAM,
+        SKIP_0_SIG,
+        java_file_input_stream::jvm_skip0,
+    ),
+    (
+        JAVA_IO_FILE_INPUT_STREAM,
+        AVAILABLE_0_SIG,
+        java_file_input_stream::jvm_available0,
+    ),
+    (
+        JAVA_IO_FILE_INPUT_STREAM,
+        IS_REGULAR_FILE_0_SIG,
+        java_file_input_stream::jvm_is_regular_file0,
+    ),
+    (
+        JAVA_IO_FILE_INPUT_STREAM,
+        INIT_IDS_SIG,
+        java_file_input_stream::jvm_init_ids,
     ),
     (
         JDK_INTERNAL_SYSTEM_PROPS_RAW,
