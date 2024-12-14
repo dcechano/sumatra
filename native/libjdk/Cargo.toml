@@ -8,5 +8,5 @@ name = "jdk"
 crate-type = ["dylib"]
 
 [dependencies]
-anyhow = "1.0.94"
 sumatra_vm = { path = "../../vm" } 
+log = { workspace = true }

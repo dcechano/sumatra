@@ -322,6 +322,7 @@ checksum = "97b3888a4aecf77e811145cadf6eef5901f4782c53886191b2f693f24761847c"
 name = "libjava"
 version = "0.1.0"
 dependencies = [
+ "log",
  "num_cpus",
  "sumatra_vm",
 ]
@@ -330,7 +331,7 @@ dependencies = [
 name = "libjdk"
 version = "0.1.0"
 dependencies = [
- "anyhow",
+ "log",
  "sumatra_vm",
 ]
 
@@ -479,6 +480,7 @@ checksum = "2b15c43186be67a4fd63bee50d0303afffcef381492ebe2c5d87f324e1b8815c"
 name = "registry"
 version = "0.1.0"
 dependencies = [
+ "log",
  "sumatra_vm",
 ]
 
@@ -535,6 +537,7 @@ name = "sumatra_cli"
 version = "0.1.0"
 dependencies = [
  "env_logger",
+ "log",
  "sumatra_parser",
  "sumatra_vm",
 ]
@@ -553,11 +556,9 @@ dependencies = [
 name = "sumatra_vm"
 version = "0.1.0"
 dependencies = [
- "env_logger",
  "libloading",
  "log",
  "sumatra_parser",
- "zip",
 ]
 
 [[package]]

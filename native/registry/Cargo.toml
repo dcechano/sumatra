@@ -8,3 +8,4 @@ name = "native_registry"
 
 [dependencies]
 sumatra_vm = { path = "../../vm" } 
+log = { workspace = true }

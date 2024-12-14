@@ -5,8 +5,6 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use zip::ZipArchive;
-
 use sumatra_parser::class_file::ClassFile;
 
 use crate::{

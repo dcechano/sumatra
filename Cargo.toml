@@ -1,3 +1,7 @@
 [workspace]
 members = [ "cli", "native/libjava", "native/libjdk", "native/registry", "parser", "vm"]
 resolver = "2"
+
+
+[workspace.dependencies]
+log = "0.4.22"
