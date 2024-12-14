@@ -279,11 +279,15 @@ impl ClassReader {
                     method.method_params = (0..params_count)
                         .map(|_| {
                             let name_index = self.read_u16()? as usize;
-                            Self::verify_utf8(
-                                cp,
-                                name_index,
-                                "Failed to validate the name index of a MethodParameter.",
-                            )?;
+
+                            // a name_index of 0 indicates a formal parameter with no name.
+                            if name_index != 0 {
+                                Self::verify_utf8(
+                                    cp,
+                                    name_index,
+                                    "Failed to validate the name index of a MethodParameter.",
+                                )?;
+                            }
                             let access_flags = MethodParamAccessFlags::from_bits(self.read_u16()?)
                                 .context("Failed to parse MethodParamAccessFlags.")?;
                             Ok(MethodParameters {
