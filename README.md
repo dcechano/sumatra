@@ -17,7 +17,7 @@ The following are currently on the todo list:
 - [ ] Implement multithreading support
 - [ ] Implement I/O
 - [ ] Implement JIT
-- [ ] Implement Java Exceptions
+- [x] Implement Java Exceptions
 - [ ] Implement MORE TESTS!
 - [ ] Determine "[maximally specific method](https://docs.oracle.com/javase/specs/jls/se8/html/jls-15.html#jls-15.12.2.5)" during method resolution.
 - [ ] Track how much memory is being used. 
