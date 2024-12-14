@@ -40,7 +40,7 @@ impl Value {
     pub fn new_object(obj: ObjRef) -> Value { Value::Ref(RefType::Object(obj)) }
 
     /// Allocates a new Java array and returns Value::Ref for the new array.
-    pub(crate) fn new_array(array_ref: ArrayRef) -> Value { Value::Ref(RefType::Array(array_ref)) }
+    pub fn new_array(array_ref: ArrayRef) -> Value { Value::Ref(RefType::Array(array_ref)) }
 
     pub(crate) fn is_same_variant(&self, other: &Value) -> bool {
         match self {

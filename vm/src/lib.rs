@@ -9,11 +9,13 @@ pub mod alloc;
 mod call_frame;
 pub mod class;
 mod compare;
-mod data_types;
-mod lli;
-mod native;
+pub mod data_types;
+pub mod lli;
+pub mod native_registry;
 pub mod result;
 pub mod vm;
+
+pub use native_registry as native;
 
 /// Checks if `superclass` is the superclass of `child_class`.
 /// By the logic of this function a class is the superclass of itself. Will

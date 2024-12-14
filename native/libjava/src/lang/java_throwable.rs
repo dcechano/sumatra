@@ -1,17 +1,17 @@
 use anyhow::Result;
 
-use crate::{
+use sumatra_vm::{
     data_types::{
         object::ObjRef,
         value::{RefType, Value},
     },
-    native::registry::NativeMethod,
     vm::VM,
 };
 
 pub(crate) const FILL_IN_STACK_TRACE: &str = "fillInStackTrace(I)Ljava/lang/Throwable;";
 
-pub fn jvm_fill_in_stack_trace(
+#[no_mangle]
+pub fn JAVA_LANG_THROWABLE_fill_in_stack_trace(
     vm: &mut VM,
     this: Option<ObjRef>,
     _: Vec<Value>,

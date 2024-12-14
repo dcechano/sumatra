@@ -3,6 +3,7 @@ use std::{num::Wrapping, path::PathBuf, result, usize};
 
 use anyhow::{anyhow, bail, Result};
 
+use libloading::Library;
 use sumatra_parser::{
     constant::Constant,
     desc_types::MethodDescriptor,
@@ -23,22 +24,24 @@ use crate::{
         value::{RefType, Value},
     },
     lli::{class_manager::ClassManager, response::Response},
-    native::{
-        native_identifier::NativeIdentifier,
-        registry::{NativeMethod, NativeRegistry},
-    },
+    native::{NativeIdentifier, NativeMethod},
     result::Error,
     vm::{CLASS, CLASS_CLASS_ID, OBJECT, OBJECT_CLASS_ID, STRING, SYSTEM, SYSTEM_CLASS_ID},
     vm_error,
 };
 
 use super::DEFAULT_VEC_SIZE;
+
+const LIB_JAVA: &str = "libjava.so";
+const LIB_JDK: &str = "libjdk.so";
+
 pub struct VM {
     pub(super) frames: Vec<CallFrame>,
     pub(super) method_area: MethodArea,
     pub(super) heap: Heap,
     pub(super) class_manager: ClassManager,
-    pub(crate) native_registry: NativeRegistry,
+    pub(super) lib_java: Library,
+    pub(super) lib_jdk: Library,
 }
 
 impl VM {
@@ -56,12 +59,20 @@ impl VM {
             Ok(method_area) => method_area,
             Err(_) => panic!("Memory Allocation Error while starting Sumatra VM"),
         };
+        let (lib_jdk, lib_java) = unsafe {
+            (
+                Library::new(LIB_JDK).expect("Could not load libjdk."),
+                Library::new(LIB_JAVA).expect("Could not load libjava."),
+            )
+        };
+
         Self {
             frames: Vec::with_capacity(DEFAULT_VEC_SIZE),
             method_area,
             heap: Heap::new(),
             class_manager: ClassManager::new(jdk, c_path),
-            native_registry: NativeRegistry::new(),
+            lib_java,
+            lib_jdk,
         }
     }
 

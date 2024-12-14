@@ -13,7 +13,7 @@ use crate::{
     vm::{self, STRING, VM},
 };
 
-pub(crate) struct Heap {
+pub struct Heap {
     gen1: Vec<*mut HeapAlloc<NonStatic>>,
     gen2: Vec<*mut HeapAlloc<NonStatic>>,
     tenured: Vec<*mut HeapAlloc<NonStatic>>,
@@ -32,25 +32,25 @@ impl Heap {
         }
     }
 
-    pub(crate) fn new_array(&mut self, length: usize, array_comp: ArrayComp) -> ArrayRef {
+    pub fn new_array(&mut self, length: usize, array_comp: ArrayComp) -> ArrayRef {
         let array = ArrayRef::new(length, array_comp);
         self.gen1.push(array.get_inner() as *mut _);
         array
     }
 
-    pub(crate) fn new_object(&mut self, instance_data: InstanceData) -> ObjRef {
+    pub fn new_object(&mut self, instance_data: InstanceData) -> ObjRef {
         let obj = ObjRef::new(instance_data);
         self.gen1.push(obj.get_inner() as *mut _);
         obj
     }
 
-    pub(crate) fn new_tenured_obj(&mut self, instance_data: InstanceData) -> ObjRef {
+    pub fn new_tenured_obj(&mut self, instance_data: InstanceData) -> ObjRef {
         let obj = ObjRef::new(instance_data);
         self.tenured.push(obj.get_inner() as *mut _);
         obj
     }
 
-    pub(crate) fn get_interned_str(&mut self, string: &str) -> Option<ObjRef> {
+    pub fn get_interned_str(&mut self, string: &str) -> Option<ObjRef> {
         match self.strings.get(string) {
             Some(obj) => {
                 // SAFETY: Since we manage the pointer ourselves, we know it is valid
@@ -61,7 +61,7 @@ impl Heap {
         }
     }
 
-    pub(crate) fn intern_string(&mut self, rust_string: &str, java_string: ObjRef) -> Result<()> {
+    pub fn intern_string(&mut self, rust_string: &str, java_string: ObjRef) -> Result<()> {
         if self.strings.contains_key(rust_string) {
             //TODO feels weird to error on an attempt to
             //intern a string. The angle is that the caller probably didn't mean to?
@@ -73,9 +73,9 @@ impl Heap {
         Ok(())
     }
 
-    pub(crate) fn is_interned(&self, string: &str) -> bool { self.strings.contains_key(string) }
+    pub fn is_interned(&self, string: &str) -> bool { self.strings.contains_key(string) }
 
-    pub(crate) fn new_class_object(
+    pub fn new_class_object(
         &mut self,
         instance_class: &'static Class,
         java_lang_class: &'static Class,
@@ -100,14 +100,14 @@ impl Heap {
 
     /// Returns the java.lang.Class object for the class represented by
     /// `class_name`.
-    pub(crate) fn get_class_obj(&self, class_name: &str) -> ObjRef {
+    pub fn get_class_obj(&self, class_name: &str) -> ObjRef {
         // SAFETY: Since we manage the pointer ourselves, we know it is valid
         // as long as the pointer wasn't invalidated elsewhere.
         unsafe { ObjRef::from_raw(*self.classes.get(class_name).unwrap()) }
     }
 
     /// Retrieves the name of the class associated with the passed in java ref.
-    pub(crate) fn class_name(&self, obj: ObjRef) -> String {
+    pub fn class_name(&self, obj: ObjRef) -> String {
         for (name, entry) in self.classes.iter() {
             if obj.get_inner() == (*entry as *const _) {
                 return name.to_string();
