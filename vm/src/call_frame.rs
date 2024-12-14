@@ -2,12 +2,7 @@ use std::collections::VecDeque;
 
 use sumatra_parser::{constant_pool::ConstantPool, method::Method};
 
-use crate::{
-    class::Class,
-    data_types::value::{self, Value},
-    result::Result,
-    vm_error,
-};
+use crate::{class::Class, data_types::value::Value, result::Result, vm_error};
 
 #[derive(Debug)]
 pub(crate) struct CallFrame {
@@ -66,6 +61,7 @@ impl CallFrame {
     }
 
     /// Returns a local variable for mutating.
+    #[allow(clippy::expect_fun_call)]
     pub(crate) fn get_local(&mut self, index: usize) -> &mut Value {
         self.locals.get_mut(index).expect(&format!(
             "{index} was not a valid index into the locals array."
@@ -91,7 +87,7 @@ impl CallFrame {
     /// the value will be cloned and pushed twice since doubles and longs
     /// take 2 spots on the operand stack.
     pub(crate) fn push(&mut self, value: Value) {
-        if matches!(value, (Value::Long(_) | Value::Double(_))) {
+        if matches!(value, Value::Long(_) | Value::Double(_)) {
             self.stack.push(value.clone());
         }
         self.stack.push(value);
@@ -109,7 +105,7 @@ impl CallFrame {
     /// on the stack.
     pub(crate) fn pop(&mut self) -> Value {
         let value = self.stack.pop().unwrap();
-        if matches!(value, (Value::Long(_) | Value::Double(_))) {
+        if matches!(value, Value::Long(_) | Value::Double(_)) {
             let _ = self
                 .stack
                 .pop()

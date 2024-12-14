@@ -1,18 +1,11 @@
-use std::{
-    fs::File,
-    io::Read,
-    os::unix::fs::MetadataExt,
-    path::{Path, PathBuf},
-};
+use std::{fs::File, io::Read, os::unix::fs::MetadataExt, path::PathBuf};
 
 use sumatra_parser::class_file::ClassFile;
 
 use crate::{
-    invalid_class,
     lli::loader::ClassLoader,
     parse_error,
     result::{Error, Result},
-    vm_error,
 };
 
 pub(super) struct BootstrapLoader {

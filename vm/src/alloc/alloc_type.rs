@@ -1,10 +1,10 @@
 use std::fmt::Debug;
 
 #[derive(Default, Debug)]
-pub(crate) struct Static;
+pub struct Static;
 
 #[derive(Default, Debug)]
-pub(crate) struct NonStatic;
+pub struct NonStatic;
 
 #[allow(private_bounds)]
 pub(crate) trait AllocType: Sealed {

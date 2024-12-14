@@ -1,6 +1,6 @@
 use crate::class::Class;
 
-pub(crate) struct InstanceData {
+pub struct InstanceData {
     pub(crate) primary: &'static Class,
     pub(crate) class_id: usize,
     pub(crate) super_classes: Vec<&'static Class>,

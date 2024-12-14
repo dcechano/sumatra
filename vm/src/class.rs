@@ -65,15 +65,17 @@ impl Class {
     }
 
     pub fn array_class(comp: ArrayComp) -> Self {
-        let mut class = Self::default();
-        class.array_data = Some(comp);
-        class
+        Class {
+            array_data: Some(comp),
+            ..Default::default()
+        }
     }
 
     pub fn primitive_class(prim: Primitive) -> Self {
-        let mut class = Self::default();
-        class.primitive_class = Some(prim);
-        class
+        Class {
+            primitive_class: Some(prim),
+            ..Default::default()
+        }
     }
 
     /// Return true if the class is declared abstract.

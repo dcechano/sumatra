@@ -1,13 +1,9 @@
 use std::cmp::Ordering;
 
-use sumatra_parser::instruction::ArrayType;
-
 use crate::data_types::{
     array::{ArrayComp, ArrayRef},
     object::ObjRef,
 };
-
-use super::exception::Exception;
 
 #[derive(Default, Debug, Clone)]
 pub enum Value {
@@ -139,8 +135,6 @@ impl PartialEq for Value {
             }
         }
     }
-
-    fn ne(&self, other: &Self) -> bool { !self.eq(other) }
 }
 
 impl Eq for Value {}

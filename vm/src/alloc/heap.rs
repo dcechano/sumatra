@@ -9,10 +9,11 @@ use crate::{
         object::ObjRef,
     },
     result::Result,
-    vm::{self, STRING, VM},
+    vm::{self},
     vm_error,
 };
 
+#[allow(dead_code)]
 pub struct Heap {
     gen1: Vec<*mut HeapAlloc<NonStatic>>,
     gen2: Vec<*mut HeapAlloc<NonStatic>>,
@@ -51,14 +52,11 @@ impl Heap {
     }
 
     pub fn get_interned_str(&mut self, string: &str) -> Option<ObjRef> {
-        match self.strings.get(string) {
-            Some(obj) => {
-                // SAFETY: Since we manage the pointer ourselves, we know it is valid
-                // as long as the pointer wasn't invalidated elsewhere.
-                Some(unsafe { ObjRef::from_raw(*obj as *mut _) })
-            }
-            None => None,
-        }
+        self.strings.get(string).map(|obj| {
+            // SAFETY: Since we manage the pointer ourselves, we know it is valid
+            // as long as the pointer wasn't invalidated elsewhere.
+            unsafe { ObjRef::from_raw(*obj as *mut _) }
+        })
     }
 
     pub fn intern_string(&mut self, rust_string: &str, java_string: ObjRef) -> Result<()> {

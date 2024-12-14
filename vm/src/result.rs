@@ -1,5 +1,5 @@
 pub mod r#macro;
+#[allow(clippy::module_inception)]
 pub mod result;
 
-pub use r#macro::*;
 pub use result::{Error, Result};

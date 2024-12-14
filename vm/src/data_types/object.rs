@@ -24,7 +24,9 @@ impl ObjRef {
     }
 
     /// Create a `ObjRef` from a raw pointer to a `HeapAlloc`.
-    /// SAFETY: This method is unsafe because careless use can lead to
+    ///
+    /// # Safety
+    /// This method is unsafe because careless use can lead to
     /// memory problems. `raw` must be a valid pointer to a `HeapAlloc`.
     pub unsafe fn from_raw(raw: *mut HeapAlloc<NonStatic>) -> Self { Self(raw) }
 

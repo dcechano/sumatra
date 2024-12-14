@@ -1,20 +1,10 @@
-use std::{ascii::AsciiExt, num::Wrapping, path::PathBuf};
-
-use libloading::{Library, Symbol};
-use sumatra_parser::{
-    constant::Constant,
-    instruction::{ArrayType, Instruction},
-    method::Method,
-};
+use libloading::Symbol;
+use sumatra_parser::{constant::Constant, method::Method};
 
 use crate::{
-    alloc::{
-        heap::Heap,
-        method_area::{self, MethodArea},
-    },
+    alloc::heap::Heap,
     call_frame::CallFrame,
     class::Class,
-    compare::Compare,
     data_types::{
         array::{ArrayComp, ArrayRef},
         instance_data::InstanceData,
@@ -22,9 +12,8 @@ use crate::{
         static_data::StaticData,
         value::{RefType, Value},
     },
-    jexcept,
-    lli::{class_manager::ClassManager, response::Response},
-    native_registry::{NativeIdentifier, NativeMethod},
+    lli::response::Response,
+    native_registry::NativeMethod,
     result::{Error, Result},
     vm_error,
 };
@@ -66,6 +55,9 @@ impl VM {
     /// This method works by calling the java.lang.String constructor with a
     /// char array as an argument.
     pub fn create_java_string(&mut self, string: &str, intern: bool) -> ObjRef {
+        if let Some(j_string) = self.heap().get_interned_str(string) {
+            return j_string;
+        }
         let StaticData {
             class_id: string_id,
             class: string_class,
@@ -91,10 +83,18 @@ impl VM {
             const CODER_FIELD: &str = "coder";
 
             let value_bytes = ArrayRef::new(0, ArrayComp::Byte);
-            java_string.set_field(VALUE_FIELD, Value::new_array(value_bytes));
-            java_string.set_field(CODER_FIELD, Value::Int(0));
+            java_string
+                .set_field(VALUE_FIELD, Value::new_array(value_bytes))
+                .expect("Expected java String to have a \"value\" field.");
+
+            java_string
+                .set_field(CODER_FIELD, Value::Int(0))
+                .expect("Expected java String to have a \"coder\" field.");
+
             if intern {
-                self.heap().intern_string(string, java_string);
+                self.heap()
+                    .intern_string(string, java_string)
+                    .expect("Java String should not already be interned!");
             }
             return java_string;
         }
@@ -111,12 +111,14 @@ impl VM {
             string_class,
             constructor,
             &string_class.cp,
-            vec![Value::new_object(java_string.clone()), char_array],
+            vec![Value::new_object(java_string), char_array],
         );
         self.frames.push(frame);
         let _ = self.execute_frame().unwrap();
         if intern {
-            self.heap().intern_string(string, java_string);
+            self.heap()
+                .intern_string(string, java_string)
+                .expect("Java String should not already be interned!");
         }
         java_string
     }
@@ -191,8 +193,8 @@ impl VM {
     pub fn get_class_obj(&self, obj: ObjRef) -> Result<ObjRef> {
         let instance_class_id = obj.get_class_id();
         let instance_class = self.method_area.get_class(instance_class_id)?;
-        let java_lang_class = self.method_area.get_class(CLASS_CLASS_ID)?;
-        let java_lang_object = self.method_area.get_class(OBJECT_CLASS_ID)?;
+        //let java_lang_class = self.method_area.get_class(CLASS_CLASS_ID)?;
+        //let java_lang_object = self.method_area.get_class(OBJECT_CLASS_ID)?;
         Ok(self.heap.get_class_obj(&instance_class.get_name()))
     }
 
@@ -220,8 +222,7 @@ impl VM {
         let main = c_data.class;
         let m_method = find_main(main)?;
         let cp = &main.cp;
-        let locals = self.construct_main_locals(&m_method);
-        let num_locals = locals.len();
+        let locals = self.construct_main_locals(m_method);
         //TODO implement arguments to pass into main function
         Ok(CallFrame::new(main, m_method, cp, locals))
     }
@@ -275,7 +276,6 @@ impl VM {
         };
 
         let class_name = class.get_name();
-        println!("Looking for {class_name}");
         let mut native_name = String::with_capacity(class_name.len());
 
         class_name
@@ -288,7 +288,7 @@ impl VM {
                     .to_ascii_uppercase()
             })
             .for_each(|mut java_seg| {
-                java_seg.push_str("_");
+                java_seg.push('_');
                 native_name.push_str(&java_seg)
             });
 
@@ -317,8 +317,6 @@ impl VM {
         } else {
             vm_error!("Could not find the appropriate lib for {class_name}");
         }
-
-        //self.native_registry.get(&native_id)
     }
 
     /// Helper method to invoke a method. Will handle logic for if method is
@@ -392,7 +390,6 @@ impl VM {
             Some(obj)
         };
         let native = self.get_native(class, method)?;
-        println!("Successfully loaded native for {native:?}");
         native(self, this, arguments)
     }
 
@@ -440,7 +437,7 @@ impl VM {
         test_class: &'static Class,
     ) -> bool {
         let test_class_name = test_class.get_name();
-        if &test_class_name == OBJECT {
+        if test_class_name == OBJECT {
             return true;
         }
 
@@ -459,7 +456,7 @@ impl VM {
                 panic!("Expected a Constant::Class in is_subclass_of.");
             };
             let crate_class_name = curr_class.cp.get_utf8(*crate_name_index).unwrap();
-            if &test_class_name == crate_class_name {
+            if test_class_name == crate_class_name {
                 return true;
             }
             curr_class = self.load_class(crate_class_name).unwrap().class;
@@ -482,7 +479,7 @@ impl VM {
 
         // check if the class named by the method symbolically referenced is the
         // superclass of the current class.
-        if !(class_index == super_index) {
+        if class_index != super_index {
             return Ok(false);
         }
 
@@ -505,7 +502,7 @@ impl VM {
             panic!("invokespecial target method was static!");
         }
 
-        if method.name == "<init>".to_string() {
+        if method.name == "<init>" {
             return Ok(false);
         }
 
@@ -543,7 +540,6 @@ impl VM {
             }
             Ok(Response::Ready(alloc_index)) => self.method_area.class_data(alloc_index),
             Err(e) => Err(e),
-            _ => panic!("Manager returned a not found!"),
         }
     }
 
@@ -558,7 +554,7 @@ impl VM {
                 self.init_class(class)?;
                 Ok(class)
             }
-            Ok(Response::InitReqArray(array_class, array_class_index, comp_data)) => {
+            Ok(Response::InitReqArray(array_class, _array_class_index, comp_data)) => {
                 let _ = self.create_class_obj(array_class)?;
                 if let Some((comp_class, _)) = comp_data {
                     let _ = self.create_class_obj(comp_class)?;
@@ -568,7 +564,6 @@ impl VM {
             }
             Ok(Response::Ready(alloc_index)) => self.method_area.get_class(alloc_index),
             Err(e) => Err(e),
-            _ => panic!("Manager returned a not found!"),
         }
     }
 
@@ -730,6 +725,7 @@ impl VM {
     /// `StaticFields` is `'static`, the ref should never be kept around longer
     /// than the lifetime of the (Rust) stack frame that received it. This
     /// is to avoid running afoul of the Rust aliasing rules.
+    #[allow(dead_code)]
     pub(crate) fn unpack_m_name(
         &mut self,
         class_index: usize,

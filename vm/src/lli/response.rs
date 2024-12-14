@@ -5,6 +5,5 @@ pub(crate) enum Response {
     /// InitReqArray(ArrayClass, index of array_class, Component class with its
     /// index (if applicable))
     InitReqArray(&'static Class, usize, Option<(&'static Class, usize)>),
-    NotFound,
     Ready(usize),
 }

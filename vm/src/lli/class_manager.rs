@@ -6,7 +6,7 @@ use crate::{
         app_loader::AppLoader, class_loader::BootstrapLoader, loader::ClassLoader,
         response::Response,
     },
-    result::Result,
+    result::{Error, Result},
     vm_error,
 };
 use std::{
@@ -67,17 +67,11 @@ impl ClassManager {
     }
 
     pub(crate) fn request(&mut self, name: &str, met_area: &mut MethodArea) -> Result<Response> {
-        let response = if name.starts_with("[") {
+        if name.starts_with("[") {
             self.resolve_array_class(name, met_area)
         } else {
             self.resolve_and_index(name, met_area)
-        };
-
-        if let Ok(Response::NotFound) = response {
-            vm_error!("Class not found: {name}.");
         }
-
-        response
     }
 
     #[inline]
@@ -90,6 +84,9 @@ impl ClassManager {
             for loader in self.loaders.iter_mut() {
                 let c_file = match loader.get(name) {
                     Ok(class_file) => class_file,
+                    Err(Error::ParseError(msg)) => {
+                        return Err(Error::ParseError(msg));
+                    }
                     Err(_) => {
                         continue;
                     }
@@ -99,9 +96,9 @@ impl ClassManager {
                     // since the class had to retrieved and stored it has not been initialized.
                     Ok((class, index)) => return Ok(Response::InitReq(class, index)),
                     Err(_) => {
-                        vm_error!("MethodArea allocation error.")
+                        vm_error!("MethodArea allocation error.");
                     }
-                }
+                };
             }
 
             vm_error!("Class: {name} not found!");
@@ -131,13 +128,13 @@ impl ClassManager {
                     ));
                 }
 
-                let response = self.resolve_and_index(&root_class_name, met_area)?;
+                let response = self.resolve_and_index(root_class_name, met_area)?;
 
                 let array_class = Class::array_class(array_comp);
                 assert_eq!(sanitized_class, array_class.get_name());
                 let (array_class, array_class_index) = self.store_class(array_class, met_area)?;
 
-                return Ok(match response {
+                Ok(match response {
                     Response::InitReq(comp_class, comp_class_index) => Response::InitReqArray(
                         array_class,
                         array_class_index,
@@ -150,8 +147,7 @@ impl ClassManager {
                     Response::Ready(_) => {
                         Response::InitReqArray(array_class, array_class_index, None)
                     }
-                    not_found => not_found,
-                });
+                })
             }
             ArrayComp::Array(_) => panic!("Impossible component in resolve_array_class"),
             _ => {

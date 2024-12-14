@@ -1,12 +1,8 @@
-use std::{num::Wrapping, path::PathBuf, result, usize};
+#![allow(clippy::unit_arg)]
+use std::{num::Wrapping, path::PathBuf};
 
 use libloading::Library;
-use sumatra_parser::{
-    constant::Constant,
-    desc_types::MethodDescriptor,
-    instruction::{ArrayType, Instruction},
-    method::Method,
-};
+use sumatra_parser::{constant::Constant, desc_types::MethodDescriptor, instruction::Instruction};
 
 use crate::{
     alloc::{heap::Heap, method_area::MethodArea},
@@ -14,14 +10,10 @@ use crate::{
     class::Class,
     compare::Compare,
     data_types::{
-        array::{ArrayComp, ArrayRef},
-        instance_data::InstanceData,
-        object::ObjRef,
-        static_data::StaticData,
+        array::ArrayComp,
         value::{RefType, Value},
     },
     lli::{class_manager::ClassManager, response::Response},
-    native::{NativeIdentifier, NativeMethod},
     result::{Error, Result},
     vm::{CLASS, CLASS_CLASS_ID, OBJECT, OBJECT_CLASS_ID, STRING, SYSTEM, SYSTEM_CLASS_ID},
     vm_error,
@@ -48,6 +40,7 @@ impl VM {
 
         vm.bootstrap_classes();
         panic!("Bootstrapping complete!");
+        #[allow(unreachable_code)]
         vm
     }
 
@@ -85,7 +78,7 @@ impl VM {
         let (java_lang_obj, java_lang_obj_id) = self.bootstrap_load(OBJECT);
         let (java_lang_system, java_lang_system_id) = self.bootstrap_load(SYSTEM);
         let (java_lang_class, java_lang_class_id) = self.bootstrap_load(CLASS);
-        let (java_lang_string, java_lang_string_id) = self.bootstrap_load(STRING);
+        let (java_lang_string, _java_lang_string_id) = self.bootstrap_load(STRING);
 
         debug_assert!(java_lang_obj_id == OBJECT_CLASS_ID);
         debug_assert!(java_lang_system_id == SYSTEM_CLASS_ID);
@@ -147,13 +140,13 @@ impl VM {
         let op_code = &code.op_code;
         let indents = self.frames.len();
         // if name != "<clinit>" && name != "<init>" {
-        //println!(
-        //    "\n{}Executing method: {}{} in class: {}",
-        //    "\t".repeat(indents),
-        //    self.frame().method.name,
-        //    self.frame().method.descriptor,
-        //    self.frame().class.get_name()
-        //);
+        log::info!(
+            "\n{}Executing method: {}{} in class: {}",
+            "\t".repeat(indents),
+            self.frame().method.name,
+            self.frame().method.descriptor,
+            self.frame().class.get_name()
+        );
         //println!(
         //    "{}CURRENT STACK: {:?}",
         //    "\t".repeat(indents + 1),
@@ -169,10 +162,10 @@ impl VM {
         while let Some(code) = op_code.get(self.frame().pc) {
             //let name: &str = self.frame().method.name.as_ref();
             // if name != "<clinit>" && name != "<init>" {
-            let mut class_name = self.frame().class.get_name();
-            if self.frame().method.is_native() {
-                class_name = format!("[native] {}", class_name);
-            }
+            //let mut class_name = self.frame().class.get_name();
+            //if self.frame().method.is_native() {
+            //    class_name = format!("[native] {}", class_name);
+            //}
             //println!(
             //    "{}{code:?}\t\t{}::{}{}",
             //    "\t".repeat(indents),
@@ -378,7 +371,7 @@ impl VM {
                 Instruction::IMul => self.imul()?,
                 Instruction::INeg => self.ineg()?,
                 Instruction::InstanceOf(index) => self.instance_of(*index)?,
-                Instruction::InvokeDynamic(index, _, _) => todo!(),
+                Instruction::InvokeDynamic(_index, _, _) => todo!(),
                 Instruction::InvokeInterface(method_index, n_args) => {
                     if let Some(value) = self.invoke_interface(*method_index, *n_args)? {
                         self.frame_mut().push(value);
@@ -439,7 +432,7 @@ impl VM {
                     default_index,
                     jump_table,
                 } => {
-                    let _ = self.lookupswitch(*default_index, &jump_table)?;
+                    self.lookupswitch(*default_index, jump_table)?;
                     continue;
                 }
                 Instruction::LOr => todo!(),
@@ -479,10 +472,10 @@ impl VM {
                     high,
                     jump_offsets,
                 } => {
-                    let _ = self.tableswitch(*default_index, *low, *high, &jump_offsets)?;
+                    self.tableswitch(*default_index, *low, *high, jump_offsets)?;
                     continue;
                 }
-                Instruction::Wide(winstr) => todo!(),
+                Instruction::Wide(_winstr) => todo!(),
             }
             // if name != "<clinit>" && name != "<init>" {
             //println!(
@@ -533,25 +526,6 @@ impl VM {
     }
 
     fn aastore(&mut self) -> Result<()> {
-        fn handle_obj(vm: &mut VM, obj: ObjRef, mut array: ArrayRef, index: usize) -> Result<()> {
-            let class_id = obj.get_class_id();
-            let obj_class = vm.method_area.get_class(class_id)?;
-
-            let ArrayComp::Class(comp_class) = array.array_comp() else {
-                todo!("Do something when comp_class is not a class type. IDK.");
-            };
-
-            let comp_class = vm.assume_load(comp_class);
-            if comp_class.is_interface() && vm.is_interface_of(obj_class, comp_class) {
-                todo!("Implement Interface inserting")
-            }
-
-            if !vm.is_instance_of(obj_class, comp_class) {
-                todo!("Do something here! (Shouldn't happen)");
-            }
-
-            Ok(array.insert(index, Value::Ref(RefType::Object(obj))))
-        }
         let frame = self.frame_mut();
 
         let value = frame.pop();
@@ -569,7 +543,7 @@ impl VM {
         };
 
         match value {
-            Value::Null => return Ok(array.insert(index as usize, Value::Null)),
+            Value::Null => Ok(array.insert(index as usize, Value::Null)),
             Value::Ref(RefType::Object(obj)) => {
                 let class_id = obj.get_class_id();
                 let obj_class = self.method_area.get_class(class_id)?;
@@ -589,23 +563,12 @@ impl VM {
 
                 Ok(array.insert(index as usize, Value::Ref(RefType::Object(obj))))
             }
-            Value::Ref(RefType::Array(operand_array)) => {
-                match array.array_comp() {
-                    ArrayComp::Array(inner_array) => {
-                        todo!("Implement arrays within arrays.")
-                    }
-                    _ => todo!("Do something when inner array has component of primitives"),
+            Value::Ref(RefType::Array(_operand_array)) => match array.array_comp() {
+                ArrayComp::Array(_inner_array) => {
+                    todo!("Implement arrays within arrays.")
                 }
-
-                //
-                // let comp_class = self.assume_load(comp_class);
-                //
-                // if comp_class.is_interface() {
-                //     todo!("Check if the interface is on that is implemented by arrays.")
-                // }
-
-                todo!()
-            }
+                _ => todo!("Do something when inner array has component of primitives"),
+            },
             Value::Byte(_)
             | Value::Double(_)
             | Value::Dynamic { .. }
@@ -638,6 +601,7 @@ impl VM {
 
         if class_name.starts_with('[') {
             todo!();
+            #[allow(unreachable_code)]
             let bytes = class_name.as_bytes();
             let mut i = 1;
             while bytes[i] == b'[' {
@@ -664,10 +628,7 @@ impl VM {
     fn a_load(&mut self, local_index: usize) -> Result<()> {
         let frame = self.frame_mut();
         let object = frame.load(local_index)?;
-        if !matches!(
-            object,
-            (Value::Ref(_) | Value::StringConst(_) | Value::Null)
-        ) {
+        if !matches!(object, Value::Ref(_) | Value::StringConst(_) | Value::Null) {
             vm_error!("Expected ref type for a_load instruction. Received: {object:?}");
         }
 
@@ -737,7 +698,7 @@ impl VM {
         let value = match value {
             Value::Ref(RefType::Array(array)) => {
                 let array_comp = array.array_comp();
-                if !matches!(array_comp, (ArrayComp::Byte | ArrayComp::Boolean)) {
+                if !matches!(array_comp, ArrayComp::Byte | ArrayComp::Boolean) {
                     vm_error!("Array must have type byte or boolean in baload.");
                 }
 
@@ -781,7 +742,7 @@ impl VM {
         let Value::Int(index) = frame.pop() else {
             vm_error!("Expected Value::Int as index in caload.");
         };
-        let Value::Ref(RefType::Array(mut array_ref)) = frame.pop() else {
+        let Value::Ref(RefType::Array(array_ref)) = frame.pop() else {
             vm_error!("Expected RefType::Array as array_ref in caload.");
         };
         let Value::Byte(char) = array_ref.get(index as usize) else {
@@ -793,7 +754,7 @@ impl VM {
     /// Executes the `Instruction::CaStore` instruction.
     fn castore(&mut self) -> Result<()> {
         let frame = self.frame_mut();
-        let Value::Int(value) = frame.pop() else {
+        let Value::Int(_value) = frame.pop() else {
             vm_error!("Expected Value::Int for the value in castore.");
         };
         let Value::Int(index) = frame.pop() else {
@@ -931,7 +892,7 @@ impl VM {
     fn dup_x1(&mut self) -> Result<()> {
         let frame = self.frame_mut();
         let value = frame.clone_top();
-        if matches!(value, (Value::Double(_) | Value::Long(_))) {
+        if matches!(value, Value::Double(_) | Value::Long(_)) {
             vm_error!("value was not a catagory 1 computation type in dup_x1.");
         }
 
@@ -942,7 +903,7 @@ impl VM {
     fn dup_x2(&mut self) -> Result<()> {
         let frame = self.frame_mut();
         let value = frame.clone_top();
-        match matches!(value, (Value::Double(_) | Value::Long(_))) {
+        match matches!(value, Value::Double(_) | Value::Long(_)) {
             true => {
                 frame.insert(1, value.clone());
                 frame.insert(1, value);
@@ -1012,13 +973,13 @@ impl VM {
             };
         }
 
-        return if value1 > value2 {
+        if value1 > value2 {
             Ok(frame.push(Value::Int(1)))
         } else if value2 == value1 {
             Ok(frame.push(Value::Int(0)))
         } else {
             Ok(frame.push(Value::Int(-1)))
-        };
+        }
     }
 
     /// Executes the `Instruction::Fload` and `Instruction::Fload<n>`
@@ -1113,7 +1074,7 @@ impl VM {
         })?;
         let field_val = alloc.get_field(field_name)?;
 
-        if matches!(field_val, (Value::Double(_) | Value::Long(_))) {
+        if matches!(field_val, Value::Double(_) | Value::Long(_)) {
             self.frame_mut().stack.push(field_val.clone());
         }
         self.frame_mut().stack.push(field_val.clone());
@@ -1372,7 +1333,7 @@ impl VM {
             vm_error!("Expected InterfaceMethodRef in invoke_interface but found: {method_ref:?}");
         };
 
-        let (name_index, desc_index, static_data) =
+        let (name_index, desc_index, _static_data) =
             self.unpack(*class_index, *name_and_type_index)?;
         let (resolved_class, method) =
             self.resolve_method_from_superclass(instance_class, name_index, desc_index)?;
@@ -1394,7 +1355,7 @@ impl VM {
                 name_and_type_index,
             } => {
                 let is_super = self.superclass_method(*class_index, *name_and_type_index)?;
-                let mut class = if is_super {
+                let class = if is_super {
                     // if is_super use check for method in the superclass
                     let super_class_index = self.frame().class.super_class;
                     let Constant::Class(class_name_index) =
@@ -1433,10 +1394,7 @@ impl VM {
                     self.resolve_method_from_superclass(class, *name_index, *descriptor_index)?;
                 self.handle_invoke(class, method)
             }
-            Constant::InterfaceMethodRef {
-                class_index,
-                name_and_type_index,
-            } => {
+            Constant::InterfaceMethodRef { .. } => {
                 todo!()
             }
             _ => vm_error!(
@@ -1476,7 +1434,7 @@ impl VM {
             vm_error!("Expected Constant::MethodRef in invoke_virtual.");
         };
 
-        let (name_index, desc_index, alloc) = self.unpack(*class_index, *name_and_type_index)?;
+        let (name_index, desc_index, _alloc) = self.unpack(*class_index, *name_and_type_index)?;
         let method_desc = self.frame().cp.get_utf8(desc_index).map_err(|_| {
             log::error!("Failed to retrieve method descriptor in invoke_virtual.");
             Error::ClassValidation
@@ -1500,7 +1458,7 @@ impl VM {
                 let this_class = self.assume_load_id(class_id);
                 self.resolve_method_from_superclass(this_class, name_index, desc_index)?
             }
-            Value::Ref(RefType::Array(array)) => todo!(),
+            Value::Ref(RefType::Array(_array)) => todo!(),
             _ => panic!("Unexpected condition in invoke_virtual."),
         };
 
@@ -1686,13 +1644,11 @@ impl VM {
             vm_error!("Expected long for value1 in lcmp.");
         };
 
-        return if value1 > value2 {
-            Ok(frame.push(Value::Int(1)))
-        } else if value2 == value1 {
-            Ok(frame.push(Value::Int(0)))
-        } else {
-            Ok(frame.push(Value::Int(-1)))
-        };
+        match value1.cmp(&value2) {
+            std::cmp::Ordering::Greater => Ok(frame.push(Value::Int(1))),
+            std::cmp::Ordering::Equal => Ok(frame.push(Value::Int(0))),
+            std::cmp::Ordering::Less => Ok(frame.push(Value::Int(-1))),
+        }
     }
 
     /// Executes the `Instruction::LConst<n>` instruction.
@@ -1736,13 +1692,10 @@ impl VM {
                 Value::new_object(self.heap.get_class_obj(&class.get_name()))
             }
             Constant::String(string_index) => {
-                let string = cp
-                    .get_utf8(*string_index)
-                    .map_err(|_| {
-                        log::error!("Failed to retrieve String constant in load_const.");
-                        Error::ClassValidation
-                    })?
-                    .into();
+                let string = cp.get_utf8(*string_index).map_err(|_| {
+                    log::error!("Failed to retrieve String constant in load_const.");
+                    Error::ClassValidation
+                })?;
                 let string_obj = match self.heap.get_interned_str(string) {
                     None => self.create_java_string(string, true),
                     Some(string_obj) => string_obj,
@@ -1922,7 +1875,7 @@ impl VM {
     /// Executes the `Instruction::Pop` instruction. Nothing is returned.
     fn pop(&mut self) -> Result<()> {
         let value = self.frame_mut().pop();
-        if matches!(value, (Value::Double(_) | Value::Long(_))) {
+        if matches!(value, Value::Double(_) | Value::Long(_)) {
             vm_error!("pop instruction cannot be executed on longs or doubles.");
         };
         Ok(())
@@ -1932,7 +1885,7 @@ impl VM {
     fn pop2(&mut self) -> Result<()> {
         let frame = self.frame_mut();
         let value = frame.pop();
-        if !matches!(value, (Value::Double(_) | Value::Long(_))) {
+        if !matches!(value, Value::Double(_) | Value::Long(_)) {
             // pop2 stipulates that 2 values are popped if value is NOT a category 2
             // computational type.
             let _ = frame.pop();

@@ -1,4 +1,3 @@
-use crate::data_types::exception::Exception;
 use std::{
     error,
     fmt::{self, Display, Formatter},

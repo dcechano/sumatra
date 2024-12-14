@@ -10,10 +10,8 @@ use crate::{
 };
 
 const STATIC_ALLOC_SIZE: isize = mem::size_of::<StaticFields>() as isize;
-const STATIC_ALLOC_ALIGN: isize = mem::align_of::<StaticFields>() as isize;
 
 const CLASS_SIZE: isize = mem::size_of::<Class>() as isize;
-const CLASS_ALIGN: isize = mem::align_of::<Class>() as isize;
 
 const MIN_SIZE: isize = CLASS_SIZE * 32;
 
@@ -84,6 +82,7 @@ impl MethodArea {
         unsafe { Ok(&mut *(self.fields.add(class_id))) }
     }
 
+    #[allow(dead_code)]
     pub(crate) fn get_fields(&self, class_id: usize) -> Result<&'static StaticFields> {
         if class_id >= self.len {
             vm_error!("Invalid class_id {class_id} when retrieving fields!");
@@ -140,15 +139,14 @@ mod tests {
     use sumatra_parser::{
         class_file::ClassFile,
         constant::Constant,
-        desc_types::FieldDescriptor,
         field::Field,
         flags::{FieldAccessFlags, MethodAccessFlags},
         instruction::Instruction,
         method::Method,
     };
 
-    const OBJECT_FILE: &'static str = "java/lang/Object.class";
-    const JAR_PATH: &'static str = "../jdk/compiled/java.base/";
+    const OBJECT_FILE: &str = "java/lang/Object.class";
+    const JAR_PATH: &str = "../jdk/compiled/java.base/";
 
     fn get_file() -> ClassFile {
         let mut file = File::open(format!("{JAR_PATH}{OBJECT_FILE}")).unwrap();
@@ -227,7 +225,6 @@ mod tests {
     }
 
     #[inline]
-    #[allow(clippy::field_reassign_with_default)]
     fn init_default_class() -> Class {
         let mut object_class = Class::default();
         object_class.this_class = 1;
@@ -249,36 +246,48 @@ mod tests {
 
     #[inline]
     fn fields() -> [Field; 3] {
-        let mut field1 = Field::default();
-        field1.parsed_descriptor = "Ljava/lang/Object;".parse().unwrap();
-        field1.name = "foo".to_string();
-        field1.access_flags = FieldAccessFlags::FINAL;
+        let field1 = Field {
+            parsed_descriptor: "Ljava/lang/Object;".parse().unwrap(),
+            name: "foo".to_string(),
+            access_flags: FieldAccessFlags::FINAL,
+            ..Default::default()
+        };
 
-        let mut field2 = Field::default();
-        field2.parsed_descriptor = "Ljava/lang/Object;".parse().unwrap();
-        field2.name = "bar".to_string();
-        field2.access_flags = FieldAccessFlags::SYNTHETIC;
+        let field2 = Field {
+            parsed_descriptor: "Ljava/lang/Object;".parse().unwrap(),
+            name: "bar".to_string(),
+            access_flags: FieldAccessFlags::SYNTHETIC,
+            ..Default::default()
+        };
 
-        let mut field3 = Field::default();
-        field3.parsed_descriptor = "Ljava/lang/Object;".parse().unwrap();
-        field3.name = "baz".to_string();
-        field3.access_flags = FieldAccessFlags::STATIC;
+        let field3 = Field {
+            parsed_descriptor: "Ljava/lang/Object;".parse().unwrap(),
+            name: "baz".to_string(),
+            access_flags: FieldAccessFlags::STATIC,
+            ..Default::default()
+        };
 
         [field1, field2, field3]
     }
 
     #[inline]
     fn methods() -> [Method; 2] {
-        let mut method1 = Method::default();
-        method1.name = "getField".to_string();
-        method1.access_flags = MethodAccessFlags::STRICT;
+        let mut method1 = Method {
+            name: "getField".to_string(),
+            access_flags: MethodAccessFlags::STRICT,
+            ..Default::default()
+        };
+
         method1.code.op_code.push(Instruction::LLoad(100));
         method1.code.op_code.push(Instruction::ALoad(42));
         method1.code.op_code.push(Instruction::Ret(20));
 
-        let mut method2 = Method::default();
-        method2.name = "getOut".to_string();
-        method2.access_flags = MethodAccessFlags::FINAL;
+        let mut method2 = Method {
+            name: "getOut".to_string(),
+            access_flags: MethodAccessFlags::FINAL,
+            ..Default::default()
+        };
+
         method2.code.op_code.push(Instruction::LLoad(100));
         method2.code.op_code.push(Instruction::ALoad(42));
         method2.code.op_code.push(Instruction::Ret(20));

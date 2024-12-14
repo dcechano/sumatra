@@ -1,4 +1,4 @@
-#![allow(warnings)]
+//#![allow(warnings)]
 // TODO Remove
 
 use crate::{class::Class, vm::VM};
@@ -20,6 +20,7 @@ use result::Result;
 /// Checks if `superclass` is the superclass of `child_class`.
 /// By the logic of this function a class is the superclass of itself. Will
 /// return `Ok(true)` if `child_class` == `superclass`.
+#[allow(dead_code)]
 fn is_subclass(
     vm: &mut VM,
     child_class: &'static Class,
@@ -46,6 +47,7 @@ fn is_subclass(
 }
 
 /// Checks if the `implementor` implements `interface`.
+#[allow(dead_code)]
 fn is_implemented(
     vm: &mut VM,
     implementor: &'static Class,

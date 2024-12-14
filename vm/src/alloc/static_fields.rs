@@ -13,7 +13,7 @@ pub(crate) struct StaticFields {
 
 impl StaticFields {
     pub(super) fn new(class: &Class, class_id: usize) -> Self {
-        let alloc = HeapAlloc::<Static>::new(&class, class_id);
+        let alloc = HeapAlloc::<Static>::new(class, class_id);
         Self { alloc }
     }
 
@@ -21,6 +21,7 @@ impl StaticFields {
         self.alloc.get_field(name)
     }
 
+    #[allow(dead_code)]
     pub(crate) fn get_field_mut(&mut self, name: &str) -> Result<&'static mut Value> {
         self.alloc.get_field_mut(name)
     }

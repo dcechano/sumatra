@@ -13,7 +13,7 @@ use crate::{
     alloc::{alloc_type::NonStatic, oop::HeapAlloc},
     data_types::value::Value,
     result::{Error, Result},
-    vm, vm_error,
+    vm_error,
 };
 
 #[derive(Copy, Clone, Eq, PartialEq, Ord, PartialOrd)]
@@ -80,7 +80,7 @@ impl ArrayRef {
 
     /// Get the inner value. Returned as a *const to emphasize that
     /// this return type should NOT be modified except by the GC.
-    pub fn get_inner(&self) -> *const HeapAlloc<NonStatic> { self.0 }
+    pub(crate) fn get_inner(&self) -> *const HeapAlloc<NonStatic> { self.0 }
 
     /// Calculate the hash for the ptr backing this object instance
     pub fn hash_code(&self) -> i32 {
@@ -101,6 +101,9 @@ impl ArrayRef {
             *length
         }
     }
+
+    // Returns true if the `ArrayRef` has a length of 0.
+    pub fn is_empty(&self) -> bool { self.len() == 0 }
 
     /// Validate the `ArrayComp` is consistent with the provided `Value`.
     /// Does not compare the classes of reference types.

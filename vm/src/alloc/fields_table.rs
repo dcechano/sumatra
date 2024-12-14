@@ -13,13 +13,13 @@ use sumatra_parser::{
     flags::FieldAccessFlags,
 };
 
-use crate::{class::Class, data_types::value::Value, vm::VM};
+use crate::{class::Class, data_types::value::Value};
 
 use super::alloc_type::AllocType;
 
 #[derive(Default)]
 #[repr(transparent)]
-pub(crate) struct FieldsTable(HashMap<String, usize>);
+pub struct FieldsTable(HashMap<String, usize>);
 
 impl FieldsTable {
     pub(crate) fn new<T: AllocType>(
@@ -83,7 +83,7 @@ impl FieldsTable {
         (ft, ptr)
     }
 
-    fn alloc_table_vec<'f>(len: usize) -> *mut Value {
+    fn alloc_table_vec(len: usize) -> *mut Value {
         match len > 0 {
             // SAFETY: since fields len is non 0, alloc is safe.
             true => unsafe { alloc::alloc(Layout::array::<Value>(len).unwrap()) as *mut Value },

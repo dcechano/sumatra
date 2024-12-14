@@ -3,11 +3,8 @@ use std::{
     alloc::{handle_alloc_error, Layout},
     fmt::{Debug, Display, Formatter},
     marker::PhantomData,
-    ops::{Deref, DerefMut},
     ptr,
 };
-
-use sumatra_parser::{field::Field, flags::FieldAccessFlags, instruction::ArrayType};
 
 use crate::{
     alloc::{
@@ -16,11 +13,11 @@ use crate::{
     },
     class::Class,
     data_types::{array::ArrayComp, value::Value},
-    result::{Error, Result},
-    vm::VM,
+    result::Result,
     vm_error,
 };
 
+#[allow(private_bounds)]
 pub struct HeapAlloc<T: AllocType> {
     pub header: Header,
     pub fields: *mut Value,
@@ -29,6 +26,7 @@ pub struct HeapAlloc<T: AllocType> {
     _static: PhantomData<T>,
 }
 
+#[allow(private_bounds)]
 impl<T: AllocType> HeapAlloc<T> {
     /// Returns the class_id for the given `HeapAlloc`.
     /// SAFETY: raw pointer to `HeapAlloc` must be valid by all
@@ -50,7 +48,7 @@ impl<T: AllocType> HeapAlloc<T> {
         // SAFETY: If the offset is valid the area of memory is valid
         // since offset is calculated with respect to the area of memory.
         unsafe {
-            let value = self.get_field_inner(name)? as *mut Value;
+            let value = self.get_field_inner(name)?;
             Ok(&mut *value)
         }
     }
@@ -73,7 +71,7 @@ impl<T: AllocType> HeapAlloc<T> {
         let field = self.get_field_inner(name)?;
         // SAFETY: The validity of the ptr is upheld by the get_field_inner method.
         unsafe {
-            ptr::write(field as *mut Value, data);
+            ptr::write(field, data);
         }
         Ok(())
     }
@@ -105,6 +103,7 @@ impl<T: AllocType> HeapAlloc<T> {
 
     // So HeapAllocs can be created for testing and deallocated properly.
     #[cfg(test)]
+    #[allow(dead_code)]
     pub(crate) unsafe fn dealloc_test_obj(heap: *mut HeapAlloc<T>) { Self::deallocate(heap); }
 
     #[inline]
@@ -270,9 +269,9 @@ impl<T: AllocType> Display for HeapAlloc<T> {
 
 #[cfg(test)]
 mod test {
-    use std::{fmt::Debug, ptr};
+    use std::ptr;
 
-    use sumatra_parser::{class_file::ClassFile, flags::FieldAccessFlags, instruction::ArrayType};
+    use sumatra_parser::{class_file::ClassFile, flags::FieldAccessFlags};
 
     use crate::{
         alloc::oop::{HeapAlloc, NonStatic},

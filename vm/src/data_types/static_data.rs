@@ -26,6 +26,7 @@ impl StaticData {
         self.fields.get_field(name)
     }
 
+    #[allow(dead_code)]
     pub(crate) fn get_field_mut(&mut self, name: &str) -> Result<&'static mut Value> {
         self.fields.get_field_mut(name)
     }
