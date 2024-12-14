@@ -1,17 +1,16 @@
 use anyhow::Result;
 
-use crate::{
+use sumatra_vm::{
     data_types::{
         array::ArrayComp,
         object::ObjRef,
         value::{
-            RefType::{self, Array},
+            RefType::{self},
             Value,
         },
     },
     vm::VM,
 };
-use sumatra_parser::instruction::ArrayType;
 
 const DISPLAY_COUNTRY_NDX: usize = 0;
 const DISPLAY_LANGUAGE_NDX: usize = DISPLAY_COUNTRY_NDX + 1;
@@ -54,7 +53,8 @@ const USER_HOME_NDX: usize = USER_DIR_NDX + 1;
 const USER_NAME_NDX: usize = USER_HOME_NDX + 1;
 
 // unlisted in SystemProps.java but very important. See
-// SystemProps.initProperties. Used in jvm_vm_properties
+// SystemProps.initProperties. Used in
+// JDK_INTERNAL_UTIL_SYSTEMPROPS_RAW_vm_properties
 const JAVA_HOME_NDX: usize = USER_NAME_NDX + 1;
 const FIXED_LENGTH: usize = JAVA_HOME_NDX + 1;
 
@@ -68,7 +68,8 @@ pub(crate) const VM_PROPS_SIG: &str = "vmProperties()[Ljava/lang/String;";
 
 const STRING_CLASS: &str = "java/lang/String";
 
-pub fn jvm_platform_properties(
+#[no_mangle]
+pub fn JDK_INTERNAL_UTIL_SYSTEMPROPS_RAW_platform_properties(
     vm: &mut VM,
     _: Option<ObjRef>,
     _: Vec<Value>,
@@ -136,7 +137,12 @@ pub fn jvm_platform_properties(
     Ok(Some(Value::new_array(string_array)))
 }
 
-pub fn jvm_vm_properties(vm: &mut VM, _: Option<ObjRef>, _: Vec<Value>) -> Result<Option<Value>> {
+#[no_mangle]
+pub fn JDK_INTERNAL_UTIL_SYSTEMPROPS_RAW_vm_properties(
+    vm: &mut VM,
+    _: Option<ObjRef>,
+    _: Vec<Value>,
+) -> Result<Option<Value>> {
     let mut string_array = vm
         .heap()
         .new_array(NUM_VM_PROPS * 2, ArrayComp::Class(STRING_CLASS.to_string()));

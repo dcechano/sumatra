@@ -6,3 +6,5 @@ pub mod java_runtime;
 pub mod java_string_utf16;
 pub mod java_system;
 pub mod java_throwable;
+
+pub use sumatra_vm::native;

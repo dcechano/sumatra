@@ -1,0 +1,13 @@
+[package]
+name = "libjava"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+name = "java"
+crate-type = ["dylib"]
+
+[dependencies]
+anyhow = "1.0.94"
+sumatra_vm = { path = "../../vm" } 
+num_cpus = "1.16.0"

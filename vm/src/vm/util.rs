@@ -1,7 +1,8 @@
-use std::{num::Wrapping, path::PathBuf};
+use std::{ascii::AsciiExt, num::Wrapping, path::PathBuf};
 
 use anyhow::{bail, Result};
 
+use libloading::{Library, Symbol};
 use sumatra_parser::{
     constant::Constant,
     instruction::{ArrayType, Instruction},
@@ -9,7 +10,10 @@ use sumatra_parser::{
 };
 
 use crate::{
-    alloc::{heap::Heap, method_area::MethodArea},
+    alloc::{
+        heap::Heap,
+        method_area::{self, MethodArea},
+    },
     call_frame::CallFrame,
     class::Class,
     compare::Compare,
@@ -21,10 +25,7 @@ use crate::{
         value::{RefType, Value},
     },
     lli::{class_manager::ClassManager, response::Response},
-    native::{
-        native_identifier::NativeIdentifier,
-        registry::{NativeMethod, NativeRegistry},
-    },
+    native_registry::{NativeIdentifier, NativeMethod},
     vm_error,
 };
 
@@ -64,7 +65,7 @@ impl VM {
     /// Create an instance of java.lang.String manually from a Rust &str.
     /// This method works by calling the java.lang.String constructor with a
     /// char array as an argument.
-    pub(crate) fn create_java_string(&mut self, string: &str, intern: bool) -> ObjRef {
+    pub fn create_java_string(&mut self, string: &str, intern: bool) -> ObjRef {
         let StaticData {
             class_id: string_id,
             class: string_class,
@@ -122,7 +123,7 @@ impl VM {
 
     /// Create a java array of java.lang.Stacktrace elements. This
     /// array represents the stack trace of the current thread.
-    pub(crate) fn create_stack_trace(&mut self) -> Result<ArrayRef> {
+    pub fn create_stack_trace(&mut self) -> Result<ArrayRef> {
         const STACK_TRACE_ELEMENT: &str = "java/lang/StackTraceElement";
         const CONSTRUCTOR: &str =
             "<init>(Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;I)V";
@@ -187,7 +188,7 @@ impl VM {
     }
 
     /// Create a java.lang.Class object for the given `ObjRef`.
-    pub(crate) fn get_class_obj(&self, obj: ObjRef) -> Result<ObjRef> {
+    pub fn get_class_obj(&self, obj: ObjRef) -> Result<ObjRef> {
         let instance_class_id = obj.get_class_id();
         let instance_class = self.method_area.get_class(instance_class_id)?;
         let java_lang_class = self.method_area.get_class(CLASS_CLASS_ID)?;
@@ -254,12 +255,56 @@ impl VM {
         &mut self,
         class: &'static Class,
         method: &'static Method,
-    ) -> Result<NativeMethod> {
-        let native_id = NativeIdentifier::new(
-            class.get_name(),
-            format!("{}{}", method.name, method.descriptor),
-        );
-        self.native_registry.get(&native_id)
+    ) -> Result<Symbol<NativeMethod>> {
+        let method_name: String = {
+            let name = &method.name;
+            let mut method_name = Vec::with_capacity(name.len());
+            for c in name.chars() {
+                if c.is_uppercase() {
+                    method_name.push('_');
+                }
+                method_name.push(c.to_ascii_lowercase());
+            }
+            method_name.into_iter().collect()
+        };
+
+        let class_name = class.get_name();
+        println!("Looking for {class_name}");
+        let mut native_name = String::with_capacity(class_name.len());
+
+        class_name
+            .split('/')
+            .map(|java_seg| {
+                java_seg
+                    .chars()
+                    .map(|c| if c == '$' { '_' } else { c })
+                    .collect::<String>()
+                    .to_ascii_uppercase()
+            })
+            .for_each(|mut java_seg| {
+                java_seg.push_str("_");
+                native_name.push_str(&java_seg)
+            });
+
+        native_name.push_str(&method_name);
+
+        if class_name.starts_with("java") {
+            unsafe {
+                self.lib_java
+                    .get::<NativeMethod>(native_name.as_bytes())
+                    .map_err(From::from)
+            }
+        } else if class_name.starts_with("jdk") {
+            unsafe {
+                self.lib_jdk
+                    .get::<NativeMethod>(native_name.as_bytes())
+                    .map_err(From::from)
+            }
+        } else {
+            bail!("Could not find the appropriate lib for {class_name}");
+        }
+
+        //self.native_registry.get(&native_id)
     }
 
     /// Helper method to invoke a method. Will handle logic for if method is
@@ -276,7 +321,7 @@ impl VM {
         }
     }
 
-    pub(crate) fn heap(&mut self) -> &mut Heap { &mut self.heap }
+    pub fn heap(&mut self) -> &mut Heap { &mut self.heap }
 
     /// Take a static reference to a class and push its '<clinit>'
     /// method as a stack frame to `vm.frames`.
@@ -320,8 +365,6 @@ impl VM {
         class: &'static Class,
         method: &'static Method,
     ) -> Result<Option<Value>> {
-        let native = self.get_native(class, method)?;
-
         let num_params = method.parsed_descriptor.num_params();
         let arguments = self.construct_locals(num_params, num_params)?;
 
@@ -334,6 +377,8 @@ impl VM {
             };
             Some(obj)
         };
+        let native = self.get_native(class, method)?;
+        println!("Successfully loaded native for {native:?}");
         native(self, this, arguments)
     }
 

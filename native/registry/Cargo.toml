@@ -1,0 +1,10 @@
+[package]
+name = "registry"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+name = "native_registry"
+
+[dependencies]
+sumatra_vm = { path = "../../vm" } 
