@@ -4,13 +4,14 @@ use std::{
     fmt::{self, Display, Formatter},
 };
 
-pub(crate) type Result<T> = core::result::Result<T, Error>;
+pub type Result<T> = core::result::Result<T, Error>;
 
 #[derive(Debug, Clone)]
 pub enum Error {
     JavaException,
     VMError(String),
     ParseError(String),
+    ClassValidation,
 }
 
 impl Display for Error {

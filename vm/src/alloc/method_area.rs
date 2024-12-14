@@ -4,10 +4,9 @@ use std::{
     mem, ptr,
 };
 
-use anyhow::{bail, Result};
-
 use crate::{
     alloc::static_fields::StaticFields, class::Class, data_types::static_data::StaticData,
+    result::Result, vm_error,
 };
 
 const STATIC_ALLOC_SIZE: isize = mem::size_of::<StaticFields>() as isize;
@@ -34,7 +33,7 @@ impl MethodArea {
 
     pub(crate) fn with_size(size: isize) -> Result<Self> {
         if size < MIN_SIZE {
-            bail!("Method area size must be at least: {MIN_SIZE} bytes.");
+            vm_error!("Method area size must be at least: {MIN_SIZE} bytes.");
         }
 
         let size = size / 2;
@@ -46,7 +45,7 @@ impl MethodArea {
             let s_alloc = alloc::alloc(s_layout) as *mut StaticFields;
             let c_alloc = alloc::alloc(c_layout) as *mut Class;
             if s_alloc.is_null() || c_alloc.is_null() {
-                bail!("Allocation error while allocating method area.");
+                vm_error!("Allocation error while allocating method area.");
             }
 
             Ok(Self {
@@ -63,7 +62,7 @@ impl MethodArea {
     /// Pushes a class to the method area and returns its `class_id`.
     pub(crate) fn push(&mut self, class: Class) -> Result<usize> {
         if self.len == (self.capacity / CLASS_SIZE as usize) {
-            bail!("Method area is out of memory.");
+            vm_error!("Method area is out of memory.");
         }
 
         // SAFETY: We just checked that there is sufficient room in the method area.
@@ -79,7 +78,7 @@ impl MethodArea {
 
     pub(crate) fn get_mut_fields(&mut self, class_id: usize) -> Result<&'static mut StaticFields> {
         if class_id >= self.len {
-            bail!("Invalid class_id {class_id} when retrieving fields!");
+            vm_error!("Invalid class_id {class_id} when retrieving fields!");
         }
         // SAFETY: We confirmed above that this is a valid index into the dynamic array.
         unsafe { Ok(&mut *(self.fields.add(class_id))) }
@@ -87,7 +86,7 @@ impl MethodArea {
 
     pub(crate) fn get_fields(&self, class_id: usize) -> Result<&'static StaticFields> {
         if class_id >= self.len {
-            bail!("Invalid class_id {class_id} when retrieving fields!");
+            vm_error!("Invalid class_id {class_id} when retrieving fields!");
         }
         // SAFETY: We confirmed above that this is a valid index into the dynamic array.
         unsafe { Ok(&*(self.fields.add(class_id) as *const StaticFields)) }
@@ -95,7 +94,7 @@ impl MethodArea {
 
     pub(crate) fn get_class(&self, class_id: usize) -> Result<&'static Class> {
         if class_id >= self.len {
-            bail!("Invalid class_id {class_id} when retrieving class!");
+            vm_error!("Invalid class_id {class_id} when retrieving class!");
         }
         // SAFETY: We confirmed above that this is a valid index into the dynamic array.
         unsafe { Ok(&*(self.classes.add(class_id))) }

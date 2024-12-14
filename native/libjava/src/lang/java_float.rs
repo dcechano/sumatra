@@ -1,8 +1,8 @@
-use anyhow::{bail, Result};
-
 use sumatra_vm::{
     data_types::{object::ObjRef, value::Value},
+    result::Result,
     vm::VM,
+    vm_error,
 };
 
 pub(crate) const FLOAT_TO_RAW_INT_BITS_SIG: &str = "floatToRawIntBits(F)I";
@@ -16,7 +16,7 @@ pub fn JAVA_LANG_FLOAT_float_to_raw_int_bits(
 ) -> Result<Option<Value>> {
     assert_eq!(args.len(), 1);
     let Value::Float(float) = args[0] else {
-        bail!("Expected float as first arg in JAVA_LANG_FLOAT_float_to_raw_int_bits");
+        vm_error!("Expected float as first arg in JAVA_LANG_FLOAT_float_to_raw_int_bits");
     };
 
     Ok(Some(Value::Int(unsafe {

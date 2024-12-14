@@ -1,7 +1,5 @@
 use std::collections::HashMap;
 
-use anyhow::{bail, Result};
-
 use crate::{
     alloc::{alloc_type::NonStatic, oop::HeapAlloc},
     class::Class,
@@ -10,7 +8,9 @@ use crate::{
         instance_data::InstanceData,
         object::ObjRef,
     },
+    result::Result,
     vm::{self, STRING, VM},
+    vm_error,
 };
 
 pub struct Heap {
@@ -65,7 +65,7 @@ impl Heap {
         if self.strings.contains_key(rust_string) {
             //TODO feels weird to error on an attempt to
             //intern a string. The angle is that the caller probably didn't mean to?
-            bail!("Attempt to intern a string that already exists.");
+            vm_error!("Attempt to intern a string that already exists.");
         }
 
         self.strings

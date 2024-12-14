@@ -7,8 +7,6 @@ use std::{
     ptr,
 };
 
-use anyhow::{bail, Result};
-
 use sumatra_parser::{field::Field, flags::FieldAccessFlags, instruction::ArrayType};
 
 use crate::{
@@ -18,7 +16,9 @@ use crate::{
     },
     class::Class,
     data_types::{array::ArrayComp, value::Value},
+    result::{Error, Result},
     vm::VM,
+    vm_error,
 };
 
 pub struct HeapAlloc<T: AllocType> {
@@ -59,7 +59,7 @@ impl<T: AllocType> HeapAlloc<T> {
     fn get_field_inner(&self, name: &str) -> Result<*mut Value> {
         let offset = match self.header.fields.get(name) {
             None => {
-                bail!("No field with name: {name}");
+                vm_error!("No field with name: {name}");
             }
             Some(offset) => offset,
         };

@@ -1,10 +1,9 @@
-use anyhow::Result;
-
 use sumatra_vm::{
     data_types::{
         object::ObjRef,
         value::{RefType, Value},
     },
+    result::Result,
     vm::VM,
 };
 

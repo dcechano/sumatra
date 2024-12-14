@@ -1,7 +1,5 @@
 use std::{ascii::AsciiExt, num::Wrapping, path::PathBuf};
 
-use anyhow::{bail, Result};
-
 use libloading::{Library, Symbol};
 use sumatra_parser::{
     constant::Constant,
@@ -24,8 +22,10 @@ use crate::{
         static_data::StaticData,
         value::{RefType, Value},
     },
+    jexcept,
     lli::{class_manager::ClassManager, response::Response},
     native_registry::{NativeIdentifier, NativeMethod},
+    result::{Error, Result},
     vm_error,
 };
 
@@ -205,7 +205,7 @@ impl VM {
         num_params: usize,
     ) -> Result<Vec<Value>> {
         if num_params > max_locals {
-            bail!("number of method parameters ({num_params}) was larger than the max locals {max_locals}.");
+            vm_error!("number of method parameters ({num_params}) was larger than the max locals {max_locals}.");
         }
 
         Ok(match (num_params, max_locals) {
@@ -236,8 +236,14 @@ impl VM {
     #[inline]
     pub(crate) fn construct_m_name(&self, name_index: usize, descr_index: usize) -> Result<String> {
         let cp = self.frame().cp;
-        let name = cp.get_utf8(name_index)?;
-        let descr = cp.get_utf8(descr_index)?;
+        let name = cp.get_utf8(name_index).map_err(|_| {
+            log::error!("Failed to method name in constuct_m_name.");
+            Error::ClassValidation
+        })?;
+        let descr = cp.get_utf8(descr_index).map_err(|_| {
+            log::error!("Failed to method name in constuct_m_name.");
+            Error::ClassValidation
+        })?;
         Ok(format!("{name}{descr}"))
     }
 
@@ -292,16 +298,24 @@ impl VM {
             unsafe {
                 self.lib_java
                     .get::<NativeMethod>(native_name.as_bytes())
-                    .map_err(From::from)
+                    .map_err(|_| {
+                        Error::VMError(format!(
+                            "Could not load native method with name {native_name}"
+                        ))
+                    })
             }
         } else if class_name.starts_with("jdk") {
             unsafe {
                 self.lib_jdk
                     .get::<NativeMethod>(native_name.as_bytes())
-                    .map_err(From::from)
+                    .map_err(|_| {
+                        Error::VMError(format!(
+                            "Could not load native method with name {native_name}"
+                        ))
+                    })
             }
         } else {
-            bail!("Could not find the appropriate lib for {class_name}");
+            vm_error!("Could not find the appropriate lib for {class_name}");
         }
 
         //self.native_registry.get(&native_id)
@@ -373,7 +387,7 @@ impl VM {
         } else {
             let value = self.frame_mut().pop();
             let Value::Ref(RefType::Object(obj)) = value else {
-                bail!("Expected a ObjRef in invoke_native but got: {value:?}");
+                vm_error!("Expected a ObjRef in invoke_native but got: {value:?}");
             };
             Some(obj)
         };
@@ -528,7 +542,7 @@ impl VM {
                 Ok(StaticData::new(array_class_index, array_class, fields))
             }
             Ok(Response::Ready(alloc_index)) => self.method_area.class_data(alloc_index),
-            Err(e) => bail!(e),
+            Err(e) => Err(e),
             _ => panic!("Manager returned a not found!"),
         }
     }
@@ -553,7 +567,7 @@ impl VM {
                 Ok(array_class)
             }
             Ok(Response::Ready(alloc_index)) => self.method_area.get_class(alloc_index),
-            Err(e) => bail!(e),
+            Err(e) => Err(e),
             _ => panic!("Manager returned a not found!"),
         }
     }
@@ -583,7 +597,7 @@ impl VM {
             }
 
             let Constant::Class(name_index) = class.cp.get(crate_index).unwrap() else {
-                bail!("Expected Constant::Class while loading class hierarchy.");
+                vm_error!("Expected Constant::Class while loading class hierarchy.");
             };
             let crate_name = class.cp.get_utf8(*name_index).unwrap();
 
@@ -626,10 +640,10 @@ impl VM {
                 None => {
                     let super_index = class.super_class;
                     if super_index == 0 {
-                        bail!("Index of superclass should not be 0 in invoke_special");
+                        vm_error!("Index of superclass should not be 0 in invoke_special");
                     }
                     let Constant::Class(super_class) = class.cp.get(super_index).unwrap() else {
-                        bail!("Expected class while executing invokespecial.");
+                        vm_error!("Expected class while executing invokespecial.");
                     };
                     let super_name = class.cp.get_utf8(*super_class).unwrap();
                     class = self.load_class(super_name).unwrap().class;
@@ -656,12 +670,15 @@ impl VM {
     ) -> Result<(usize, usize, StaticData)> {
         let frame = self.frame();
         let Constant::Class(class_name) = frame.cp.get(class_index).unwrap() else {
-            bail!(
+            vm_error!(
                 "Class index while executing `get_static` \
                     didn't point to a Class in the constant pool."
             );
         };
-        let name = frame.cp.get_utf8(*class_name)?;
+        let name = frame.cp.get_utf8(*class_name).map_err(|_| {
+            log::error!("Failed to load class name in unpack.");
+            Error::ClassValidation
+        })?;
         let static_data = self.load_class(name)?;
 
         let Constant::NameAndType {
@@ -669,7 +686,7 @@ impl VM {
             descriptor_index,
         } = self.frame().cp.get(name_and_type).unwrap()
         else {
-            bail!(
+            vm_error!(
                 "Provided name_and_type_index did not point to a \
                 NameAndType constant."
             );
@@ -692,7 +709,15 @@ impl VM {
         name_and_type: usize,
     ) -> Result<(String, StaticData)> {
         let (name_index, _, data) = self.unpack(class_index, name_and_type)?;
-        let f_name = self.frame().cp.get_utf8(name_index)?.into();
+        let f_name = self
+            .frame()
+            .cp
+            .get_utf8(name_index)
+            .map_err(|_| {
+                log::error!("Failed to load field name in unpack_f_name.");
+                Error::ClassValidation
+            })?
+            .into();
         Ok((f_name, data))
     }
 
@@ -720,7 +745,7 @@ impl VM {
 pub(crate) fn find_main(class: &Class) -> Result<&Method> {
     match class.methods.get(MAIN) {
         None => {
-            bail!("No main method found.");
+            vm_error!("No main method found.");
         }
         Some(method) => Ok(method),
     }

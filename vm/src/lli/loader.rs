@@ -1,5 +1,4 @@
-use anyhow::Result;
-
+use crate::result::Result;
 use sumatra_parser::class_file::ClassFile;
 
 pub(super) trait ClassLoader {

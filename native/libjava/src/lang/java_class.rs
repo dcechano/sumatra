@@ -1,11 +1,10 @@
-use anyhow::Result;
 use sumatra_vm::{
     data_types::{
         object::ObjRef,
         value::{RefType, Value},
     },
-    lli::class_loader,
     native::NativeMethod,
+    result::Result,
     vm::VM,
 };
 

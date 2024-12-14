@@ -4,11 +4,13 @@ use std::{
     path::PathBuf,
 };
 
-use anyhow::{bail, Result};
-
 use sumatra_parser::class_file::ClassFile;
 
-use crate::lli::loader::ClassLoader;
+use crate::{
+    lli::loader::ClassLoader,
+    result::{Error, Result},
+    vm_error,
+};
 
 pub(super) struct AppLoader {
     c_path: PathBuf,
@@ -49,8 +51,9 @@ impl AppLoader {
 impl ClassLoader for AppLoader {
     fn get(&mut self, name: &str) -> Result<ClassFile> {
         match self.find(name) {
-            None => bail!("Class {name} not found."),
-            Some(path) => Ok(ClassFile::parse_class(path)?),
+            None => vm_error!("Class {name} not found."),
+            Some(path) => Ok(ClassFile::parse_class(path)
+                .map_err(|_| Error::ParseError(format!("Error parsing class: {name}")))?),
         }
     }
 }

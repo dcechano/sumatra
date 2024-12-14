@@ -1,10 +1,6 @@
-use anyhow::{bail, Result};
-
 use sumatra_vm::{
-    data_types::{
-        object::ObjRef,
-        value::{RefType, Value},
-    },
+    data_types::{object::ObjRef, value::Value},
+    result::Result,
     vm::VM,
 };
 
