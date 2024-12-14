@@ -48,21 +48,6 @@ pub(crate) mod attr_constants {
 // TODO Delete Attribute when everything compiles without it.
 #[derive(Debug, Clone, Eq, PartialEq, Hash)]
 pub struct Attribute;
-/// Attributes are used in the [`crate::class_file::ClassFile`],
-/// [`crate::field::Field`], [`crate::method::Method`], Code_attribute, and
-/// record_component_info structures of the class file format
-
-///The [`Attribute::ConstantValue`] attribute is a fixed-length attribute
-/// in the attributes table of a field_info structure. A
-/// [`Attribute::ConstantValue`] attribute represents the value of a
-/// constant expression. https://docs.oracle.com/javase/specs/jvms/se21/html/jvms-4.html#jvms-4.5
-/// https://docs.oracle.com/javase/specs/jls/se21/html/jls-15.html#jls-15.29
-
-/// The [`Attribute::StackMapTable`] attribute is a variable-length
-/// attribute in the attributes table of a [`Attribute::Code`]
-/// attribute. A [`Attribute::StackMapTable`] attribute is used during
-/// the process of verification by type checking. https://docs.oracle.com/javase/specs/jvms/se21/html/jvms-4.html#jvms-4.7.3
-/// https://docs.oracle.com/javase/specs/jvms/se21/html/jvms-4.html#jvms-4.10.1
 
 #[derive(Debug, Default, Eq, PartialEq, Hash, Clone)]
 pub struct ClassFileAttributes {
@@ -147,6 +132,7 @@ pub struct PermittedSubclasses(pub Vec<usize>);
 #[derive(Debug, Default, Eq, PartialEq, Hash, Clone)]
 pub struct Custom(pub Vec<u8>);
 
+#[allow(clippy::too_long_first_doc_paragraph)]
 /// The [`Attribute::Code`] attribute is a variable-length attribute in the
 /// attributes table of a [`crate::method::Method`] structure. A
 /// [`Attribute::Code`] attribute contains the Java Virtual Machine

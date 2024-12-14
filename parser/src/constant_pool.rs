@@ -11,13 +11,8 @@ impl ConstantPool {
     pub fn new(capacity: usize) -> Self { Self(Vec::with_capacity(capacity)) }
 
     pub fn get_utf8(&self, index: usize) -> Result<&str> {
-        match self.get(index) {
-            Some(string) => {
-                if let UTF8(string) = string {
-                    return Ok(&string);
-                }
-            }
-            _ => {}
+        if let Some(UTF8(string)) = self.get(index) {
+            return Ok(string);
         }
         bail!("Unable to retrieve string at index {index}");
     }

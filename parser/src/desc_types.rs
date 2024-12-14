@@ -1,4 +1,4 @@
-use std::{ops::Deref, str::FromStr};
+use std::str::FromStr;
 
 use anyhow::{bail, Result};
 
@@ -248,8 +248,6 @@ impl Params {
             false => bail!("Invalid index into the MethodParams array."),
         }
     }
-
-    fn into_vec(self) -> Vec<FieldType> { self.0 }
 }
 
 #[derive(Debug, Default, Eq, PartialEq, Hash, Clone)]
@@ -266,8 +264,6 @@ impl MethodDescriptor {
     pub fn get_params(&self) -> Params { self.0.clone() }
 
     pub fn get_return_descriptor(&self) -> ReturnDescriptor { self.1.clone() }
-
-    fn is_void(&self) -> bool { self.1.is_void() }
 }
 
 impl FromStr for MethodDescriptor {

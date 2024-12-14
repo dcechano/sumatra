@@ -873,9 +873,9 @@ impl Instruction {
                 }
                 TableSwitch {
                     default_index,
-                    low,
-                    high,
                     jump_offsets,
+                    low: _,
+                    high: _,
                 } => {
                     // The jmp_byte here can only be used for the default_index.
                     // We had to do something different because there is more

@@ -121,12 +121,6 @@ impl ClassReader {
         self.0.read_i32::<BigEndian>().context("Failed to read i32")
     }
 
-    /// Read `u64`.
-    #[inline]
-    pub(crate) fn read_u64(&mut self) -> Result<u64> {
-        self.0.read_u64::<BigEndian>().context("Failed to read u64")
-    }
-
     /// Read `i64`.
     #[inline]
     pub(crate) fn read_i64(&mut self) -> Result<i64> {
@@ -289,7 +283,7 @@ impl ClassReader {
                                 cp,
                                 name_index,
                                 "Failed to validate the name index of a MethodParameter.",
-                            );
+                            )?;
                             let access_flags = MethodParamAccessFlags::from_bits(self.read_u16()?)
                                 .context("Failed to parse MethodParamAccessFlags.")?;
                             Ok(MethodParameters {
@@ -336,7 +330,7 @@ impl ClassReader {
         context: &'static str,
     ) -> Result<Vec<u8>> {
         log_unrec_attr(
-            &bytes.into_iter().map(|b| *b as char).collect::<String>(),
+            &bytes.iter().map(|b| *b as char).collect::<String>(),
             context,
         )?;
 
@@ -346,10 +340,11 @@ impl ClassReader {
 
     /// Read and interpret the next bytes as the `Code` attribute.
     fn parse_code_attr(&mut self, cp: &ConstantPool) -> Result<Code> {
-        let mut code = Code::default();
-
-        code.max_stack = self.read_u16()?;
-        code.max_locals = self.read_u16()?;
+        let mut code = Code {
+            max_stack: self.read_u16()?,
+            max_locals: self.read_u16()?,
+            ..<_>::default()
+        };
 
         let code_len = self.read_u32()? as usize;
         code.op_code = Instruction::from_bytes(&self.read_bytes(code_len)?)?;
@@ -561,7 +556,7 @@ impl ClassReader {
     }
 
     /// Read and interpret the next bytes as a `Method`.
-    fn parse_method(&mut self, cp: &ConstantPool, min_ver: u16, maj_ver: u16) -> Result<Method> {
+    fn parse_method(&mut self, cp: &ConstantPool, _min_ver: u16, _maj_ver: u16) -> Result<Method> {
         let mut method = Method {
             access_flags: MethodAccessFlags::from_bits(self.read_u16()?)
                 .context("Invalid access flags on method.")?,
@@ -738,7 +733,7 @@ impl ClassReader {
                 MODULE_PACKAGES => attributes.module_packages = self.parse_module_pckgs_attr(cp)?,
                 MODULE_MAIN_CLASS => {
                     let main_class_index = self.read_u16()? as usize;
-                    if !matches!(cp.get(main_class_index as usize), Some(Class { .. })) {
+                    if !matches!(cp.get(main_class_index), Some(Class { .. })) {
                         bail!(
                             "ModuleMainClass' index didn't point to a Class in the constant pool."
                         );
@@ -747,7 +742,7 @@ impl ClassReader {
                 }
                 NEST_HOST => {
                     let host_index = self.read_u16()? as usize;
-                    if !matches!(cp.get(host_index as usize), Some(Class { .. })) {
+                    if !matches!(cp.get(host_index), Some(Class { .. })) {
                         bail!("NestHost attribute's host_index didn't point to a Class in the constant pool.");
                     }
                     attributes.nest_host = NestHost(host_index)
@@ -779,7 +774,7 @@ impl ClassReader {
                     attributes.permitted_subclasses = PermittedSubclasses(classes);
                 }
                 unrecognized => {
-                    let _ = self.parse_unrec_attr(attr_len, &unrecognized, "class")?;
+                    let _ = self.parse_unrec_attr(attr_len, unrecognized, "class")?;
                 }
             };
             validate_cursor(self.position(), cursor + attr_len as u64)?;
@@ -960,7 +955,7 @@ impl ClassReader {
                 type_parameter_index: self.read_u16()? as usize,
                 bound_index: self.read_u16()? as usize,
             },
-            0x13 | 0x14 | 0x15 => Empty(value),
+            0x13..=0x15 => Empty(value),
             0x16 => FormalParameter {
                 value,
                 formal_param_index: self.read_u16()? as usize,
@@ -1129,7 +1124,7 @@ impl ClassReader {
     /// Read and interpret the next bytes as the `Requires` attribute.
     fn parse_requires(&mut self, cp: &ConstantPool) -> Result<Requires> {
         let requires_index = self.read_u16()? as usize;
-        if !matches!(cp.get(requires_index as usize), Some(Module { .. })) {
+        if !matches!(cp.get(requires_index), Some(Module { .. })) {
             bail!(
                 "Requires' requires_index didn't point to a Module constant in the constant pool."
             );
@@ -1140,7 +1135,7 @@ impl ClassReader {
         let requires_ver_index = self.read_u16()? as usize;
         Self::verify_utf8(
             cp,
-            requires_ver_index as usize,
+            requires_ver_index,
             "Requires_ver_index didn't point to a UTF8 in the constant pool.",
         )?;
         Ok(Requires {
@@ -1153,7 +1148,7 @@ impl ClassReader {
     /// Read and interpret the next bytes as the `Exports` attribute.
     fn parse_exports(&mut self, cp: &ConstantPool) -> Result<Exports> {
         let exports_index = self.read_u16()? as usize;
-        if !matches!(cp.get(exports_index as usize), Some(Package { .. })) {
+        if !matches!(cp.get(exports_index), Some(Package { .. })) {
             bail!(
                 "Exports' exports_index didn't point to a Package constant in the constant pool."
             );
@@ -1184,7 +1179,7 @@ impl ClassReader {
     /// Read and interpret the next bytes as a `Opens`.
     fn parse_opens(&mut self, cp: &ConstantPool) -> Result<Opens> {
         let opens_index = self.read_u16()? as usize;
-        if !matches!(cp.get(opens_index as usize), Some(Package { .. })) {
+        if !matches!(cp.get(opens_index), Some(Package { .. })) {
             bail!(
                 "Exports' exports_index didn't point to a Package constant in the constant pool."
             );
@@ -1461,7 +1456,6 @@ fn log_unrec_attr(name: &str, context: &str) -> Result<()> {
     //FIXME: Properly handle file not found error. Currently is found or not found
     // depending on if the program is run using cargo test or cargo run.
     let mut file = match OpenOptions::new()
-        .write(true)
         .append(true)
         .open("parser/unrec_attrs.txt")
     {
