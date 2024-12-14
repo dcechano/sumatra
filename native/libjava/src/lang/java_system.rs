@@ -1,12 +1,12 @@
-use anyhow::{bail, Result};
-
 use sumatra_vm::{
     data_types::{
         object::ObjRef,
         value::{RefType, Value},
     },
     native::NativeMethod,
+    result::Result,
     vm::VM,
+    vm_error,
 };
 
 const NATIVES: [(&str, NativeMethod); 9] = [
@@ -95,19 +95,19 @@ fn JAVA_LANG_SYSTEM_arraycopy(
 ) -> Result<Option<Value>> {
     assert_eq!(args.len(), 5);
     let Value::Ref(RefType::Array(mut src)) = args[0] else {
-        bail!("Expected array as first arg in JAVA_LANG_SYSTEM_arraycopy");
+        vm_error!("Expected array as first arg in JAVA_LANG_SYSTEM_arraycopy");
     };
     let Value::Int(src_pos) = args[1] else {
-        bail!("Expected int for second arg in JAVA_LANG_SYSTEM_arraycopy");
+        vm_error!("Expected int for second arg in JAVA_LANG_SYSTEM_arraycopy");
     };
     let Value::Ref(RefType::Array(mut dest)) = args[2] else {
-        bail!("Expected array as third arg in JAVA_LANG_SYSTEM_arraycopy");
+        vm_error!("Expected array as third arg in JAVA_LANG_SYSTEM_arraycopy");
     };
     let Value::Int(dest_pos) = args[3] else {
-        bail!("Expected int for fourth arg in JAVA_LANG_SYSTEM_arraycopy");
+        vm_error!("Expected int for fourth arg in JAVA_LANG_SYSTEM_arraycopy");
     };
     let Value::Int(length) = args[4] else {
-        bail!("Expected int for fifth arg in JAVA_LANG_SYSTEM_arraycopy");
+        vm_error!("Expected int for fifth arg in JAVA_LANG_SYSTEM_arraycopy");
     };
 
     if src_pos < 0 || dest_pos < 0 {

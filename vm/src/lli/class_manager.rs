@@ -1,11 +1,3 @@
-use std::{
-    collections::HashMap,
-    path::PathBuf,
-    sync::atomic::{AtomicUsize, Ordering},
-};
-
-use anyhow::{bail, Result};
-
 use crate::{
     alloc::method_area::MethodArea,
     class::Class,
@@ -14,6 +6,13 @@ use crate::{
         app_loader::AppLoader, class_loader::BootstrapLoader, loader::ClassLoader,
         response::Response,
     },
+    result::Result,
+    vm_error,
+};
+use std::{
+    collections::HashMap,
+    path::PathBuf,
+    sync::atomic::{AtomicUsize, Ordering},
 };
 //FIXME I don't like the Response API. Response::NotFound functions as an Err,
 // and Response::NotFound gets mapped to an Err. It all feels very redundant.
@@ -75,7 +74,7 @@ impl ClassManager {
         };
 
         if let Ok(Response::NotFound) = response {
-            bail!("Class not found: {name}.");
+            vm_error!("Class not found: {name}.");
         }
 
         response
@@ -100,12 +99,12 @@ impl ClassManager {
                     // since the class had to retrieved and stored it has not been initialized.
                     Ok((class, index)) => return Ok(Response::InitReq(class, index)),
                     Err(_) => {
-                        bail!("MethodArea allocation error.")
+                        vm_error!("MethodArea allocation error.")
                     }
                 }
             }
 
-            bail!("Class: {name} not found!");
+            vm_error!("Class: {name} not found!");
         } else {
             Ok(Response::Ready(*self.by_name.get(name).unwrap()))
         }

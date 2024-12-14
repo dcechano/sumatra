@@ -2,7 +2,6 @@
 // TODO Remove
 
 use crate::{class::Class, vm::VM};
-use anyhow::{bail, Result};
 use sumatra_parser::constant::Constant;
 
 pub mod alloc;
@@ -16,6 +15,7 @@ pub mod result;
 pub mod vm;
 
 pub use native_registry as native;
+use result::Result;
 
 /// Checks if `superclass` is the superclass of `child_class`.
 /// By the logic of this function a class is the superclass of itself. Will
@@ -77,7 +77,7 @@ fn is_implemented(
 fn get_superclass(vm: &mut VM, class: &'static Class) -> Result<&'static Class> {
     let super_index = class.super_class;
     let Constant::Class(name_index) = class.cp.get(super_index).unwrap() else {
-        bail!("Expected a Constant::Class for index.");
+        invalid_class!("Expected a Constant::Class for index.");
     };
 
     let super_name = class.cp.get_utf8(*name_index).unwrap();

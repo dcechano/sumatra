@@ -1,7 +1,4 @@
-use core::panic;
 use std::{num::Wrapping, path::PathBuf, result, usize};
-
-use anyhow::{anyhow, bail, Result};
 
 use libloading::Library;
 use sumatra_parser::{
@@ -25,7 +22,7 @@ use crate::{
     },
     lli::{class_manager::ClassManager, response::Response},
     native::{NativeIdentifier, NativeMethod},
-    result::Error,
+    result::{Error, Result},
     vm::{CLASS, CLASS_CLASS_ID, OBJECT, OBJECT_CLASS_ID, STRING, SYSTEM, SYSTEM_CLASS_ID},
     vm_error,
 };
@@ -176,13 +173,13 @@ impl VM {
             if self.frame().method.is_native() {
                 class_name = format!("[native] {}", class_name);
             }
-            println!(
-                "{}{code:?}\t\t{}::{}{}",
-                "\t".repeat(indents),
-                class_name,
-                self.frame().method.name,
-                self.frame().method.descriptor
-            );
+            //println!(
+            //    "{}{code:?}\t\t{}::{}{}",
+            //    "\t".repeat(indents),
+            //    class_name,
+            //    self.frame().method.name,
+            //    self.frame().method.descriptor
+            //);
             // }
             match code {
                 Instruction::AaLoad => self.aaload()?,
@@ -516,7 +513,7 @@ impl VM {
     }
 
     /// Executes `Instruction::AaLoad` instruction.
-    fn aaload(&mut self) -> crate::result::Result<()> {
+    fn aaload(&mut self) -> Result<()> {
         let frame = self.frame_mut();
         let Value::Int(index) = frame.pop() else {
             vm_error!("Expected int for index in aaload.");
@@ -559,7 +556,7 @@ impl VM {
 
         let value = frame.pop();
         let Value::Int(index) = frame.pop() else {
-            bail!("Expected int for index in aastore.");
+            vm_error!("Expected int for index in aastore.");
         };
 
         let array_ref = frame.pop();
@@ -568,7 +565,7 @@ impl VM {
         };
 
         let Value::Ref(RefType::Array(mut array)) = array_ref else {
-            bail!("Expected an array for arrayref in aastore.");
+            vm_error!("Expected an array for arrayref in aastore.");
         };
 
         match value {
@@ -621,7 +618,7 @@ impl VM {
             | Value::StringConst(_)
             | Value::Short(_) => {
                 // Should be impossible.
-                bail!("Primitive used for insert in aastore.");
+                vm_error!("Primitive used for insert in aastore.");
             }
         }
     }
@@ -632,9 +629,12 @@ impl VM {
         // is of the form [<class>;.
         let frame = self.frame();
         let Constant::Class(name_index) = frame.cp.get(class_index).unwrap() else {
-            bail!("Expected Constant::Class while executing anewarray.");
+            vm_error!("Expected Constant::Class while executing anewarray.");
         };
-        let class_name = frame.cp.get_utf8(*name_index)?;
+        let class_name = frame.cp.get_utf8(*name_index).map_err(|_| {
+            log::error!("Failed to retrieve class name in anew_array.");
+            Error::ClassValidation
+        })?;
 
         if class_name.starts_with('[') {
             todo!();
@@ -668,7 +668,7 @@ impl VM {
             object,
             (Value::Ref(_) | Value::StringConst(_) | Value::Null)
         ) {
-            bail!("Expected ref type for a_load instruction. Received: {object:?}");
+            vm_error!("Expected ref type for a_load instruction. Received: {object:?}");
         }
 
         Ok(frame.push(object))
@@ -702,7 +702,7 @@ impl VM {
         println!("CLASS: {}", frame.class.get_name());
         println!("METHOD: {}", frame.method.name);
         let Value::Ref(RefType::Object(obj)) = frame.pop() else {
-            bail!("Expected Exception on the stack.");
+            vm_error!("Expected Exception on the stack.");
         };
         let Value::Ref(RefType::Object(jstring)) = obj.get_field("detailMessage").unwrap() else {
             panic!();
@@ -730,7 +730,7 @@ impl VM {
         let frame = self.frame_mut();
         let index = frame.pop();
         let Value::Int(index) = index else {
-            bail!("Expected int for index in baload.");
+            vm_error!("Expected int for index in baload.");
         };
 
         let value = frame.pop();
@@ -738,17 +738,17 @@ impl VM {
             Value::Ref(RefType::Array(array)) => {
                 let array_comp = array.array_comp();
                 if !matches!(array_comp, (ArrayComp::Byte | ArrayComp::Boolean)) {
-                    bail!("Array must have type byte or boolean in baload.");
+                    vm_error!("Array must have type byte or boolean in baload.");
                 }
 
                 let Value::Byte(num) = array.get(index as usize) else {
-                    bail!("Expected byte for array type in baload.");
+                    vm_error!("Expected byte for array type in baload.");
                 };
 
                 num as i32
             }
             Value::Int(boolean @ (0 | 1)) => boolean,
-            invalid => bail!("Received invalid: {invalid:?} in baload."),
+            invalid => vm_error!("Received invalid: {invalid:?} in baload."),
         };
 
         Ok(frame.push(Value::Int(value)))
@@ -759,18 +759,18 @@ impl VM {
         let frame = self.frame_mut();
         let value = frame.pop();
         let Value::Int(value) = value else {
-            bail!("Expected Value::Int for the value in bastore. {value:?}");
+            vm_error!("Expected Value::Int for the value in bastore. {value:?}");
         };
         let Value::Int(index) = frame.pop() else {
-            bail!("Expected Value::Int for the index in bastore.");
+            vm_error!("Expected Value::Int for the index in bastore.");
         };
         let Value::Ref(RefType::Array(mut array_ref)) = frame.pop() else {
-            bail!("Expected RefType::Array for the objref in bastore.");
+            vm_error!("Expected RefType::Array for the objref in bastore.");
         };
         let value = match array_ref.array_comp() {
             ArrayComp::Boolean => Value::Byte((value & 1) as i8),
             ArrayComp::Byte => Value::Byte(value as i8),
-            array_type => bail!("Invalid array type: {array_type:?} in bastore."),
+            array_type => vm_error!("Invalid array type: {array_type:?} in bastore."),
         };
         Ok(array_ref.insert(index as usize, value))
     }
@@ -779,13 +779,13 @@ impl VM {
     fn caload(&mut self) -> Result<()> {
         let frame = self.frame_mut();
         let Value::Int(index) = frame.pop() else {
-            bail!("Expected Value::Int as index in caload.");
+            vm_error!("Expected Value::Int as index in caload.");
         };
         let Value::Ref(RefType::Array(mut array_ref)) = frame.pop() else {
-            bail!("Expected RefType::Array as array_ref in caload.");
+            vm_error!("Expected RefType::Array as array_ref in caload.");
         };
         let Value::Byte(char) = array_ref.get(index as usize) else {
-            bail!("Expected Value::Int as char in caload.");
+            vm_error!("Expected Value::Int as char in caload.");
         };
         Ok(frame.push(Value::Int(char as i32)))
     }
@@ -794,16 +794,16 @@ impl VM {
     fn castore(&mut self) -> Result<()> {
         let frame = self.frame_mut();
         let Value::Int(value) = frame.pop() else {
-            bail!("Expected Value::Int for the value in castore.");
+            vm_error!("Expected Value::Int for the value in castore.");
         };
         let Value::Int(index) = frame.pop() else {
-            bail!("Expected Value::Int for the index in castore.");
+            vm_error!("Expected Value::Int for the index in castore.");
         };
         let Value::Ref(RefType::Array(mut array_ref)) = frame.pop() else {
-            bail!("Expected RefType::Array for the objref in castore.");
+            vm_error!("Expected RefType::Array for the objref in castore.");
         };
         let ArrayComp::Char = array_ref.array_comp() else {
-            bail!("Expected char for array type in castore.");
+            vm_error!("Expected char for array type in castore.");
         };
         Ok(array_ref.insert(index as usize, Value::Byte(index as i8)))
     }
@@ -818,9 +818,13 @@ impl VM {
         }
 
         let Constant::Class(name_index) = self.frame_mut().cp.get(index).unwrap() else {
-            bail!("Expected Constant::Class for provided index in check_cast.");
+            vm_error!("Expected Constant::Class for provided index in check_cast.");
         };
-        let class_name = self.frame_mut().cp.get_utf8(*name_index)?;
+        let class_name = self.frame_mut().cp.get_utf8(*name_index).map_err(|_| {
+            log::error!("Failed to retrieve class name in check_cast.");
+            Error::ClassValidation
+        })?;
+
         let test_class = self.load_class_immut(class_name)?;
         match obj {
             Value::Ref(RefType::Array(array)) => {
@@ -851,7 +855,7 @@ impl VM {
                         return Ok(self.frame_mut().push(obj));
                     }
 
-                    bail!(
+                    vm_error!(
                         "Could not cast {} to {}",
                         comp_class.get_name(),
                         test_class.get_name()
@@ -881,10 +885,10 @@ impl VM {
     fn dadd(&mut self) -> Result<()> {
         let frame = self.frame_mut();
         let Value::Double(value2) = frame.pop() else {
-            bail!("Expected double for value2 in dadd.");
+            vm_error!("Expected double for value2 in dadd.");
         };
         let Value::Double(value1) = frame.pop() else {
-            bail!("Expected double for value1 in dadd.");
+            vm_error!("Expected double for value1 in dadd.");
         };
 
         let sum = value2 + value1;
@@ -897,7 +901,7 @@ impl VM {
     fn dload_n(&mut self, local_index: usize) -> Result<()> {
         let frame = self.frame_mut();
         let Value::Double(value) = frame.load(local_index)? else {
-            bail!("Expected double for value in dload_n");
+            vm_error!("Expected double for value in dload_n");
         };
 
         Ok(frame.push(Value::Double(value)))
@@ -909,7 +913,7 @@ impl VM {
     fn dstore_n(&mut self, local_index: usize) -> Result<()> {
         let frame = self.frame_mut();
         let Value::Double(value) = frame.load(local_index)? else {
-            bail!("Expected double for value in dstore_n");
+            vm_error!("Expected double for value in dstore_n");
         };
 
         frame.insert_local(local_index, Value::Double(value))?;
@@ -928,7 +932,7 @@ impl VM {
         let frame = self.frame_mut();
         let value = frame.clone_top();
         if matches!(value, (Value::Double(_) | Value::Long(_))) {
-            bail!("value was not a catagory 1 computation type in dup_x1.");
+            vm_error!("value was not a catagory 1 computation type in dup_x1.");
         }
 
         Ok(frame.insert(1, value))
@@ -952,7 +956,7 @@ impl VM {
     fn f2d(&mut self) -> Result<()> {
         let frame = self.frame_mut();
         let Value::Float(value) = frame.pop() else {
-            bail!("Expected float for value in f2d.");
+            vm_error!("Expected float for value in f2d.");
         };
         frame.push(Value::Double(value as f64));
         Ok(frame.push(Value::Double(value as f64)))
@@ -962,7 +966,7 @@ impl VM {
     fn f2i(&mut self) -> Result<()> {
         let frame = self.frame_mut();
         let Value::Float(value) = frame.pop() else {
-            bail!("Expected float for value in f2i.");
+            vm_error!("Expected float for value in f2i.");
         };
         Ok(frame.push(Value::Int(value as i32)))
     }
@@ -971,7 +975,7 @@ impl VM {
     fn f2l(&mut self) -> Result<()> {
         let frame = self.frame_mut();
         let Value::Float(value) = frame.pop() else {
-            bail!("Expected float for value in f2l.");
+            vm_error!("Expected float for value in f2l.");
         };
         frame.push(Value::Long(value as i64));
         Ok(frame.push(Value::Long(value as i64)))
@@ -981,10 +985,10 @@ impl VM {
     fn fadd(&mut self) -> Result<()> {
         let frame = self.frame_mut();
         let Value::Float(value2) = frame.pop() else {
-            bail!("Expected float for value2 of idiv");
+            vm_error!("Expected float for value2 of idiv");
         };
         let Value::Float(value1) = frame.pop() else {
-            bail!("Expected float for value1 of idiv");
+            vm_error!("Expected float for value1 of idiv");
         };
         Ok(frame.push(Value::Float(value1 + value2)))
     }
@@ -993,11 +997,11 @@ impl VM {
     fn fcmp(&mut self, compare: Compare) -> Result<()> {
         let frame = self.frame_mut();
         let Value::Float(value2) = frame.pop() else {
-            bail!("Expected float for value2 in fcmp.");
+            vm_error!("Expected float for value2 in fcmp.");
         };
 
         let Value::Float(value1) = frame.pop() else {
-            bail!("Expected float for value1 in fcmp.");
+            vm_error!("Expected float for value1 in fcmp.");
         };
 
         if value2.is_nan() || value1.is_nan() {
@@ -1022,7 +1026,7 @@ impl VM {
     fn fload_n(&mut self, index: usize) -> Result<()> {
         let frame = self.frame_mut();
         let Value::Float(float) = frame.load(index)? else {
-            bail!("Expected float in fload_n");
+            vm_error!("Expected float in fload_n");
         };
         Ok(frame.push(Value::Float(float)))
     }
@@ -1031,10 +1035,10 @@ impl VM {
     fn fmul(&mut self) -> Result<()> {
         let frame = self.frame_mut();
         let Value::Float(value2) = frame.pop() else {
-            bail!("Expected float for value2 in fmul.");
+            vm_error!("Expected float for value2 in fmul.");
         };
         let Value::Float(value1) = frame.pop() else {
-            bail!("Expected float for value1 in fmul.");
+            vm_error!("Expected float for value1 in fmul.");
         };
 
         let result = value2 * value1;
@@ -1048,7 +1052,7 @@ impl VM {
     /// Executes the `Instruction::FStore<n>` instruction.
     fn fstore_n(&mut self, index: usize) -> Result<()> {
         let Value::Float(value) = self.frame_mut().pop() else {
-            bail!("Expected float for value in fstore_n.");
+            vm_error!("Expected float for value in fstore_n.");
         };
         self.frame_mut().insert_local(index, Value::Float(value))
     }
@@ -1062,7 +1066,9 @@ impl VM {
             name_and_type_index,
         } = self.frame().cp.get(field_index).unwrap()
         else {
-            bail!("Expected symbolic reference to a field at index: {field_index} for get_field.");
+            vm_error!(
+                "Expected symbolic reference to a field at index: {field_index} for get_field."
+            );
         };
 
         let value = self.frame_mut().pop();
@@ -1071,11 +1077,16 @@ impl VM {
         }
 
         let Value::Ref(RefType::Object(obj)) = value else {
-            bail!("Expected Value::Ref(Object) in get_field. Got {value:?}");
+            vm_error!("Expected Value::Ref(Object) in get_field. Got {value:?}");
         };
 
         let (name_index, _, _) = self.unpack(*class_index, *name_and_type_index)?;
-        let field_val = obj.get_field(self.frame().cp.get_utf8(name_index)?)?;
+        let field_name = self.frame().cp.get_utf8(name_index).map_err(|_| {
+            log::error!("Failed to parse field name in get_field.");
+            Error::ClassValidation
+        })?;
+        let field_val = obj.get_field(field_name)?;
+
         if let Value::Long(_) | Value::Double(_) = field_val {
             self.frame_mut().stack.push(field_val.clone());
         }
@@ -1092,11 +1103,16 @@ impl VM {
             name_and_type_index,
         } = self.frame().cp.get(index).unwrap()
         else {
-            bail!("Expected symbolic reference to a field at index: {index}");
+            vm_error!("Expected symbolic reference to a field at index: {index}");
         };
 
         let (name_index, _, alloc) = self.unpack(*class_index, *name_and_type_index)?;
-        let field_val = alloc.get_field(self.frame().cp.get_utf8(name_index)?)?;
+        let field_name = self.frame().cp.get_utf8(name_index).map_err(|_| {
+            log::error!("Failed to retrieve field namein get_static.");
+            Error::ClassValidation
+        })?;
+        let field_val = alloc.get_field(field_name)?;
+
         if matches!(field_val, (Value::Double(_) | Value::Long(_))) {
             self.frame_mut().stack.push(field_val.clone());
         }
@@ -1107,7 +1123,7 @@ impl VM {
     /// Executes the `Instruction::I2B` instruction.
     fn i2b(&mut self) -> Result<()> {
         let Value::Int(int) = self.frame_mut().pop() else {
-            bail!("Expected int in i2b.");
+            vm_error!("Expected int in i2b.");
         };
 
         Ok(self.frame_mut().push(Value::Int((int as i8) as i32)))
@@ -1116,7 +1132,7 @@ impl VM {
     /// Executes the `Instruction::I2C` instruction.
     fn i2c(&mut self) -> Result<()> {
         let Value::Int(int) = self.frame_mut().pop() else {
-            bail!("Expected int in i2c.");
+            vm_error!("Expected int in i2c.");
         };
 
         Ok(self.frame_mut().push(Value::Int((int as u16) as i32)))
@@ -1125,7 +1141,7 @@ impl VM {
     /// Executes the `Instruction::I2D` instruction.
     fn i2d(&mut self) -> Result<()> {
         let Value::Int(int) = self.frame_mut().pop() else {
-            bail!("Expected int in i2d.");
+            vm_error!("Expected int in i2d.");
         };
         Ok(self.frame_mut().push(Value::Double(int as f64)))
     }
@@ -1133,7 +1149,7 @@ impl VM {
     /// Executes the `Instruction::I2F` instruction.
     fn i2f(&mut self) -> Result<()> {
         let Value::Int(int) = self.frame_mut().pop() else {
-            bail!("Expected int in i2f.");
+            vm_error!("Expected int in i2f.");
         };
 
         Ok(self.frame_mut().push(Value::Float(int as f32)))
@@ -1142,7 +1158,7 @@ impl VM {
     /// Executes the `Instruction::I2L` instruction.
     fn i2l(&mut self) -> Result<()> {
         let Value::Int(int) = self.frame_mut().pop() else {
-            bail!("Expected int in i2l.");
+            vm_error!("Expected int in i2l.");
         };
         Ok(self.frame_mut().push(Value::Long(int as i64)))
     }
@@ -1150,7 +1166,7 @@ impl VM {
     /// Executes the `Instruction::I2S` instruction.
     fn i2s(&mut self) -> Result<()> {
         let Value::Int(int) = self.frame_mut().pop() else {
-            bail!("Expected int in i2s.");
+            vm_error!("Expected int in i2s.");
         };
 
         Ok(self.frame_mut().push(Value::Short(int as i16)))
@@ -1161,10 +1177,10 @@ impl VM {
         let frame = self.frame_mut();
 
         let Value::Int(value2) = frame.pop() else {
-            bail!("Expected int for value2 of iadd");
+            vm_error!("Expected int for value2 of iadd");
         };
         let Value::Int(value1) = frame.pop() else {
-            bail!("Expected int for value1 of iadd");
+            vm_error!("Expected int for value1 of iadd");
         };
 
         let result = value1.wrapping_add(value2);
@@ -1175,10 +1191,10 @@ impl VM {
     fn iand(&mut self) -> Result<()> {
         let frame = self.frame_mut();
         let Value::Int(value2) = frame.pop() else {
-            bail!("Expected int for value2 in iand.");
+            vm_error!("Expected int for value2 in iand.");
         };
         let Value::Int(value1) = frame.pop() else {
-            bail!("Expected int for value1 in iand.");
+            vm_error!("Expected int for value1 in iand.");
         };
         Ok(frame.push(Value::Int(value2 & value1)))
     }
@@ -1188,17 +1204,19 @@ impl VM {
         let frame = self.frame_mut();
         let value = frame.pop();
         let Value::Int(index) = frame.pop() else {
-            bail!("Expected Value::Int for index on operand stack while executing iastore.");
+            vm_error!("Expected Value::Int for index on operand stack while executing iastore.");
         };
         match frame.pop() {
             Value::Ref(RefType::Array(mut array)) => {
                 if *array.array_comp() != ArrayComp::Int {
-                    bail!("Expected ArrayType::Int for iastore instruction");
+                    vm_error!("Expected ArrayType::Int for iastore instruction");
                 }
                 Ok(array.insert(index as usize, value))
             }
             Value::Null => todo!("Throw NullPointerException."),
-            value => bail!("Expected a Value::Ref(RefType::Array)) for iastore, got: {value:?}."),
+            value => {
+                vm_error!("Expected a Value::Ref(RefType::Array)) for iastore, got: {value:?}.")
+            }
         }
     }
 
@@ -1210,10 +1228,10 @@ impl VM {
     fn idiv(&mut self) -> Result<()> {
         let frame = self.frame_mut();
         let Value::Int(value2) = frame.pop() else {
-            bail!("Expected int for value2 of idiv");
+            vm_error!("Expected int for value2 of idiv");
         };
         let Value::Int(value1) = frame.pop() else {
-            bail!("Expected int for value1 of idiv");
+            vm_error!("Expected int for value1 of idiv");
         };
         //TODO clean this up to the wrapping_add method.
         let result = Wrapping::<i32>(value1) / Wrapping::<i32>(value2);
@@ -1308,9 +1326,12 @@ impl VM {
                 let instance_class = self.method_area.get_class(class_id)?;
 
                 let Constant::Class(name_index) = self.frame_mut().cp.get(index).unwrap() else {
-                    bail!("Expected Constant::Class for provided index in check_cast.");
+                    vm_error!("Expected Constant::Class for provided index in check_cast.");
                 };
-                let class_name = self.frame_mut().cp.get_utf8(*name_index)?;
+                let class_name = self.frame_mut().cp.get_utf8(*name_index).map_err(|_| {
+                    log::error!("Failed to retrieve class namein instance_of.");
+                    Error::ClassValidation
+                })?;
                 let test_class = self.load_class(class_name)?.class;
 
                 match self.is_instance_of(instance_class, test_class) {
@@ -1329,26 +1350,26 @@ impl VM {
         let Value::Ref(RefType::Object(instance_obj)) = frame
             .stack
             .get(len - n_args as usize)
-            .ok_or(anyhow!("Could not get the obj_ref in invoke_interface."))?
+            .ok_or(Error::VMError(
+                "Could not get the instance_obj in invoke_interface.".into(),
+            ))?
         else {
-            bail!("Failed to match Value::Ref(ObjRef) in invoke_interface.");
+            vm_error!("Failed to match Value::Ref(ObjRef) in invoke_interface.");
         };
 
         let class_id = instance_obj.get_class_id();
         let instance_class = self.assume_load_id(class_id);
 
-        let method_ref = self
-            .frame()
-            .cp
-            .get(method_index)
-            .ok_or(anyhow!("There was no entry in cp in invoke_interface."))?;
+        let method_ref = self.frame().cp.get(method_index).ok_or(Error::VMError(
+            "There was no entry in cp in invoke_interface.".into(),
+        ))?;
 
         let Constant::InterfaceMethodRef {
             class_index,
             name_and_type_index,
         } = method_ref
         else {
-            bail!("Expected InterfaceMethodRef in invoke_interface but found: {method_ref:?}");
+            vm_error!("Expected InterfaceMethodRef in invoke_interface but found: {method_ref:?}");
         };
 
         let (name_index, desc_index, static_data) =
@@ -1379,19 +1400,25 @@ impl VM {
                     let Constant::Class(class_name_index) =
                         self.frame().cp.get(super_class_index).unwrap()
                     else {
-                        bail!("Expected class while executing invokespecial.");
+                        vm_error!("Expected class while executing invokespecial.");
                     };
 
-                    let class_name = self.frame().cp.get_utf8(*class_name_index)?;
+                    let class_name = self.frame().cp.get_utf8(*class_name_index).map_err(|_| {
+                        log::error!("Failed to retrieve class name in invoke_special.");
+                        Error::ClassValidation
+                    })?;
                     self.load_class(class_name)?.class
                 } else {
                     // if not is_super use class named in the symbolic reference
                     let Constant::Class(class_name_index) =
                         self.frame().cp.get(*class_index).unwrap()
                     else {
-                        bail!("Expected class while executing invokespecial.")
+                        vm_error!("Expected class while executing invokespecial.")
                     };
-                    let class_name = self.frame().cp.get_utf8(*class_name_index)?;
+                    let class_name = self.frame().cp.get_utf8(*class_name_index).map_err(|_| {
+                        log::error!("Failed to retrieve class name in invoke_special.");
+                        Error::ClassValidation
+                    })?;
                     self.load_class(class_name)?.class
                 };
 
@@ -1400,7 +1427,7 @@ impl VM {
                     descriptor_index,
                 } = self.frame().cp.get(*name_and_type_index).unwrap()
                 else {
-                    bail!("Expected NameAndType while executing invokespecial.");
+                    vm_error!("Expected NameAndType while executing invokespecial.");
                 };
                 let (class, method) =
                     self.resolve_method_from_superclass(class, *name_index, *descriptor_index)?;
@@ -1412,7 +1439,7 @@ impl VM {
             } => {
                 todo!()
             }
-            _ => bail!(
+            _ => vm_error!(
                 "Expected symbolic reference to a method or interface method in invoke_special"
             ),
         }
@@ -1427,7 +1454,7 @@ impl VM {
             name_and_type_index,
         } = frame.cp.get(method_index).unwrap()
         else {
-            bail!("Expected Constant::MethodRef in invoke_static.");
+            vm_error!("Expected Constant::MethodRef in invoke_static.");
         };
 
         let (name_index, desc_index, alloc) = self.unpack(*class_index, *name_and_type_index)?;
@@ -1446,12 +1473,18 @@ impl VM {
             name_and_type_index,
         } = frame.cp.get(method_index).unwrap()
         else {
-            bail!("Expected Constant::MethodRef in invoke_virtual.");
+            vm_error!("Expected Constant::MethodRef in invoke_virtual.");
         };
 
         let (name_index, desc_index, alloc) = self.unpack(*class_index, *name_and_type_index)?;
-        let method_desc = self.frame().cp.get_utf8(desc_index)?;
-        let method_desc: MethodDescriptor = method_desc.parse()?;
+        let method_desc = self.frame().cp.get_utf8(desc_index).map_err(|_| {
+            log::error!("Failed to retrieve method descriptor in invoke_virtual.");
+            Error::ClassValidation
+        })?;
+        let method_desc: MethodDescriptor = method_desc.parse().map_err(|_| {
+            log::error!("Failed to parse method descriptor in invoke_virtual.");
+            Error::ClassValidation
+        })?;
 
         let num_params = method_desc.num_params();
         let stack_len = self.frame().stack.len();
@@ -1480,11 +1513,11 @@ impl VM {
         let frame = self.frame_mut();
 
         let Value::Int(value2) = frame.pop() else {
-            bail!("Expected int for value2 in mul.");
+            vm_error!("Expected int for value2 in mul.");
         };
 
         let Value::Int(value1) = frame.pop() else {
-            bail!("Expected int for value1 in mul.");
+            vm_error!("Expected int for value1 in mul.");
         };
 
         let (result, _) = value2.overflowing_mul(value1);
@@ -1497,7 +1530,7 @@ impl VM {
         let frame = self.frame_mut();
 
         let Value::Int(int) = frame.pop() else {
-            bail!("Expected int in ineg.");
+            vm_error!("Expected int in ineg.");
         };
         let (result, _) = int.overflowing_mul(-1);
         frame.push(Value::Int(result));
@@ -1521,7 +1554,7 @@ impl VM {
         //TODO clean this up to use a let else clause.
         let int = frame.pop();
         if !matches!(int, Value::Int(_)) {
-            bail!("Expected a int for istore instruction.");
+            vm_error!("Expected a int for istore instruction.");
         }
         Ok(*frame.locals.get_mut(local_index).unwrap() = int)
     }
@@ -1530,11 +1563,11 @@ impl VM {
     fn isub(&mut self) -> Result<()> {
         let frame = self.frame_mut();
         let Value::Int(value2) = frame.pop() else {
-            bail!("Expected int for value2 in isub.");
+            vm_error!("Expected int for value2 in isub.");
         };
 
         let Value::Int(value1) = frame.pop() else {
-            bail!("Expected int for value1 in isub.");
+            vm_error!("Expected int for value1 in isub.");
         };
 
         let result = Wrapping::<i32>(value1) - Wrapping::<i32>(value2);
@@ -1545,10 +1578,10 @@ impl VM {
     fn ishl(&mut self) -> Result<()> {
         let frame = self.frame_mut();
         let Value::Int(value2) = frame.pop() else {
-            bail!("Expected int for value2 in ishr");
+            vm_error!("Expected int for value2 in ishr");
         };
         let Value::Int(value1) = frame.pop() else {
-            bail!("Expected int for value1 in ishr");
+            vm_error!("Expected int for value1 in ishr");
         };
 
         Ok(frame.push(Value::Int(value1 << (value2 & 0x1f))))
@@ -1558,10 +1591,10 @@ impl VM {
     fn ishr(&mut self) -> Result<()> {
         let frame = self.frame_mut();
         let Value::Int(value2) = frame.pop() else {
-            bail!("Expected int for value2 in ishr");
+            vm_error!("Expected int for value2 in ishr");
         };
         let Value::Int(value1) = frame.pop() else {
-            bail!("Expected int for value1 in ishr");
+            vm_error!("Expected int for value1 in ishr");
         };
 
         Ok(frame.push(Value::Int(value1 >> (value2 & 0x1f))))
@@ -1577,23 +1610,23 @@ impl VM {
         if let Value::Int(int1) = value1 {
             if let Value::Int(int2) = value2 {
                 if int2 == 0 {
-                    bail!("Cannot use 0 in modular arithmetic.");
+                    vm_error!("Cannot use 0 in modular arithmetic.");
                 }
                 self.frame_mut().push(Value::Int(int1 % int2));
                 return Ok(());
             }
         }
-        bail!("expected 2 integers for irem instruction.");
+        vm_error!("expected 2 integers for irem instruction.");
     }
 
     /// Executes the `Instruction::IuShR` instruction.
     fn iushr(&mut self) -> Result<()> {
         let frame = self.frame_mut();
         let Value::Int(value2) = frame.pop() else {
-            bail!("Expected int for value2 in ishur.");
+            vm_error!("Expected int for value2 in ishur.");
         };
         let Value::Int(value1) = frame.pop() else {
-            bail!("Expected int for value1 in ishur.");
+            vm_error!("Expected int for value1 in ishur.");
         };
 
         let shift = value2 & 0x1f;
@@ -1610,10 +1643,10 @@ impl VM {
     fn ixor(&mut self) -> Result<()> {
         let frame = self.frame_mut();
         let Value::Int(value2) = frame.pop() else {
-            bail!("Expected Value::Int for value2 in ixor.");
+            vm_error!("Expected Value::Int for value2 in ixor.");
         };
         let Value::Int(value1) = frame.pop() else {
-            bail!("Expected Value::Int for value1 in ixor.");
+            vm_error!("Expected Value::Int for value1 in ixor.");
         };
 
         Ok(frame.push(Value::Int(value2 ^ value1)))
@@ -1623,7 +1656,7 @@ impl VM {
     fn l2i(&mut self) -> Result<()> {
         let frame = self.frame_mut();
         let Value::Long(long) = frame.pop() else {
-            bail!("Expected Value::Long at top of operand stack for l2i");
+            vm_error!("Expected Value::Long at top of operand stack for l2i");
         };
 
         Ok(frame.push(Value::Int(long as i32)))
@@ -1632,11 +1665,11 @@ impl VM {
     fn ladd(&mut self) -> Result<()> {
         let frame = self.frame_mut();
         let Value::Long(value2) = frame.pop() else {
-            bail!("Expected Value::Long for value2 in ladd.");
+            vm_error!("Expected Value::Long for value2 in ladd.");
         };
 
         let Value::Long(value1) = frame.pop() else {
-            bail!("Expected Value::Long for value1 in ladd.");
+            vm_error!("Expected Value::Long for value1 in ladd.");
         };
 
         Ok(frame.push(Value::Long(value2.wrapping_add(value1))))
@@ -1646,11 +1679,11 @@ impl VM {
     fn lcmp(&mut self) -> Result<()> {
         let frame = self.frame_mut();
         let Value::Long(value2) = frame.pop() else {
-            bail!("Expected long for value2 in lcmp.");
+            vm_error!("Expected long for value2 in lcmp.");
         };
 
         let Value::Long(value1) = frame.pop() else {
-            bail!("Expected long for value1 in lcmp.");
+            vm_error!("Expected long for value1 in lcmp.");
         };
 
         return if value1 > value2 {
@@ -1669,10 +1702,10 @@ impl VM {
     fn land(&mut self) -> Result<()> {
         let frame = self.frame_mut();
         let Value::Long(value2) = frame.pop() else {
-            bail!("Expected Value::Long for value2 in land.");
+            vm_error!("Expected Value::Long for value2 in land.");
         };
         let Value::Long(value1) = frame.pop() else {
-            bail!("Expected Value::Long for value1 in land.");
+            vm_error!("Expected Value::Long for value1 in land.");
         };
 
         Ok(frame.push(Value::Long(value2 & value1)))
@@ -1703,7 +1736,13 @@ impl VM {
                 Value::new_object(self.heap.get_class_obj(&class.get_name()))
             }
             Constant::String(string_index) => {
-                let string = cp.get_utf8(*string_index)?.into();
+                let string = cp
+                    .get_utf8(*string_index)
+                    .map_err(|_| {
+                        log::error!("Failed to retrieve String constant in load_const.");
+                        Error::ClassValidation
+                    })?
+                    .into();
                 let string_obj = match self.heap.get_interned_str(string) {
                     None => self.create_java_string(string, true),
                     Some(string_obj) => string_obj,
@@ -1751,7 +1790,7 @@ impl VM {
     fn lload(&mut self, index: usize) -> Result<()> {
         let frame = self.frame_mut();
         let Value::Long(long) = frame.load(index)? else {
-            bail!("Expected Value::Long for value in lload.");
+            vm_error!("Expected Value::Long for value in lload.");
         };
 
         Ok(frame.push(Value::Long(long)))
@@ -1761,11 +1800,11 @@ impl VM {
     fn lookupswitch(&mut self, default_index: i32, jump_table: &[(i32, i32)]) -> Result<()> {
         let frame = self.frame_mut();
         let Value::Int(key) = frame.pop() else {
-            bail!("Expected Int for key in lookupswitch");
+            vm_error!("Expected Int for key in lookupswitch");
         };
 
         if !jump_table.is_sorted_by(|(m0, _), (m1, _)| m0 < m1) {
-            bail!("lookupswitch table not sorted!");
+            vm_error!("lookupswitch table not sorted!");
         }
 
         let instr = 'instr: {
@@ -1787,10 +1826,10 @@ impl VM {
         let frame = self.frame_mut();
 
         let Value::Int(value2) = frame.pop() else {
-            bail!("Expected Value::Int for value2 in lshl.");
+            vm_error!("Expected Value::Int for value2 in lshl.");
         };
         let Value::Long(value1) = frame.pop() else {
-            bail!("Expected Value::Long for value1 in lshl.");
+            vm_error!("Expected Value::Long for value1 in lshl.");
         };
         let value2 = value2 as i64;
         Ok(frame.push(Value::Long(value1 << (value2 & 0x3f))))
@@ -1801,10 +1840,10 @@ impl VM {
         let frame = self.frame_mut();
 
         let Value::Int(value2) = frame.pop() else {
-            bail!("Expected Value::Int for value2 in lshr.");
+            vm_error!("Expected Value::Int for value2 in lshr.");
         };
         let Value::Long(value1) = frame.pop() else {
-            bail!("Expected Value::Long for value1 in lshr.");
+            vm_error!("Expected Value::Long for value1 in lshr.");
         };
         let value2 = value2 as i64;
         Ok(frame.push(Value::Long(value1 >> (value2 & 0x3f))))
@@ -1814,7 +1853,7 @@ impl VM {
     fn lstore(&mut self, index: usize) -> Result<()> {
         let frame = self.frame_mut();
         let Value::Long(long) = frame.pop() else {
-            bail!("Expected Value::Long at top of operand stack in lstore.");
+            vm_error!("Expected Value::Long at top of operand stack in lstore.");
         };
 
         frame.insert_local(index, Value::Long(long))
@@ -1824,11 +1863,11 @@ impl VM {
     fn lsub(&mut self) -> Result<()> {
         let frame = self.frame_mut();
         let Value::Long(value2) = frame.pop() else {
-            bail!("Expected long for value2 in isub.");
+            vm_error!("Expected long for value2 in isub.");
         };
 
         let Value::Long(value1) = frame.pop() else {
-            bail!("Expected long for value1 in isub.");
+            vm_error!("Expected long for value1 in isub.");
         };
 
         let result = Wrapping::<i64>(value1) - Wrapping::<i64>(value2);
@@ -1854,7 +1893,7 @@ impl VM {
     fn new_array(&mut self, array_comp: ArrayComp) -> Result<()> {
         let frame = self.frame_mut();
         let Value::Int(array_len) = frame.pop() else {
-            bail!("Expected Value::Int when accessing array length for newarray instruction.");
+            vm_error!("Expected Value::Int when accessing array length for newarray instruction.");
         };
         let array_len = array_len as usize;
         let array = self.heap.new_array(array_len, array_comp);
@@ -1867,10 +1906,13 @@ impl VM {
     fn new_obj(&mut self, class_index: usize) -> Result<()> {
         let frame = self.frame();
         let Constant::Class(name_index) = frame.cp.get(class_index).unwrap() else {
-            bail!("Expected a symbolic class reference at index: {class_index}")
+            vm_error!("Expected a symbolic class reference at index: {class_index}")
         };
 
-        let class_name = frame.cp.get_utf8(*name_index)?;
+        let class_name = frame.cp.get_utf8(*name_index).map_err(|_| {
+            log::error!("Failed to retrieve class name in new_obj.");
+            Error::ClassValidation
+        })?;
         let instance_data = self.load_hierarchy(class_name)?;
         let obj = self.heap.new_object(instance_data);
         let value = Value::new_object(obj);
@@ -1881,7 +1923,7 @@ impl VM {
     fn pop(&mut self) -> Result<()> {
         let value = self.frame_mut().pop();
         if matches!(value, (Value::Double(_) | Value::Long(_))) {
-            bail!("pop instruction cannot be executed on longs or doubles.");
+            vm_error!("pop instruction cannot be executed on longs or doubles.");
         };
         Ok(())
     }
@@ -1907,11 +1949,11 @@ impl VM {
             name_and_type_index,
         } = self.frame().cp.get(field_index).unwrap()
         else {
-            bail!("Expected Constant::FieldRef for a put_field instruction.");
+            vm_error!("Expected Constant::FieldRef for a put_field instruction.");
         };
         let value = self.frame_mut().pop();
         let Value::Ref(RefType::Object(mut obj)) = self.frame_mut().pop() else {
-            bail!("Expected a ref of RefType::Object for put_field instruction.")
+            vm_error!("Expected a ref of RefType::Object for put_field instruction.")
         };
 
         let (f_name, _) = self.unpack_f_name(*class_index, *name_and_type_index)?;
@@ -1928,7 +1970,7 @@ impl VM {
             name_and_type_index,
         } = self.frame().cp.get(field_index).unwrap()
         else {
-            bail!("Expected Constant::FieldRef for a put_static instruction.");
+            vm_error!("Expected Constant::FieldRef for a put_static instruction.");
         };
         let (f_name, mut data) = self.unpack_f_name(*class_index, *name_and_type_index)?;
 
@@ -1959,7 +2001,7 @@ impl VM {
     ) -> Result<()> {
         let frame = self.frame_mut();
         let Value::Int(index) = frame.pop() else {
-            bail!("Expected int for index in tableswitch");
+            vm_error!("Expected int for index in tableswitch");
         };
 
         let pc = if index < low || index > high {

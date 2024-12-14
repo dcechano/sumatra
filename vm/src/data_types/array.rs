@@ -1,4 +1,3 @@
-use anyhow::{bail, Result};
 use std::{
     fmt::{Debug, Formatter},
     ptr,
@@ -13,6 +12,8 @@ use sumatra_parser::{
 use crate::{
     alloc::{alloc_type::NonStatic, oop::HeapAlloc},
     data_types::value::Value,
+    result::{Error, Result},
+    vm, vm_error,
 };
 
 #[derive(Copy, Clone, Eq, PartialEq, Ord, PartialOrd)]
@@ -207,13 +208,19 @@ impl ArrayComp {
 }
 
 impl FromStr for ArrayComp {
-    type Err = anyhow::Error;
+    type Err = Error;
 
     fn from_str(array_desc: &str) -> Result<Self> {
         // Field Descriptors and Array descriptors are explicitly the same thing.
         // Thus, reusing code.
         //https://docs.oracle.com/javase/specs/jvms/se21/html/jvms-4.html#jvms-FieldType
-        let field_type = array_desc.parse::<FieldType>()?;
+        let field_type = array_desc.parse::<FieldType>().map_err(|e| {
+            log::error!(
+                "Error encountered while parsing the FieldType \
+                    from an array descriptor: {e:?} "
+            );
+            Error::ClassValidation
+        })?;
         let array_comp = match field_type {
             FieldType::Base(primitive) => ArrayComp::from(primitive),
             FieldType::Object(class) => ArrayComp::Class(class),
@@ -244,7 +251,7 @@ impl From<Primitive> for ArrayComp {
 }
 
 impl TryFrom<ArrayType> for ArrayComp {
-    type Error = anyhow::Error;
+    type Error = Error;
 
     fn try_from(array_type: ArrayType) -> Result<Self> {
         let comp = match array_type {
@@ -256,8 +263,8 @@ impl TryFrom<ArrayType> for ArrayComp {
             ArrayType::Short => ArrayComp::Short,
             ArrayType::Int => ArrayComp::Int,
             ArrayType::Long => ArrayComp::Long,
-            ArrayType::Dummy => bail!("Tried to convert from ArrayType::Dummy to ArrayComp"),
-            ArrayType::Ref => bail!("Tried to convert from ArrayType::Ref to ArrayComp::Array(_) or ArrayComp::Class(_)"),
+            ArrayType::Dummy => vm_error!("Tried to convert from ArrayType::Dummy to ArrayComp"),
+            ArrayType::Ref => vm_error!("Tried to convert from ArrayType::Ref to ArrayComp::Array(_) or ArrayComp::Class(_)"),
         };
         Ok(comp)
     }

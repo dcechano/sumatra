@@ -1,9 +1,8 @@
-use anyhow::Result;
-
 use crate::{
     alloc::{alloc_type::Static, oop::HeapAlloc},
     class::Class,
     data_types::value::Value,
+    result::Result,
 };
 
 #[derive(Debug)]

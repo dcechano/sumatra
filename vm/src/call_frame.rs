@@ -1,11 +1,12 @@
-use anyhow::{bail, Result};
 use std::collections::VecDeque;
 
 use sumatra_parser::{constant_pool::ConstantPool, method::Method};
 
 use crate::{
     class::Class,
-    data_types::{value, value::Value},
+    data_types::value::{self, Value},
+    result::Result,
+    vm_error,
 };
 
 #[derive(Debug)]
@@ -50,7 +51,7 @@ impl CallFrame {
     pub(crate) fn insert_local(&mut self, index: usize, value: Value) -> Result<()> {
         fn insert(frame: &mut CallFrame, index: usize, value: Value) -> Result<()> {
             match frame.locals.get_mut(index) {
-                None => bail!("Invalid index into the locals array."),
+                None => vm_error!("Invalid index into the locals array."),
                 Some(local) => {
                     *local = value;
                 }
@@ -81,7 +82,7 @@ impl CallFrame {
     /// Retrieves a value from the local variable array.
     pub(crate) fn load(&self, index: usize) -> Result<Value> {
         match self.locals.get(index) {
-            None => bail!("Invalid index into the locals array."),
+            None => vm_error!("Invalid index into the locals array."),
             Some(value) => Ok(value.clone()),
         }
     }

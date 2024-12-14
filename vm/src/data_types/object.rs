@@ -1,6 +1,7 @@
 use crate::{
     alloc::{alloc_type::NonStatic, oop::HeapAlloc},
     data_types::{instance_data::InstanceData, value::Value},
+    result::Result,
 };
 use std::fmt::{Debug, Formatter};
 
@@ -34,11 +35,11 @@ impl ObjRef {
         unsafe { std::mem::transmute::<u32, i32>(u_32) }
     }
 
-    pub fn set_field(&mut self, name: &str, value: Value) -> anyhow::Result<()> {
+    pub fn set_field(&mut self, name: &str, value: Value) -> Result<()> {
         unsafe { (*self.0).set_field(name, value) }
     }
 
-    pub fn get_field(&self, name: &str) -> anyhow::Result<&'static Value> {
+    pub fn get_field(&self, name: &str) -> Result<&'static Value> {
         unsafe { (*self.0).get_field(name) }
     }
 

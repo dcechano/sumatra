@@ -1,7 +1,8 @@
-use anyhow::{bail, Result};
 use sumatra_vm::{
     data_types::{object::ObjRef, value::Value},
+    result::Result,
     vm::VM,
+    vm_error,
 };
 
 pub(crate) const DOUBLE_TO_RAW_LONG_BITS_SIG: &str = "doubleToRawLongBits(D)J";
@@ -17,7 +18,7 @@ pub fn JAVA_LANG_DOUBLE_double_to_raw_long_bits(
     // args.len is 2 because doubles and longs take 2 spots
     assert_eq!(args.len(), 2);
     let Value::Double(double) = args[0] else {
-        bail!("Expected double as first arg in JAVA_LANG_DOUBLE_double_to_raw_long_bits");
+        vm_error!("Expected double as first arg in JAVA_LANG_DOUBLE_double_to_raw_long_bits");
     };
 
     Ok(Some(Value::Long(unsafe {
@@ -35,7 +36,7 @@ pub fn JAVA_LANG_DOUBLE_long_bits_to_double(
     // args.len is 2 because doubles and longs take 2 spots
     assert_eq!(args.len(), 2);
     let Value::Long(long) = args[0] else {
-        bail!("Expected long as first arg in JAVA_LANG_DOUBLE_long_bits_to_double");
+        vm_error!("Expected long as first arg in JAVA_LANG_DOUBLE_long_bits_to_double");
     };
 
     Ok(Some(Value::Double(unsafe {

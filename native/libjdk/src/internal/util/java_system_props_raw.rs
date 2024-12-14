@@ -1,5 +1,3 @@
-use anyhow::Result;
-
 use sumatra_vm::{
     data_types::{
         array::ArrayComp,
@@ -9,6 +7,7 @@ use sumatra_vm::{
             Value,
         },
     },
+    result::Result,
     vm::VM,
 };
 
