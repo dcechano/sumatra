@@ -1,9 +1,7 @@
 mod util;
+mod vm_impl;
 
-#[allow(clippy::module_inception)]
-mod vm;
-
-pub use vm::*;
+pub use vm_impl::*;
 
 const MAIN: &str = "main([Ljava/lang/String;)V";
 const CLINIT: &str = "<clinit>()V";
