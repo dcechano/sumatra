@@ -12,10 +12,10 @@ pub fn JAVA_LANG_STRINGUTF16_is_big_endian(
     _: Option<ObjRef>,
     _: Vec<Value>,
 ) -> Result<Option<Value>> {
-    //TODO Do not hard code true!
+    //TODO Do not hard code false!
     println!(
         "WARNING: Native JAVA_LANG_STRING_UTF16_is_big_endian is returning \
         true as a hardcoded value."
     );
-    Ok(Some(Value::Int(1)))
+    Ok(Some(Value::Int(0)))
 }
